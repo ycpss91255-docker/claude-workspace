@@ -36,6 +36,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
+| `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
 
 對應有兩個 hook 自動偵測並提醒：
 - `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法
