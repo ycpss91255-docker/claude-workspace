@@ -67,6 +67,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<your-email>` placeholders; the `.github/` directory in the
   workspace tree is now `org-profile/` (local checkout) so
   claude-workspace can own `.github/workflows/` for its own CI.
+- `CLAUDE.md` 「## 主動優化建議」 adds a "任務結束時主動列 skill 化候選"
+  sub-section: at PR-merge / task wrap-up, surface ad-hoc scripts in
+  `/tmp` or repeated complex bash pipelines as skill candidates so they
+  don't get lost or rewritten next time.
 - `wait-pr-ci` SKILL.md: example loop uses `case` patterns instead of
   `[[ a != b ]]`. The Monitor tool's eval wrapper escapes `!` to `\!`
   ("history-expansion guard"), which broke the `!=` comparison with
