@@ -117,6 +117,7 @@ docker/
     │   ├── audit.md          # /audit — 跨 repo 健康檢查
     │   ├── batch-pr.md       # /batch-pr — 批次跨 repo PR
     │   ├── doc-sync.md       # /doc-sync — 變更完成 checklist 對齊檢查
+    │   ├── issue-check.md    # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
     │   ├── new-repo.md       # /new-repo — 建立新 Docker repo
     │   ├── pr.md             # /pr — Bug fix / 新功能 PR 流程
     │   ├── release.md        # /release — Tag 與 release 流程
