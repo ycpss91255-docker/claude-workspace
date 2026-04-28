@@ -33,7 +33,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | `cat <<EOF > /path` 寫檔 | `Unhandled node type: file_redirect` | **用 Write 工具**直接寫檔。非寫不可時用 `bash -c 'cat <<EOF > X ...'` 包起來 |
 | `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` | `Unhandled node type: string` | **用 `--body-file <path>`**（gh CLI 原生支援，所有 subcommand 都有） |
 | `for x in $X; do ${x%:*}; done` 多 PR/repo for-loop | `Contains simple_expansion` | **抽永久 `.claude/scripts/<name>.sh`**，主程序只呼叫一行 |
-| Monitor 內嵌 20+ 行 bash with `${var%:*}` | `Contains simple_expansion` | 同上，body 抽 script，Monitor 只 spawn 該 script |
+| Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 
@@ -43,6 +43,23 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 
 其他 pattern（複雜 for-loop / Monitor body）沒有簡單 heuristic，靠這個
 section 的規則 + 「## 主動優化建議 → 任務結束時主動列 skill 化候選」收斂。
+
+## 跨 repo 批次 mutation 規範
+
+對 ≥2 個 repo 做有狀態變更（commit、push、`git reset --hard`、
+`git branch -D`、close issue / PR、merge 等），**必須走 documented
+slash command 或 `.claude/scripts/` 下的 permanent script**，**不准
+寫 ad-hoc for-loop 直接執行**。
+
+| 反 pattern | 為什麼不行 | 改用 |
+|---|---|---|
+| `for repo in $REPOS; do cd ...; git reset --hard FETCH_HEAD; done` | for-loop 跑 15 次 → user prompt 跳 15 次 → yes-fatigue 一路按過去 → 等於繞過 ask rule | `/batch-template-upgrade` 或抽 script，**單一 prompt 涵蓋整個批次** |
+| `cat <<EOF > /tmp/x.sh && chmod +x && /tmp/x.sh` 裡面跑 mass git mutation | 雙重問題：heredoc 觸發 parser warning + ad-hoc /tmp script 執行繞過所有 ask 規則（`/tmp/*.sh` 不在任何規則內） | 用 Write 寫 `.claude/scripts/<name>.sh`（permanent），加進 settings allow，再 PR 一次 review 整個 workflow |
+| `for r in $REPOS; gh issue close N -R ...` | 同上 fatigue 問題；close issue 是 visible-to-others 操作 | 寫 batch script，或加進 `/batch-pr` 之類的 command |
+
+read-only 跨 repo 操作（純 `gh pr view --json state` / `grep` 多檔）
+不在這條規則內 — 沒有破壞性風險，可以用 for-loop（但仍受 parser
+warning 影響，視頻率決定要不要 skill 化）。
 
 ## 變更完成 checklist（commit 前必做，無例外）
 
@@ -147,7 +164,9 @@ docker/
     │   └── safe-delete.md             # /safe-delete — 用 trash 取代 rm
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
-    │   └── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
+    │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
+    │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
+    │   └── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解

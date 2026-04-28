@@ -94,6 +94,32 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `[[ a != b ]]`. The Monitor tool's eval wrapper escapes `!` to `\!`
   ("history-expansion guard"), which broke the `!=` comparison with
   `conditional binary operator expected`. `set +H` did not save it.
-  A separate follow-up issue tracks extracting the Monitor body into
-  a permanent script to also avoid the `Contains simple_expansion`
-  warning on parameter expansions.
+- `wait-pr-ci` skill: Monitor body extracted into permanent scripts
+  so the inline loop disappears. Two siblings sharing the same CLI
+  shape (`--repo`, `--check-filter`, `--interval`,
+  `--max-iterations`):
+  - `.claude/scripts/wait-pr-ci.sh` — PR-scoped (`gh pr view --json
+    statusCheckRollup`); `--prs <CSV>`; supports template /
+    container / org-profile check filters. Closes #4.
+  - `.claude/scripts/wait-tag-ci.sh` — tag/branch-scoped (`gh run
+    list --branch <ref>`); `--branch <tag-or-branch>`,
+    `--limit <N>`. Used after `git push origin <tag>` to wait on
+    `on: push: tags:` workflows.
+  SKILL.md reframed to cover both flavours; documents per-repo
+  filter table, anti-patterns, and merge/release pairing.
+- 21 new smoke tests across `wait_pr_ci_spec.bats` (11) and
+  `wait_tag_ci_spec.bats` (10), mocking `gh` via PATH stub.
+  Total bumps from 73 → 94 (90 smoke + 4 integration).
+  `Dockerfile.test` now COPYs `.claude/scripts/` and `make lint`
+  extends shellcheck to `.claude/scripts/*.sh`.
+- `CLAUDE.md` 「## 跨 repo 批次 mutation 規範」 new section: any
+  state change (commit/push/`git reset --hard`/`git branch -D`/issue
+  or PR close/merge) over ≥2 repos must go through a documented
+  slash command or `.claude/scripts/` script — no ad-hoc
+  for-loops. Reason: a 15-iteration loop fires the user-confirm
+  prompt 15 times → yes-fatigue → effectively bypasses the `ask`
+  rules. Read-only loops (e.g. `gh pr view --json state` across
+  repos) remain allowed.
+- `CLAUDE.md` Bash parser-limit cheat sheet: Monitor row now points
+  to both `wait-pr-ci.sh` (PR) and `wait-tag-ci.sh` (tag/branch)
+  as the canonical replacements for inline Monitor poll loops.

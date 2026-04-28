@@ -14,10 +14,12 @@
 # "驗證一律走 Docker"; running these specs on the host directly is not
 # supported.
 
-# Resolve hook directory once. BATS_TEST_DIRNAME is the dir of the .bats
-# spec sourcing this helper.
+# Resolve hook + script directories once. BATS_TEST_DIRNAME is the dir
+# of the .bats spec sourcing this helper.
 HOOKS_DIR="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 export HOOKS_DIR
+SCRIPTS_DIR="$(cd "${BATS_TEST_DIRNAME}/../../../scripts" && pwd)"
+export SCRIPTS_DIR
 
 # shellcheck disable=SC1091
 load '/usr/lib/bats-support/load'
@@ -27,6 +29,12 @@ load '/usr/lib/bats-assert/load'
 # hook <name> — print absolute path to a hook script.
 hook() {
   echo "${HOOKS_DIR}/$1"
+}
+
+# script <name> — print absolute path to a permanent helper script under
+# .claude/scripts/.
+script() {
+  echo "${SCRIPTS_DIR}/$1"
 }
 
 # assert_silent — assert hook exited 0 and produced no stdout (no fire path).

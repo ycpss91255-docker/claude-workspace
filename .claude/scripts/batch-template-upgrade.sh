@@ -24,7 +24,8 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+readonly SCRIPT_DIR
 readonly DEFAULT_PR_BODY_TEMPLATE="${SCRIPT_DIR}/batch-template-pr-body.template.md"
 readonly ORG="ycpss91255-docker"
 
@@ -240,6 +241,7 @@ render_pr_body() {
   local why="$2"
   local issue_line="$3"
 
+  # shellcheck disable=SC2016  # envsubst placeholders must stay literal
   VERSION="${version}" \
   WHY="${why}" \
   ISSUE_LINE="${issue_line}" \

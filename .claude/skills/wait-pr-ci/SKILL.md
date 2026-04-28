@@ -1,94 +1,85 @@
 ---
 name: wait-pr-ci
-description: Wait for one or more GitHub PR's CI checks to settle using the Monitor tool, instead of busy-polling with sleep loops.
+description: Wait for GitHub CI to settle — PR-scoped checks or tag/branch-scoped workflow runs — via the Monitor tool, instead of busy-polling with sleep loops.
 ---
 
 # wait-pr-ci
 
-After opening a PR, wait for its CI checks to settle (success / failure / skipped) before merging. Uses the Monitor tool with an `until` poll loop so the check transitions stream in as notifications and the agent isn't blocked on busy-poll sleeps.
+Wait for GitHub CI to finish before merging or releasing, using `Monitor` so each state transition streams in as a notification and the agent isn't blocked on busy-poll sleeps.
 
-## When to invoke
+Two flavours, one script each:
 
-- Right after `gh pr create` and you intend to merge once green.
-- Multiple PRs in flight from the same change set — pass them as a batch.
-- Re-running after `@dependabot rebase` (CI fires again on rebased head).
+| Flavour | Script | When |
+|---|---|---|
+| **PR-scoped** (statusCheckRollup) | `.claude/scripts/wait-pr-ci.sh` | After `gh pr create` — waiting to merge once green. |
+| **Tag/branch-scoped** (`gh run list --branch <ref>`) | `.claude/scripts/wait-tag-ci.sh` | After `git push origin <tag>` triggered `on: push: tags:` workflows like `release-test-tools` or `release-worker` — waiting to verify the release pipeline. |
 
-Do **not** invoke for tag-triggered workflows (release-test-tools, release-worker) — those are not PR-scoped. For tag workflows, use a similar Monitor pattern but query `gh run list --branch <tag>` instead.
+The two are intentionally siblings — same CLI shape (`--repo`, `--check-filter`, `--interval`, `--max-iterations`), same exit codes (`0` = ALL_DONE, `1` = FAIL, `2` = arg error, `124` = max-iter exhausted), same Monitor-wrap pattern.
 
-## Pattern
+## PR-scoped — `wait-pr-ci.sh`
 
-```bash
-prev=""
-while true; do
-  out=""
-  all_ready=1
-  for pr in <PR-LIST>; do
-    s=$(gh pr view "$pr" --repo <OWNER>/<REPO> --json mergeable,statusCheckRollup 2>/dev/null || echo '{}')
-    state=$(jq -r '[.statusCheckRollup[]? | select(.name=="test" or (.name|startswith("Integration")))] | if length==0 then "no-checks" elif all(.conclusion=="SUCCESS") then "all-pass" elif any(.conclusion=="FAILURE") then "FAIL" else "pending" end' <<<"$s")
-    m=$(jq -r '.mergeable // "?"' <<<"$s")
-    out="${out}PR${pr}: checks=${state} mergeable=${m}"$'\n'
-    case "${state}|${m}" in
-      all-pass'|'MERGEABLE) : ;;
-      *) all_ready=0 ;;
-    esac
-  done
-  cur="${out}"
-  case "${cur}" in
-    "${prev}") : ;;
-    *) printf "%s---\n" "${cur}" ;;
-  esac
-  prev="${cur}"
-  if (( all_ready )); then
-    echo "ALL_DONE"
-    break
-  fi
-  sleep 45
-done
+```
+Monitor(
+  description: "PR #<num> CI",   # or "PR #N1 + #N2 CI" for batches
+  command: ".claude/scripts/wait-pr-ci.sh --repo <OWNER>/<REPO> --prs <CSV>",
+  timeout_ms: 1800000,           # 30 min single PR; 2400000 (40 min) for batches
+  persistent: false,             # script exits naturally on ALL_DONE / FAIL
+)
 ```
 
-> **Why `case` instead of `[[ a != b ]]`**: the Monitor tool's eval wrapper escapes `!` to `\!` ("history-expansion guard"), which breaks `[[ a != b ]]` with `conditional binary operator expected`. `set +H` does not save it. `case` patterns avoid the issue entirely. Note this also doesn't help with the separate `Contains simple_expansion` warning you'll hit on parameter expansions like `${var%:*}` — for that, extract the loop body into a permanent script (tracked as a follow-up issue).
+The script prints one snapshot block (`PR<n>: checks=... mergeable=...` + `---`) per state transition, exits 0 on `ALL_DONE`, exits 1 on `FAIL <pr>`. 45s default poll interval — override with `--interval <sec>`.
 
-Wrap that script in a `Monitor` tool call:
+**Per-repo `--check-filter`** (default matches template's `test` + `Integration ...`):
 
-- `description`: `"PR #<num> CI"` (or `"PR #N1 + #N2 CI"` for batches) — appears in every notification.
-- `timeout_ms`: `1800000` (30 min) for a single PR; `2400000` (40 min) for batches with retries.
-- `persistent`: `false` — the loop exits naturally on `ALL_DONE`.
+| Repo | Required checks | `--check-filter` |
+|---|---|---|
+| `template`, `multi_run` | `test` + `Integration E2E (...)` | (default) |
+| Container repos (`agent/*`, `app/*`, `env/*`) | `call-docker-build / docker-build` | `'.name=="call-docker-build / docker-build"'` |
+| `.github` (org profile) | none — PR review only | `'false'` (forces `no-checks` immediately) |
 
-## Behaviour
+Cross-repo batches (e.g. one PR per downstream repo, like `/batch-template-upgrade` produces): spawn one Monitor per repo in parallel, each with `--repo <X> --prs <Y>`. Don't try to multiplex repos through one Monitor — `wait-pr-ci.sh` is single-repo by design.
 
-- Each transition (`pending` → `all-pass` / `FAIL`) emits exactly one notification.
-- `ALL_DONE` is the final notification — that's the cue to merge.
-- If a check goes to `FAIL`, the loop also exits with a `FAIL` line; investigate before retrying.
-- 45s poll interval keeps GitHub API quota happy and avoids spamming notifications when CI updates fast.
+## Tag/branch-scoped — `wait-tag-ci.sh`
 
-## Required check filter
+```
+Monitor(
+  description: "tag v0.12.2 CI",
+  command: ".claude/scripts/wait-tag-ci.sh --repo <OWNER>/<REPO> --branch <tag-or-branch>",
+  timeout_ms: 1800000,
+  persistent: false,
+)
+```
 
-The `select(.name=="test" or (.name|startswith("Integration")))` filter is **template-specific**. Adjust per repo:
+Same output shape (`<run-name>: <status>/<conclusion>` + `---`), same exit codes. Default `--check-filter` is `'true'` (all runs); narrow with e.g. `'.name=="release"'`. `--limit <N>` caps `gh run list` page size (default 10).
 
-| Repo | Required checks |
-|---|---|
-| `template`, `multi_run` | `test` + `Integration E2E (...)` |
-| Container repos (`agent/*`, `app/*`, `env/*`) | `call-docker-build / docker-build` |
-| `.github` (org profile) | none — just PR review |
+If the tag was just pushed, the first iteration may see no runs yet (`total == 0`); the loop keeps polling until at least one run appears, then waits for all to complete. This naturally handles the "GitHub took 30s to schedule the workflow" gap.
 
-Add or relax the `select` clause to match the protected status checks. See CLAUDE.md → Branch Protection table.
+## Behaviour (both scripts)
+
+- Each state transition prints exactly one snapshot block. Steady states print nothing.
+- `ALL_DONE` is the final notification — that's the cue to merge / release.
+- On any `FAIL`, the script prints `FAIL <name>` and exits 1. Investigate before retrying.
+- `--max-iterations <N>` caps iterations for tests; production callers leave it unset and rely on `Monitor` `timeout_ms`.
 
 ## Anti-patterns
 
-- **`sleep 60` between manual `gh pr checks`** — burns a cache-miss with nothing to show; the agent's context fills with noisy poll output.
+- **`sleep 60` between manual `gh pr checks` / `gh run list`** — burns a cache-miss with nothing to show; the agent's context fills with noisy poll output.
 - **`gh pr merge --auto`** for the first merge — fine for queueing, but you don't get the failure-mode visibility the Monitor stream gives.
-- **Polling individual workflow runs** (`gh run watch`) — too granular; PR-level rollup already aggregates the matrix shards.
-- **`tail -f` style monitors for one-shot completion** — those never exit on their own. Use `until <check>; do sleep 30; done` so the loop ends naturally.
+- **`gh run watch`** — polls a single workflow; PR-level rollup or branch-level run-list already aggregates matrix shards.
+- **Inlining the loop in the Monitor `command`** — Claude Code's bash AST parser warns on parameter expansions like `${pair%:*}` ("Contains simple_expansion") and `<<<"$s"` ("Unhandled node type: string"); historically also choked on `[[ a != b ]]` (Monitor's eval wrapper escapes `!` to `\!`). Calling a permanent script side-steps all three.
 
-## Pairing with merge
+## Pairing with merge / release
 
-Once `ALL_DONE` arrives, the merge call is one shot:
+Once `ALL_DONE` arrives:
 
 ```bash
+# PR
 gh pr merge <PR> --repo <OWNER>/<REPO> --squash --delete-branch
+
+# Tag (release flow continues per .claude/commands/release.md)
 ```
 
-If the merge fails with `not mergeable: branch is not up to date`, the head moved between rollup and merge. For dependabot PRs:
+If PR merge fails with `not mergeable: branch is not up to date`, the head moved between rollup and merge. For dependabot PRs:
 
 ```bash
 gh pr comment <PR> --repo <OWNER>/<REPO> --body "@dependabot rebase"
@@ -99,5 +90,7 @@ For non-bot PRs, rebase locally + force-push, then re-invoke.
 
 ## See also
 
+- `.claude/scripts/wait-pr-ci.sh` / `.claude/scripts/wait-tag-ci.sh` — the polling implementations. `--help` prints usage.
 - CLAUDE.md → "## CI 監控（PR open 後）" — the project-level rule pointing back here.
-- `.claude/commands/pr.md` — the full PR workflow that should call this skill at step 6 ("Wait for CI").
+- `.claude/commands/pr.md` — full PR workflow, calls this skill at step 6 ("Wait for CI").
+- `.claude/commands/release.md` — release / tag workflow that should call the tag flavour after pushing the tag.
