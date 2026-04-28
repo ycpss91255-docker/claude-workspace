@@ -14,8 +14,8 @@ make hadolint    # hadolint on Dockerfile.test
 make check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **84 tests** (80 smoke + 4 integration) plus shellcheck (12 hook
-scripts + 2 helper scripts) plus Hadolint (Dockerfile.test).
+Total: **94 tests** (90 smoke + 4 integration) plus shellcheck (12 hook
+scripts + 3 helper scripts) plus Hadolint (Dockerfile.test).
 
 ## 4-category coverage
 
@@ -153,8 +153,8 @@ JSON tool-input on stdin, asserts the hook either emits a JSON
 
 ### test/smoke/wait_pr_ci_spec.bats (11)
 
-Covers `.claude/scripts/wait-pr-ci.sh` (the polling loop extracted out of
-the wait-pr-ci skill so the Monitor body becomes a single command, no
+Covers `.claude/scripts/wait-pr-ci.sh` (the PR-scoped polling loop extracted
+out of the wait-pr-ci skill so the Monitor body becomes a single command, no
 parser warnings). `gh` is stubbed via PATH so the loop sees canned
 `gh pr view --json` output.
 
@@ -171,6 +171,26 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | max-iterations exits 124 when stuck pending | iteration cap |
 | no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
 | all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
+
+### test/smoke/wait_tag_ci_spec.bats (10)
+
+Covers `.claude/scripts/wait-tag-ci.sh` (the sibling script for
+tag/branch-triggered workflows — `gh run list --branch <ref>` instead of
+`gh pr view`). Same Monitor-wrap shape, same exit codes. `gh` is stubbed
+via PATH.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --repo exits 2 | required arg validation |
+| missing --branch exits 2 | required arg validation |
+| unknown arg exits 2 | unknown flag |
+| all runs completed + success exits 0 with ALL_DONE | happy path |
+| any completed run with conclusion != success exits 1 with FAIL <name> | fail on completed-non-success |
+| any in_progress run keeps polling and hits max-iterations 124 | partial completion stays pending |
+| empty run list (tag just pushed) keeps polling and hits max-iterations 124 | total==0 ≠ green |
+| custom --check-filter narrows to a specific run name | filter ignores out-of-scope in-progress runs |
+| cancelled conclusion counts as failure | non-success conclusion handling |
 
 ## Integration specs
 

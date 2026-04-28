@@ -33,7 +33,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | `cat <<EOF > /path` 寫檔 | `Unhandled node type: file_redirect` | **用 Write 工具**直接寫檔。非寫不可時用 `bash -c 'cat <<EOF > X ...'` 包起來 |
 | `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` | `Unhandled node type: string` | **用 `--body-file <path>`**（gh CLI 原生支援，所有 subcommand 都有） |
 | `for x in $X; do ${x%:*}; done` 多 PR/repo for-loop | `Contains simple_expansion` | **抽永久 `.claude/scripts/<name>.sh`**，主程序只呼叫一行 |
-| Monitor 內嵌 20+ 行 bash with `${var%:*}` | `Contains simple_expansion` | 同上，body 抽 script。PR CI 輪詢已抽好 → 用 `.claude/scripts/wait-pr-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
+| Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 
@@ -165,7 +165,8 @@ docker/
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
     │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
-    │   └── wait-pr-ci.sh                    # wait-pr-ci skill 的 polling loop（避開 Monitor parser warning）
+    │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
+    │   └── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
