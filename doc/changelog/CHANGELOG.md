@@ -94,6 +94,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `[[ a != b ]]`. The Monitor tool's eval wrapper escapes `!` to `\!`
   ("history-expansion guard"), which broke the `!=` comparison with
   `conditional binary operator expected`. `set +H` did not save it.
-  A separate follow-up issue tracks extracting the Monitor body into
-  a permanent script to also avoid the `Contains simple_expansion`
-  warning on parameter expansions.
+- `wait-pr-ci` skill: Monitor body extracted into permanent
+  `.claude/scripts/wait-pr-ci.sh` so the inline loop disappears.
+  Script CLI (`--repo`, `--prs <CSV>`, `--check-filter`, `--interval`,
+  `--max-iterations`) supports template / container / org-profile
+  check filters; SKILL.md is now a thin Monitor wrapper. Closes #4.
+  Also avoids the `Contains simple_expansion` warning that hit
+  parameter expansions like `${pair%:*}` in the inline form.
+- 11 new smoke tests in `test/smoke/wait_pr_ci_spec.bats` (mocking
+  `gh` via PATH stub). Total bumps from 73 → 84 (80 smoke + 4
+  integration). `Dockerfile.test` now also COPYs `.claude/scripts/`
+  and `make lint` extends shellcheck to `.claude/scripts/*.sh`.
+- `CLAUDE.md` 「## 跨 repo 批次 mutation 規範」 new section: any
+  state change (commit/push/`git reset --hard`/`git branch -D`/issue
+  or PR close/merge) over ≥2 repos must go through a documented
+  slash command or `.claude/scripts/` script — no ad-hoc
+  for-loops. Reason: a 15-iteration loop fires the user-confirm
+  prompt 15 times → yes-fatigue → effectively bypasses the `ask`
+  rules. Read-only loops (e.g. `gh pr view --json state` across
+  repos) remain allowed.

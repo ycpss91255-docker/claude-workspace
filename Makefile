@@ -20,9 +20,9 @@ build:  ## Build the test docker image
 test: build  ## Run bats specs (smoke + integration) inside docker
 	docker run --rm $(IMAGE)
 
-lint: build  ## Run shellcheck against all hook scripts inside docker
+lint: build  ## Run shellcheck against all hook + helper scripts inside docker
 	docker run --rm --entrypoint sh $(IMAGE) -c \
-	  'shellcheck /work/.claude/hooks/*.sh'
+	  'shellcheck /work/.claude/hooks/*.sh /work/.claude/scripts/*.sh'
 
 hadolint:  ## Lint Dockerfile.test with Hadolint
 	docker run --rm -i \
