@@ -14,7 +14,7 @@ make hadolint    # hadolint on Dockerfile.test
 make check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **94 tests** (90 smoke + 4 integration) plus shellcheck (12 hook
+Total: **112 tests** (108 smoke + 4 integration) plus shellcheck (13 hook
 scripts + 3 helper scripts) plus Hadolint (Dockerfile.test).
 
 ## 4-category coverage
@@ -30,9 +30,39 @@ Per CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」:
 
 ## Smoke specs
 
-Every `.bats` file targets a single hook. Each test pipes a sample
-JSON tool-input on stdin, asserts the hook either emits a JSON
-`systemMessage` (FIRE path) or exits silently (SILENT path).
+Every `.bats` file targets a single hook (or a script under
+`.claude/scripts/`). Each test pipes a sample JSON tool-input on
+stdin and asserts one of three behaviours:
+
+- **FIRE** — emits JSON with `.systemMessage` (reminder hooks like
+  `remind_*.sh` / `check_*.sh`). Use `assert_message_contains`.
+- **ALLOW** — emits JSON with `.hookSpecificOutput.permissionDecision`
+  (programmatic auto-allow hooks like
+  `auto_allow_rm_in_workspace.sh`). Use `assert_permission_decision`.
+- **SILENT** — exits 0 with no stdout (no action taken). Use
+  `assert_silent`.
+
+### test/smoke/auto_allow_rm_in_workspace_spec.bats (18)
+| Test | Scenario |
+|------|----------|
+| allows rm <relative file> (workspace cwd assumed) | relative path → ALLOW |
+| allows rm subdir/file.txt | nested relative → ALLOW |
+| allows rm /tmp/foo.sh | absolute under /tmp → ALLOW |
+| allows rm -rf /tmp/dir | flag + /tmp path → ALLOW |
+| allows rm /home/yunchien/workspace/docker/foo.txt (under workspace) | absolute under workspace → ALLOW |
+| allows rm -- --weird-name (after -- separator) | `--` separator handling |
+| silent on rm /etc/passwd (outside workspace) | absolute outside → SILENT (falls through to ask) |
+| silent on rm /usr/bin/foo (outside workspace) | absolute outside → SILENT |
+| silent on rm /home/yunchien/.bashrc (home outside workspace) | home dotfile → SILENT |
+| silent on rm ~/.ssh/id_rsa (~ rejected) | tilde-expansion guard |
+| silent on rm $HOME/.bashrc ($ rejected) | shell-var guard |
+| silent on rm \`pwd\`/file (backtick rejected) | command-substitution guard |
+| silent on rm ../../etc/passwd (.. traversal rejected) | path-traversal guard |
+| silent on rm /tmp/foo && rm /etc/passwd (chain rejected) | command-chain guard |
+| silent on rm /tmp/foo \| xargs (pipe rejected) | pipe guard |
+| silent on non-rm command (ls -la) | matcher narrowed to rm |
+| silent on rmdir (different command) | exact `rm` match, not prefix |
+| silent on empty CLAUDE_PROJECT_DIR (defensive) | refuses to act without anchor |
 
 ### test/smoke/check_changelog_drift_spec.bats (6)
 | Test | Scenario |

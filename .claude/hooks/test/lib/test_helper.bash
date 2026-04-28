@@ -46,6 +46,24 @@ assert_silent() {
   fi
 }
 
+# assert_permission_decision <expected> — assert hook exited 0 and stdout
+# is JSON whose .hookSpecificOutput.permissionDecision matches <expected>.
+# Used for PreToolUse hooks that programmatically allow / deny / ask.
+assert_permission_decision() {
+  local expected="$1"
+  assert_success
+  if [[ -z "${output}" ]]; then
+    echo "expected permissionDecision='${expected}', got empty output" >&2
+    return 1
+  fi
+  local got
+  got="$(echo "${output}" | jq -r '.hookSpecificOutput.permissionDecision // empty' 2>/dev/null || true)"
+  if [[ "${got}" != "${expected}" ]]; then
+    echo "expected permissionDecision='${expected}', got: '${got}'" >&2
+    return 1
+  fi
+}
+
 # assert_message_contains <needle> — assert hook exited 0 and stdout is JSON
 # with .systemMessage containing the needle substring.
 assert_message_contains() {

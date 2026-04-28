@@ -123,3 +123,21 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `CLAUDE.md` Bash parser-limit cheat sheet: Monitor row now points
   to both `wait-pr-ci.sh` (PR) and `wait-tag-ci.sh` (tag/branch)
   as the canonical replacements for inline Monitor poll loops.
+- `auto_allow_rm_in_workspace.sh` (PreToolUse Bash) — first hook
+  using `hookSpecificOutput.permissionDecision` instead of a
+  `systemMessage` reminder. Auto-allows `rm` invocations whose
+  path arguments are all confined to `${CLAUDE_PROJECT_DIR}` or
+  `/tmp`; anything outside falls through silently so the existing
+  `Bash(rm:*)` ask rule still catches `rm /etc/passwd` etc.
+  Static-resolution guards: rejects `$` / backtick / `~` / `..`
+  expansions, command chains (`&&` / `||` / `;` / `|`), and
+  outside-zone absolute paths. Eliminates yes-fatigue on routine
+  workspace cleanups while keeping the catch-all safety net.
+- 18 smoke tests in `test/smoke/auto_allow_rm_in_workspace_spec.bats`
+  covering ALLOW / SILENT decisions across relative paths, /tmp,
+  workspace absolutes, flags, `--` separator, expansion guards,
+  traversal, chains, pipes, and defensive fallbacks.
+  `test_helper.bash` gains `assert_permission_decision <expected>`
+  for asserting `hookSpecificOutput.permissionDecision`. TEST.md
+  Smoke-spec preamble reframed for three behaviours
+  (FIRE / ALLOW / SILENT). Total: 94 → 112.
