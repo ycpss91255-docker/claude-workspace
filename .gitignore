@@ -16,7 +16,7 @@ app/*/
 env/*/
 template/
 multi_run/
-.github/
+org-profile/   # local checkout of ycpss91255-docker/.github (org profile)
 
 # Allow agent/, app/, env/ category dirs themselves to be tracked as empty
 # placeholders if needed later; for now they have no tracked contents.

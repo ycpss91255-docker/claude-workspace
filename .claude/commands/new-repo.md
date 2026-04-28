@@ -67,7 +67,7 @@ Workflow:
 
 9. **Enable branch protection**
 
-10. **Update org profile README** at `${CLAUDE_PROJECT_DIR}/.github/profile/README.md`
+10. **Update org profile README** at `${CLAUDE_PROJECT_DIR}/org-profile/profile/README.md`
 
 NOTE: All code changes must go through PR workflow (/pr).
 

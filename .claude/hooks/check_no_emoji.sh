@@ -26,6 +26,8 @@ main() {
 
   case "${file_path}" in
     */.git/*|*/node_modules/*|*/coverage/*|*/.cache/*) return 0 ;;
+    # Hook-test fixtures may legitimately contain emoji bytes for detection tests.
+    */.claude/hooks/test/*) return 0 ;;
   esac
 
   if file --mime "${file_path}" 2>/dev/null | grep -qE 'charset=binary'; then

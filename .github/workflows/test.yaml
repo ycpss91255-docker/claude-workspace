@@ -1,0 +1,31 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: bats + shellcheck + hadolint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build test image
+        run: make build
+
+      - name: Lint hooks (shellcheck)
+        run: make lint
+
+      - name: Lint Dockerfile.test (hadolint)
+        run: make hadolint
+
+      - name: Run bats specs
+        run: make test

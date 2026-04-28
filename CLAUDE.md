@@ -108,7 +108,10 @@ docker/
 │   └── sick_noetic/
 ├── template/                 # 共用模板 repo
 ├── multi_run/                # 多容器啟動工具（獨立 repo）
-├── .github/                  # 組織首頁 README
+├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
+├── .github/workflows/        # claude-workspace 自身 CI（test.yaml）
+├── Dockerfile.test           # claude-workspace 的 bats + shellcheck test image
+├── Makefile                  # make build / test / lint / hadolint / check
 └── .claude/                  # Claude Code 設定
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md          # /audit — 跨 repo 健康檢查
@@ -121,15 +124,19 @@ docker/
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
+    │   ├── check_no_ai_attribution.sh  # Edit/Write 後掃 Co-Authored-By/Generated with Claude
+    │   ├── check_changelog_drift.sh    # git commit 前比對 staged code vs CHANGELOG.md
     │   ├── check_test_md_drift.sh      # *.bats / TEST.md 後比對測試數
     │   ├── remind_tdd_categories.sh    # 動到 .sh/Dockerfile/compose 等時提醒 4 類測試
     │   ├── remind_pr_wait_ci.sh        # gh pr create 前提醒用 /wait-pr-ci skill
+    │   ├── remind_no_ai_attribution.sh # git commit / gh pr create 前掃 inline 歸屬字串
     │   ├── remind_subtree_init.sh      # git subtree pull template 前提醒跑 init.sh
-    │   └── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker
+    │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker
+    │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
-    │   └── wait-pr-ci/SKILL.md       # PR CI 等待用 Monitor 而非 sleep 輪詢
-    ├── settings.json         # hooks 註冊
-    └── settings.local.json   # 本地 permissions allowlist
+    │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
+    ├── settings.json                   # hooks 註冊
+    └── settings.local.json             # 本地 permissions allowlist (gitignored)
 ```
 
 ## 常用指令
