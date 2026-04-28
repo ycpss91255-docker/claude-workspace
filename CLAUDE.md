@@ -594,6 +594,20 @@ subtree 內 `template/.version`（不是已移除的 root `.template_version` /
 
 > 不要默默執行優化，先提出來討論。
 
+### 任務結束時主動列 skill 化候選
+
+任務收尾（PR merged / 工作結案）時，若這次工作中產生或演化了「下次還會
+再做一次」的工具/腳本/工作流，**主動列出來提案是否要 skill 化**：
+
+- `/tmp/` 下落地的 ad-hoc script（會跨 session 遺失）
+- 重複 3 次以上的複雜 bash pipeline / for-loop（容易 hit Claude Code parser 限制 → user 要 yes）
+- 既有 slash command 沒覆蓋的 workflow gap
+- 既有 skill 在實作中發現的小 bug 或可改進點
+
+提案格式：列「候選名 / 結構（command + script / 純 skill 描述）/ 優先度」，
+讓使用者決定要不要動。**不要在工作中插話打斷流程**；也**不要每個任務都列**
+— 只在真的有 ≥1 個高價值候選時才列。
+
 ### 工作量大時使用平行 Agent
 
 當需要對多個 repo 或多個語言做相同操作時，**使用多個 Agent 平行處理**而非逐一執行：
