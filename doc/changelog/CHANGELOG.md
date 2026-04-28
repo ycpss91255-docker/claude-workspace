@@ -75,8 +75,11 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `remind_use_body_file.sh` — fires on `gh ... --body|--comment
     "$(cat path)"` (which triggers `Unhandled node type: string`);
     reminds to use `--body-file <path>` (gh CLI native).
-- 13 new smoke tests covering the two hooks (7 + 6), bumping the
-  total from 57 to 70 (66 smoke + 4 integration).
+- 16 new smoke tests covering the two hooks (10 + 6), bumping the
+  total from 57 to 73 (69 smoke + 4 integration). The heredoc hook
+  anchors `cat` to a command-start position (`^` or after `;|&|`)
+  so descriptions of the pattern in quoted strings (e.g. a git
+  commit message documenting the rule) do not trigger.
 - `CLAUDE.md` 「## Bash 命令寫法的 parser 限制」 section: catalogs
   six command patterns that fall back to a user prompt regardless of
   allowlist / `autoAllowBashIfSandboxed` (heredoc-to-file, `$(cat

@@ -24,10 +24,12 @@ main() {
 
   [[ -z "${cmd}" ]] && return 0
 
-  # Match `cat <<[-]['"]TERM['"] >[>] <path>` — heredoc terminator followed
-  # by a redirect to file. Quote chars handled via [[:graph:]] class
-  # because the JSON cmd may contain escaped quotes.
-  if ! printf '%s' "${cmd}" | grep -qE '<<-?[[:space:]]*[[:graph:]]+[[:space:]]+>>?[[:space:]]+[^|&;]+'; then
+  # Match `cat <<[-]['"]TERM['"] >[>] <path>` — heredoc terminator
+  # followed by a redirect to file. Anchor `cat` to a command-start
+  # position (^ or after ;|&) so descriptions of the pattern inside
+  # quoted strings (e.g. a git commit message documenting the rule)
+  # do not trigger.
+  if ! printf '%s' "${cmd}" | grep -qE '(^|[;&|])[[:space:]]*cat[[:space:]]+<<-?[[:space:]]*[[:graph:]]+[[:space:]]+>>?[[:space:]]+[^|&;]+'; then
     return 0
   fi
 

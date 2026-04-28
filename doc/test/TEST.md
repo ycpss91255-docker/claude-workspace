@@ -14,7 +14,7 @@ make hadolint    # hadolint on Dockerfile.test
 make check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **70 tests** (66 smoke + 4 integration) plus shellcheck (12 hook
+Total: **73 tests** (69 smoke + 4 integration) plus shellcheck (12 hook
 scripts) plus Hadolint (Dockerfile.test).
 
 ## 4-category coverage
@@ -127,7 +127,7 @@ JSON tool-input on stdin, asserts the hook either emits a JSON
 | silent on .bats edit | test file → SILENT |
 | silent on .claude/ internals | hook self-edits → SILENT |
 
-### test/smoke/remind_no_heredoc_redirect_spec.bats (7)
+### test/smoke/remind_no_heredoc_redirect_spec.bats (10)
 | Test | Scenario |
 |------|----------|
 | fires on cat <<'EOF' > /path | quoted heredoc to file → FIRE |
@@ -137,6 +137,9 @@ JSON tool-input on stdin, asserts the hook either emits a JSON
 | silent on plain echo > file (no heredoc) | simple redirect → SILENT |
 | silent on cat /file > /other (no heredoc) | file-to-file copy → SILENT |
 | silent on heredoc piped to command (no file redirect) | `cat <<EOF \| sh` → SILENT |
+| silent on git commit message describing the pattern (false-positive guard) | `git commit -m "...cat <<EOF > path..."` → SILENT |
+| silent on bash -c "cat <<EOF > path" (allowed wrapper) | `bash -c` wraps the heredoc → SILENT |
+| fires on chained command: git status && cat <<EOF > /path | command-position heredoc after `&&` → FIRE |
 
 ### test/smoke/remind_use_body_file_spec.bats (6)
 | Test | Scenario |

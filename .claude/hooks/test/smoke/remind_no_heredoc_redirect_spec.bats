@@ -36,3 +36,18 @@ load '../lib/test_helper'
   run "$(hook remind_no_heredoc_redirect.sh)" <<< '{"tool_input":{"command":"cat <<EOF | sh\necho hi\nEOF"}}'
   assert_silent
 }
+
+@test "silent on git commit message describing the pattern (false-positive guard)" {
+  run "$(hook remind_no_heredoc_redirect.sh)" <<< '{"tool_input":{"command":"git commit -m \"docs: explain cat <<EOF > path is bad\""}}'
+  assert_silent
+}
+
+@test "silent on bash -c \"cat <<EOF > path\" (allowed wrapper)" {
+  run "$(hook remind_no_heredoc_redirect.sh)" <<< '{"tool_input":{"command":"bash -c \"cat <<EOF > /tmp/x\necho hi\nEOF\""}}'
+  assert_silent
+}
+
+@test "fires on chained command: git status && cat <<EOF > /path" {
+  run "$(hook remind_no_heredoc_redirect.sh)" <<< '{"tool_input":{"command":"git status && cat <<EOF > /tmp/x\necho hi\nEOF"}}'
+  assert_message_contains "Heredoc-to-file redirect"
+}
