@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# check_test_md_drift.sh — Claude Code PostToolUse hook
+#
+# Fires on Edit / Write / MultiEdit. When the touched file is a *.bats
+# spec or doc/test/TEST.md, verify that each `### test/<path>.bats (N)`
+# heading in TEST.md matches the actual `@test` count in that file.
+# On any mismatch, emit a JSON systemMessage so Claude sees the warning.
+# Non-blocking — always exit 0.
+#
+# TEST.md heading format (single source of truth):
+#   ### test/unit/setup_spec.bats (166)
+#   ### test/integration/upgrade_spec.bats (6)
+# Per-section count is authoritative; some sections summarise by category
+# rather than per-test, so a row-count grep does not work. Per-file count
+# does.
+#
+# Repo discovery: walk up from the touched file until we find a directory
+# containing both `test/` and `doc/test/TEST.md`.
+
+set -uo pipefail
+
+main() {
+  local input file_path dir repo_root test_md mismatches
+  input="$(cat)"
+  file_path="$(printf '%s' "${input}" | jq -r '
+    .tool_input.file_path
+    // .tool_response.filePath
+    // empty
+  ' 2>/dev/null)"
+
+  [[ -z "${file_path}" ]] && return 0
+
+  case "${file_path}" in
+    *.bats|*/doc/test/TEST.md) ;;
+    *) return 0 ;;
+  esac
+
+  dir="$(dirname "${file_path}")"
+  repo_root=""
+  while [[ "${dir}" != "/" && "${dir}" != "." ]]; do
+    if [[ -d "${dir}/test" && -f "${dir}/doc/test/TEST.md" ]]; then
+      repo_root="${dir}"
+      break
+    fi
+    dir="$(dirname "${dir}")"
+  done
+
+  [[ -z "${repo_root}" ]] && return 0
+
+  test_md="${repo_root}/doc/test/TEST.md"
+
+  # Pure bash — avoid gawk-only `match($0, /re/, arr)` 3-arg form which
+  # silently mis-runs under mawk / POSIX awk.
+  mismatches=""
+  while IFS= read -r line; do
+    [[ "${line}" =~ ^\#\#\#[[:space:]](test/[^[:space:]]+\.bats)[[:space:]]\(([0-9]+)\) ]] || continue
+    local rel="${BASH_REMATCH[1]}"
+    local expected="${BASH_REMATCH[2]}"
+    local path="${repo_root}/${rel}"
+    if [[ ! -f "${path}" ]]; then
+      mismatches+="  ${rel}: listed in TEST.md but file missing"$'\n'
+      continue
+    fi
+    local actual
+    actual="$(grep -c '^@test' "${path}" 2>/dev/null || printf '0')"
+    if (( actual != expected )); then
+      mismatches+="  ${rel}: TEST.md says ${expected}, actual ${actual}"$'\n'
+    fi
+  done < "${test_md}"
+  mismatches="${mismatches%$'\n'}"
+
+  if [[ -n "${mismatches}" ]]; then
+    local msg
+    msg="$(printf 'TEST.md drift in %s:\n%s' "${repo_root}" "${mismatches}")"
+    jq -n --arg m "${msg}" '{
+      systemMessage: $m,
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        additionalContext: $m
+      }
+    }'
+  fi
+
+  return 0
+}
+
+main "$@"

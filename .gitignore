@@ -1,0 +1,46 @@
+# claude-workspace — repo-level .gitignore
+#
+# This workspace contains many independent sub-repos checked out side by side.
+# We only track workspace-level config here:
+#   - CLAUDE.md                   (workspace-level rules)
+#   - .claude/settings.json       (committed hook config)
+#   - .claude/hooks/              (hook scripts)
+#   - .claude/commands/           (slash commands)
+#   - .claude/skills/             (custom skills)
+#
+# Everything else is ignored.
+
+# ── Sub-repos (have their own .git, managed independently) ───────────────────
+agent/*/
+app/*/
+env/*/
+template/
+multi_run/
+.github/
+
+# Allow agent/, app/, env/ category dirs themselves to be tracked as empty
+# placeholders if needed later; for now they have no tracked contents.
+!.gitkeep
+
+# ── Personal Claude state (machine-local, often contains transcripts) ────────
+.claude/settings.local.json
+.claude/projects/
+.claude/todos/
+.claude/shell-snapshots/
+.claude/statsig/
+.claude/ide/
+
+# ── Editor / OS noise ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# ── Generated artifacts (workspace level — none expected, but defense) ───────
+*.log
+node_modules/
+__pycache__/
+*.pyc
