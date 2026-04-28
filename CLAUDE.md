@@ -150,8 +150,6 @@ docker/
 ├── multi_run/                # 多容器啟動工具（獨立 repo）
 ├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
 ├── .github/workflows/        # claude-workspace 自身 CI（test.yaml）
-├── Dockerfile.test           # claude-workspace 的 bats + shellcheck test image
-├── Makefile                  # make build / test / lint / hadolint / check
 └── .claude/                  # Claude Code 設定
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md                   # /audit — 跨 repo 健康檢查
@@ -185,6 +183,9 @@ docker/
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
+    ├── test/                           # claude-workspace 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
+    │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
+    │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
     ├── settings.json                   # hooks 註冊
     └── settings.local.json             # 本地 permissions allowlist (gitignored)
 ```

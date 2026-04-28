@@ -13,6 +13,9 @@ jobs:
     name: bats + shellcheck + hadolint
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: .claude/test
 
     steps:
       - name: Checkout
@@ -24,7 +27,7 @@ jobs:
       - name: Lint hooks (shellcheck)
         run: make lint
 
-      - name: Lint Dockerfile.test (hadolint)
+      - name: Lint test Dockerfile (hadolint)
         run: make hadolint
 
       - name: Run bats specs

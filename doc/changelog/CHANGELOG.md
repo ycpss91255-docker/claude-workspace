@@ -6,6 +6,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Hook test infrastructure relocated to `.claude/test/` so the workspace
+  root is no longer polluted with Claude-only files. `Dockerfile.test`
+  → `.claude/test/Dockerfile`; root `Makefile` → `.claude/test/Makefile`.
+  Build context is repo root (so `COPY .claude/hooks/` paths still
+  resolve); invocation becomes `make -C .claude/test <target>`. CI
+  workflow `.github/workflows/test.yaml` gains a job-level
+  `working-directory: .claude/test`. Reason: `Dockerfile.test` is purely
+  meta-repo test infra (only COPYs `.claude/hooks/` + `.claude/scripts/`,
+  zero overlap with downstream repo Dockerfiles), so it belongs inside
+  `.claude/`. `.hadolint.yaml` comment + README + CLAUDE.md tree +
+  TEST.md commands all updated to match.
+
 ### Added
 - Three new hooks:
   - `check_changelog_drift.sh` (PreToolUse Bash) — flags `git commit`
