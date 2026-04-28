@@ -27,12 +27,16 @@ while true; do
     state=$(jq -r '[.statusCheckRollup[]? | select(.name=="test" or (.name|startswith("Integration")))] | if length==0 then "no-checks" elif all(.conclusion=="SUCCESS") then "all-pass" elif any(.conclusion=="FAILURE") then "FAIL" else "pending" end' <<<"$s")
     m=$(jq -r '.mergeable // "?"' <<<"$s")
     out="${out}PR${pr}: checks=${state} mergeable=${m}"$'\n'
-    [[ "${state}" != "all-pass" || "${m}" != "MERGEABLE" ]] && all_ready=0
+    case "${state}|${m}" in
+      all-pass'|'MERGEABLE) : ;;
+      *) all_ready=0 ;;
+    esac
   done
   cur="${out}"
-  if [[ "${cur}" != "${prev}" ]]; then
-    printf "%s---\n" "${cur}"
-  fi
+  case "${cur}" in
+    "${prev}") : ;;
+    *) printf "%s---\n" "${cur}" ;;
+  esac
   prev="${cur}"
   if (( all_ready )); then
     echo "ALL_DONE"
@@ -41,6 +45,8 @@ while true; do
   sleep 45
 done
 ```
+
+> **Why `case` instead of `[[ a != b ]]`**: the Monitor tool's eval wrapper escapes `!` to `\!` ("history-expansion guard"), which breaks `[[ a != b ]]` with `conditional binary operator expected`. `set +H` does not save it. `case` patterns avoid the issue entirely. Note this also doesn't help with the separate `Contains simple_expansion` warning you'll hit on parameter expansions like `${var%:*}` — for that, extract the loop body into a permanent script (tracked as a follow-up issue).
 
 Wrap that script in a `Monitor` tool call:
 

@@ -30,6 +30,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   shellcheck + Hadolint + bats on every PR and push to `main`.
 - `doc/test/TEST.md` test catalog (single source of truth) and this
   CHANGELOG.
+- `/issue-check` slash command (`.claude/commands/issue-check.md`):
+  scans open issues across the `ycpss91255-docker` org and groups them
+  by actionability (進行中 / 可 merge / 卡住 / 停滯 / 待分類 / 孤兒).
+  Read-only; output in Traditional Chinese.
+- `/batch-template-upgrade` slash command + implementation script and
+  PR body template:
+  - `.claude/commands/batch-template-upgrade.md` — workflow doc.
+  - `.claude/scripts/batch-template-upgrade.sh` — parameterized impl
+    (`<version>` + `--why-file` / `--why` / `--issue` / `--dry-run` /
+    `--only` / `--skip` / `--continue-on-error`). Iterates 17
+    hardcoded `DEFAULT_REPOS`, fetches `main` via HTTPS, runs
+    `./template/upgrade.sh + ./template/init.sh`, opens one PR per
+    repo. Designed for the main session (subagent sandbox blocks
+    `git push`).
+  - `.claude/scripts/batch-template-pr-body.template.md` — PR body
+    template rendered via `envsubst` with `${VERSION}` / `${WHY}` /
+    `${ISSUE_LINE}`.
 
 ### Changed
 - `check_test_md_drift.sh` now resolves drift in pure bash; the
@@ -50,3 +67,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<your-email>` placeholders; the `.github/` directory in the
   workspace tree is now `org-profile/` (local checkout) so
   claude-workspace can own `.github/workflows/` for its own CI.
+- `wait-pr-ci` SKILL.md: example loop uses `case` patterns instead of
+  `[[ a != b ]]`. The Monitor tool's eval wrapper escapes `!` to `\!`
+  ("history-expansion guard"), which broke the `!=` comparison with
+  `conditional binary operator expected`. `set +H` did not save it.
+  A separate follow-up issue tracks extracting the Monitor body into
+  a permanent script to also avoid the `Contains simple_expansion`
+  warning on parameter expansions.
