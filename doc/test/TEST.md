@@ -4,18 +4,19 @@ Single source of truth for test counts and locations. Hooks
 (`check_test_md_drift.sh`) compare per-file `@test` counts against the
 numbers in this document on every Edit/Write of `*.bats` or `TEST.md`.
 
-All tests run inside Docker via the `Dockerfile.test` image:
+All tests run inside Docker via the `.claude/test/Dockerfile` image
+(test infra lives under `.claude/test/`):
 
 ```bash
-make build       # build the test image (claude-workspace-test:local)
-make test        # run all bats specs
-make lint        # shellcheck on all hook scripts
-make hadolint    # hadolint on Dockerfile.test
-make check       # lint + hadolint + test (full CI gate)
+make -C .claude/test build       # build the test image (claude-workspace-test:local)
+make -C .claude/test test        # run all bats specs
+make -C .claude/test lint        # shellcheck on all hook + helper scripts
+make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
+make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
 Total: **112 tests** (108 smoke + 4 integration) plus shellcheck (13 hook
-scripts + 3 helper scripts) plus Hadolint (Dockerfile.test).
+scripts + 3 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
 
@@ -26,7 +27,7 @@ Per CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」:
 | 1 | Smoke | `test/smoke/*_spec.bats` | Each hook fires on its trigger and stays silent otherwise |
 | 2 | Unit | n/a (hooks are linear single-function scripts) | Smoke covers what unit would |
 | 3 | Integration | `test/integration/chain_spec.bats` | Multi-hook scenarios where the same tool input drives several hooks |
-| 4 | Lint | `make lint` (shellcheck) + `make hadolint` | All `.sh` hooks pass shellcheck; Dockerfile.test passes Hadolint |
+| 4 | Lint | `make -C .claude/test lint` (shellcheck) + `make -C .claude/test hadolint` | All `.sh` hooks + helper scripts pass shellcheck; `.claude/test/Dockerfile` passes Hadolint |
 
 ## Smoke specs
 
@@ -234,6 +235,7 @@ via PATH.
 
 ## Lint
 
-`make lint` runs `shellcheck` against every top-level `.sh` in
-`.claude/hooks/`. `make hadolint` lints `Dockerfile.test`. Both are part
-of `make check` and the CI workflow at `.github/workflows/test.yaml`.
+`make -C .claude/test lint` runs `shellcheck` against every top-level
+`.sh` in `.claude/hooks/` and `.claude/scripts/`. `make -C .claude/test
+hadolint` lints `.claude/test/Dockerfile`. Both are part of `make -C
+.claude/test check` and the CI workflow at `.github/workflows/test.yaml`.

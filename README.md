@@ -32,14 +32,15 @@ permissions go in `.claude/settings.local.json` (gitignored).
 ## Testing
 
 All validation runs inside Docker so behaviour matches CI exactly
-(CLAUDE.md「驗證一律走 Docker」):
+(CLAUDE.md「驗證一律走 Docker」). Test infra lives under `.claude/test/`
+— invoke via `make -C .claude/test <target>`:
 
 ```bash
-make build       # build the test image (claude-workspace-test:local)
-make test        # run all bats specs
-make lint        # shellcheck on all hook scripts
-make hadolint    # hadolint on Dockerfile.test
-make check       # lint + hadolint + test (full CI gate)
+make -C .claude/test build       # build the test image (claude-workspace-test:local)
+make -C .claude/test test        # run all bats specs
+make -C .claude/test lint        # shellcheck on all hook + helper scripts
+make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
+make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
 See [`doc/test/TEST.md`](doc/test/TEST.md) for the test catalog and
@@ -52,14 +53,13 @@ notes.
 docker/                       # workspace root
 ├── CLAUDE.md                 # workspace rules
 ├── README.md                 # this file
-├── Makefile                  # build / test / lint entry point
-├── Dockerfile.test           # bats + shellcheck test image
 ├── .github/workflows/        # claude-workspace CI
 ├── .claude/
 │   ├── settings.json         # hook + tool registration
 │   ├── hooks/                # *.sh hook scripts + test/ specs
 │   ├── commands/             # slash commands
-│   └── skills/               # custom skills
+│   ├── skills/               # custom skills
+│   └── test/                 # Dockerfile + Makefile for hook test image
 ├── doc/
 │   ├── test/TEST.md          # test single source of truth
 │   └── changelog/CHANGELOG.md

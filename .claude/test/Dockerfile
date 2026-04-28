@@ -3,10 +3,12 @@
 # Test image for claude-workspace hooks. Runs bats specs and shellcheck
 # inside Docker so behaviour matches CI exactly (CLAUDE.md "驗證一律走 Docker").
 #
-# Build:  docker build -f Dockerfile.test -t claude-workspace-test:local .
-# Test:   docker run --rm claude-workspace-test:local
-# Lint:   docker run --rm --entrypoint sh claude-workspace-test:local \
-#           -c 'shellcheck /work/.claude/hooks/*.sh'
+# Build context = repo root (so COPY paths reach .claude/...). Use the
+# `make -C .claude/test <target>` wrappers; direct invocation:
+#   docker build -f .claude/test/Dockerfile -t claude-workspace-test:local .
+#   docker run --rm claude-workspace-test:local
+#   docker run --rm --entrypoint sh claude-workspace-test:local \
+#     -c 'shellcheck /work/.claude/hooks/*.sh /work/.claude/scripts/*.sh'
 
 FROM bats/bats:1.11.0
 

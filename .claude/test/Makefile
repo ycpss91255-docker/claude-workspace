@@ -1,11 +1,18 @@
-# claude-workspace — local + CI entry point.
+# claude-workspace test infra — local + CI entry point.
 #
-# All targets run inside the Dockerfile.test image so behaviour matches CI
-# (CLAUDE.md "驗證一律走 Docker"). Direct host bats / shellcheck / hadolint
-# is not supported.
+# All targets run inside the .claude/test/Dockerfile image so behaviour matches
+# CI exactly (CLAUDE.md "驗證一律走 Docker"). Direct host bats / shellcheck /
+# hadolint is not supported.
+#
+# Run from this directory (.claude/test/), or via `make -C .claude/test <target>`
+# from the repo root.
 
 IMAGE := claude-workspace-test:local
 HADOLINT_IMAGE := hadolint/hadolint:latest-alpine
+
+# Build context = repo root (two levels up); COPY paths inside the Dockerfile
+# stay relative to that context (`.claude/hooks/`, `.claude/scripts/`).
+REPO_ROOT := $(CURDIR)/../..
 
 .PHONY: help build test lint hadolint check clean
 
@@ -15,7 +22,7 @@ help:  ## Show available targets
 	  | awk -F ':.*?## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 build:  ## Build the test docker image
-	docker build -f Dockerfile.test -t $(IMAGE) .
+	docker build -f $(CURDIR)/Dockerfile -t $(IMAGE) $(REPO_ROOT)
 
 test: build  ## Run bats specs (smoke + integration) inside docker
 	docker run --rm $(IMAGE)
@@ -24,11 +31,11 @@ lint: build  ## Run shellcheck against all hook + helper scripts inside docker
 	docker run --rm --entrypoint sh $(IMAGE) -c \
 	  'shellcheck /work/.claude/hooks/*.sh /work/.claude/scripts/*.sh'
 
-hadolint:  ## Lint Dockerfile.test with Hadolint
+hadolint:  ## Lint .claude/test/Dockerfile with Hadolint
 	docker run --rm -i \
-	  -v "$(CURDIR)/.hadolint.yaml:/.hadolint.yaml:ro" \
+	  -v "$(REPO_ROOT)/.hadolint.yaml:/.hadolint.yaml:ro" \
 	  $(HADOLINT_IMAGE) \
-	  hadolint --config /.hadolint.yaml - < Dockerfile.test
+	  hadolint --config /.hadolint.yaml - < $(CURDIR)/Dockerfile
 
 check: lint hadolint test  ## Full CI gate: shellcheck + Hadolint + bats
 
