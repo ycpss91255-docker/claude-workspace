@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# remind_no_heredoc_redirect.sh — Claude Code PreToolUse hook (matcher: Bash)
+#
+# Fires before any Bash command. When the command writes a file via
+# heredoc redirect (`cat <<EOF > /path` style), emit a JSON systemMessage
+# nudging Claude to use the Write tool instead. Non-blocking — exit 0.
+#
+# Why: Claude Code's bash AST parser cannot parse heredoc-to-file
+# redirects (`Unhandled node type: file_redirect` warning), so every such
+# command falls through to ask, prompting the user. Using the Write tool
+# bypasses the parser entirely and is the canonical way for an agent to
+# create files.
+#
+# Trigger: command contains `cat <<...> /path` or `cat <<...>> /path`
+# heredoc-to-file redirect. Silent on heredoc piped to commands
+# (`cat <<EOF | sh`) and plain redirects without heredoc (`echo > file`).
+
+set -uo pipefail
+
+main() {
+  local input cmd msg
+  input="$(cat)"
+  cmd="$(printf '%s' "${input}" | jq -r '.tool_input.command // empty' 2>/dev/null)"
+
+  [[ -z "${cmd}" ]] && return 0
+
+  # Match `cat <<[-]['"]TERM['"] >[>] <path>` — heredoc terminator followed
+  # by a redirect to file. Quote chars handled via [[:graph:]] class
+  # because the JSON cmd may contain escaped quotes.
+  if ! printf '%s' "${cmd}" | grep -qE '<<-?[[:space:]]*[[:graph:]]+[[:space:]]+>>?[[:space:]]+[^|&;]+'; then
+    return 0
+  fi
+
+  msg="Heredoc-to-file redirect (cat <<EOF > path) hits Claude Code parser warning \"Unhandled node type: file_redirect\" → user prompt. 改用 Write 工具直接寫檔（無 parser 警告、不需 prompt）。如果非寫不可（如生成 inline shell 腳本），用 \`bash -c '...'\` 包起來（Bash(bash -c *) 已在 allowlist）。"
+
+  jq -n --arg m "${msg}" '{
+    systemMessage: $m,
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      additionalContext: $m
+    }
+  }'
+
+  return 0
+}
+
+main "$@"

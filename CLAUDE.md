@@ -22,6 +22,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **不使用覆蓋率忽略註解**：禁止使用 `# LCOV_EXCL_LINE`、`# LCOV_EXCL_START/STOP` 等註解隱藏未覆蓋程式碼。要呈現真實覆蓋率，未覆蓋的部分用測試補上,不要靠註解掩蓋
 - **Google Style**：所有新程式碼一律遵循 Google Style Guide（Shell: Google Shell Style Guide；Python: Google Python Style Guide；其他語言依此類推）
 
+## Bash 命令寫法的 parser 限制
+
+Claude Code 的 bash AST parser 對某些 shell 構造會 fallback 到 prompt（即使
+allowlist 涵蓋、`autoAllowBashIfSandboxed` 開啟也無效）。**主動避開以下
+pattern**，改用替代寫法可以根除大量無謂的 user prompt：
+
+| 觸發 prompt 的 pattern | parser 警告 | 替代寫法 |
+|---|---|---|
+| `cat <<EOF > /path` 寫檔 | `Unhandled node type: file_redirect` | **用 Write 工具**直接寫檔。非寫不可時用 `bash -c 'cat <<EOF > X ...'` 包起來 |
+| `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` | `Unhandled node type: string` | **用 `--body-file <path>`**（gh CLI 原生支援，所有 subcommand 都有） |
+| `for x in $X; do ${x%:*}; done` 多 PR/repo for-loop | `Contains simple_expansion` | **抽永久 `.claude/scripts/<name>.sh`**，主程序只呼叫一行 |
+| Monitor 內嵌 20+ 行 bash with `${var%:*}` | `Contains simple_expansion` | 同上，body 抽 script，Monitor 只 spawn 該 script |
+| `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
+| `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
+
+對應有兩個 hook 自動偵測並提醒：
+- `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法
+- `.claude/hooks/remind_use_body_file.sh` — `gh ... --body "$(cat)"` 寫法
+
+其他 pattern（複雜 for-loop / Monitor body）沒有簡單 heuristic，靠這個
+section 的規則 + 「## 主動優化建議 → 任務結束時主動列 skill 化候選」收斂。
+
 ## 變更完成 checklist（commit 前必做，無例外）
 
 任何程式碼／腳本／Dockerfile／workflow 的變更完成後，**在 commit 之前**
@@ -137,6 +159,8 @@ docker/
     │   ├── remind_no_ai_attribution.sh # git commit / gh pr create 前掃 inline 歸屬字串
     │   ├── remind_subtree_init.sh      # git subtree pull template 前提醒跑 init.sh
     │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker
+    │   ├── remind_no_heredoc_redirect.sh # cat <<EOF > file 時提醒用 Write 工具
+    │   ├── remind_use_body_file.sh     # gh ... --body|--comment "$(cat ...)" 時提醒用 --body-file
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢

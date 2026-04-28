@@ -67,6 +67,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `<your-email>` placeholders; the `.github/` directory in the
   workspace tree is now `org-profile/` (local checkout) so
   claude-workspace can own `.github/workflows/` for its own CI.
+- Two PreToolUse Bash hooks to nudge Claude away from
+  parser-failing command shapes:
+  - `remind_no_heredoc_redirect.sh` — fires on `cat <<EOF > path`
+    redirects (which trigger Claude Code's `Unhandled node type:
+    file_redirect` warning); reminds to use the Write tool instead.
+  - `remind_use_body_file.sh` — fires on `gh ... --body|--comment
+    "$(cat path)"` (which triggers `Unhandled node type: string`);
+    reminds to use `--body-file <path>` (gh CLI native).
+- 13 new smoke tests covering the two hooks (7 + 6), bumping the
+  total from 57 to 70 (66 smoke + 4 integration).
+- `CLAUDE.md` 「## Bash 命令寫法的 parser 限制」 section: catalogs
+  six command patterns that fall back to a user prompt regardless of
+  allowlist / `autoAllowBashIfSandboxed` (heredoc-to-file, `$(cat
+  path)`, complex for-loops with `${var%:*}`, Monitor inline bodies,
+  `cd path && git ...`, `[[ a != b ]]` inside Monitor) along with
+  their canonical replacements.
 - `CLAUDE.md` 「## 主動優化建議」 adds a "任務結束時主動列 skill 化候選"
   sub-section: at PR-merge / task wrap-up, surface ad-hoc scripts in
   `/tmp` or repeated complex bash pipelines as skill candidates so they
