@@ -141,3 +141,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   for asserting `hookSpecificOutput.permissionDecision`. TEST.md
   Smoke-spec preamble reframed for three behaviours
   (FIRE / ALLOW / SILENT). Total: 94 → 112.
+- `CLAUDE.md` Bash parser-limit cheat sheet: new row covering
+  `until ... $(cat <pidfile>) ...; do sleep N; done` background-task
+  poll loops (triggers `Contains command_substitution`). Canonical
+  replacement is the `Bash` tool's `run_in_background` parameter
+  (runtime auto-notifies on completion); GitHub CI keeps using
+  `wait-pr-ci.sh` / `wait-tag-ci.sh`. Avoids yes-fatigue when
+  Claude waits on a long-running local process it just spawned.
