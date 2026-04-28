@@ -37,6 +37,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
+| `docker run ... bash -c '<長 inline 字串>'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **用 Write 寫成 `/tmp/<name>.sh`**，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`。同個原則：長 quoted body 永遠抽成檔案，不要用 inline 字串塞給 `-c` |
 
 對應有兩個 hook 自動偵測並提醒：
 - `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法

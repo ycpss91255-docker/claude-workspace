@@ -7,6 +7,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `CLAUDE.md` Bash parser-limit cheat sheet: new row covering
+  `docker run ... bash -c '<長 inline 字串>'` (multi-line shell logic
+  wrapped in quotes triggers `Unhandled node type: string` regardless
+  of allowlist). Canonical replacement: write the body to `/tmp/<name>.sh`
+  via the Write tool, then `docker run -v "$PWD":/source ... bash
+  /source/<rel-path>/<name>.sh`. Generalises the existing rule for
+  `gh ... --body "$(cat)"` — long quoted bodies always extract to
+  files, never inline.
 - Hook test infrastructure relocated to `.claude/test/` so the workspace
   root is no longer polluted with Claude-only files. `Dockerfile.test`
   → `.claude/test/Dockerfile`; root `Makefile` → `.claude/test/Makefile`.
