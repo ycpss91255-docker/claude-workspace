@@ -7,6 +7,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `release` slash command rewritten to match the actual
+  ycpss91255-docker repo convention. Previously the skill said "tag and
+  push" only; the real flow used by v0.12.0 → v0.12.3 is **branch →
+  bump `.version` + CHANGELOG → chore PR → CI → merge → annotated tag
+  on the merge commit → push tag → wait tag-triggered workflows**. The
+  new doc has 9 numbered steps, RC failure handling (never re-tag the
+  same RC), and points at `/batch-template-upgrade` for downstream
+  propagation. PATCH releases (vX.Y.PATCH) skip RC; MINOR / MAJOR keep
+  the RC dance via `-rcN` suffix on the same chore-PR pipeline.
 - `CLAUDE.md` Bash parser-limit cheat sheet: new row covering
   `docker run ... bash -c '<長 inline 字串>'` (multi-line shell logic
   wrapped in quotes triggers `Unhandled node type: string` regardless
@@ -15,6 +24,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   /source/<rel-path>/<name>.sh`. Generalises the existing rule for
   `gh ... --body "$(cat)"` — long quoted bodies always extract to
   files, never inline.
+
+### Added
+- New PostToolUse hook `remind_test_tools_smoke_sync.sh` fires on Edit
+  / Write to `dockerfile/Dockerfile.test-tools` and prints the alpine
+  packages on the final-stage `apk add --no-cache` line alongside the
+  tools verified by the sibling `release-test-tools.yaml` smoke step,
+  so a missing `--version` / `--help` check shows up as a visible
+  diff before commit. Surfaced as a recurring pain during #168: each
+  Dockerfile rebase that added a new package (parallel → git →
+  git-subtree → grep / coreutils) needed a matching smoke-step row,
+  and 3 of 4 were caught reactively (CI fail) instead of proactively.
+  The hook does NOT enforce a strict 1:1 mapping — packages without a
+  single probe binary (ca-certificates, coreutils) are intentionally
+  left for human judgment. Includes 7 bats specs covering fire /
+  silent / final-stage-only parsing paths; registered in
+  `.claude/settings.json` PostToolUse next to `remind_tdd_categories.sh`.
 - Hook test infrastructure relocated to `.claude/test/` so the workspace
   root is no longer polluted with Claude-only files. `Dockerfile.test`
   → `.claude/test/Dockerfile`; root `Makefile` → `.claude/test/Makefile`.
