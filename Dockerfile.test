@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+#
+# Test image for claude-workspace hooks. Runs bats specs and shellcheck
+# inside Docker so behaviour matches CI exactly (CLAUDE.md "驗證一律走 Docker").
+#
+# Build:  docker build -f Dockerfile.test -t claude-workspace-test:local .
+# Test:   docker run --rm claude-workspace-test:local
+# Lint:   docker run --rm --entrypoint sh claude-workspace-test:local \
+#           -c 'shellcheck /work/.claude/hooks/*.sh'
+
+FROM bats/bats:1.11.0
+
+USER root
+
+# Hook runtime + bats helper deps:
+#   - bash       hooks use [[ ]] / arrays / bash regex
+#   - file       check_no_emoji uses `file --mime`
+#   - git        check_changelog_drift / repo discovery
+#   - jq         every hook parses input JSON
+#   - python3    check_no_emoji's regex matcher
+#   - shellcheck lint target
+#   - grep / coreutils — GNU userland for consistent flags
+RUN apk add --no-cache \
+      bash \
+      coreutils \
+      file \
+      git \
+      grep \
+      jq \
+      python3 \
+      shellcheck
+
+ARG BATS_SUPPORT_VERSION=v0.3.0
+ARG BATS_ASSERT_VERSION=v2.1.0
+
+RUN git clone --depth 1 --branch "${BATS_SUPPORT_VERSION}" \
+      https://github.com/bats-core/bats-support.git /usr/lib/bats-support && \
+    git clone --depth 1 --branch "${BATS_ASSERT_VERSION}" \
+      https://github.com/bats-core/bats-assert.git   /usr/lib/bats-assert && \
+    rm -rf /usr/lib/bats-support/.git /usr/lib/bats-assert/.git
+
+WORKDIR /work
+COPY .claude/hooks/ /work/.claude/hooks/
+
+# bats/bats image already has ENTRYPOINT ["bats"]; CMD becomes its args.
+CMD ["--recursive", "/work/.claude/hooks/test/"]

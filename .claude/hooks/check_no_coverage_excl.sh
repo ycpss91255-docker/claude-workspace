@@ -29,6 +29,8 @@ main() {
   case "${file_path}" in
     */.git/*|*/node_modules/*|*/coverage/*|*/.cache/*) return 0 ;;
     */check_no_coverage_excl.sh) return 0 ;;
+    # Hook-test fixtures must contain the forbidden patterns to assert detection.
+    */.claude/hooks/test/*) return 0 ;;
     *.md) return 0 ;;
   esac
 

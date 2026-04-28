@@ -1,0 +1,8 @@
+---
+# Hadolint config for claude-workspace's Dockerfile.test.
+# This is a build-time test runner image (bats + shellcheck), not a
+# production image, so several rules that target hardened runtime
+# images are intentionally ignored.
+ignored:
+  - DL3002  # Last USER should not be root  — test image stays as root
+  - DL3018  # Pin versions in apk add       — Alpine apk meta-versions are stable enough for a test image
