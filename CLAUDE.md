@@ -114,14 +114,18 @@ docker/
 ├── Makefile                  # make build / test / lint / hadolint / check
 └── .claude/                  # Claude Code 設定
     ├── commands/             # 自訂 slash commands
-    │   ├── audit.md          # /audit — 跨 repo 健康檢查
-    │   ├── batch-pr.md       # /batch-pr — 批次跨 repo PR
-    │   ├── doc-sync.md       # /doc-sync — 變更完成 checklist 對齊檢查
-    │   ├── issue-check.md    # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
-    │   ├── new-repo.md       # /new-repo — 建立新 Docker repo
-    │   ├── pr.md             # /pr — Bug fix / 新功能 PR 流程
-    │   ├── release.md        # /release — Tag 與 release 流程
-    │   └── safe-delete.md    # /safe-delete — 用 trash 取代 rm
+    │   ├── audit.md                   # /audit — 跨 repo 健康檢查
+    │   ├── batch-pr.md                # /batch-pr — 批次跨 repo PR（通用）
+    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級 17 下游 template tag
+    │   ├── doc-sync.md                # /doc-sync — 變更完成 checklist 對齊檢查
+    │   ├── issue-check.md             # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
+    │   ├── new-repo.md                # /new-repo — 建立新 Docker repo
+    │   ├── pr.md                      # /pr — Bug fix / 新功能 PR 流程
+    │   ├── release.md                 # /release — Tag 與 release 流程
+    │   └── safe-delete.md             # /safe-delete — 用 trash 取代 rm
+    ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
+    │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
+    │   └── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
