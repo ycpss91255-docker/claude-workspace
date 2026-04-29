@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **154 tests** (150 smoke + 4 integration) plus shellcheck (15 hook
+Total: **167 tests** (163 smoke + 4 integration) plus shellcheck (16 hook
 scripts + 6 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
@@ -74,6 +74,23 @@ stdin and asserts one of three behaviours:
 | silent on --amend | `--amend` skips the rule → SILENT |
 | silent in repo without doc/changelog/CHANGELOG.md (rule N/A) | rule does not apply → SILENT |
 | resolves repo via cd subdir && git commit | `cd <repo> && git commit` parses correct repo → FIRE |
+
+### test/smoke/remind_readme_on_core_script_spec.bats (13)
+| Test | Scenario |
+|------|----------|
+| non-git-commit command is silent | `ls -la` → SILENT |
+| git status is silent (not a commit) | `git status` → SILENT |
+| git commit --amend is silent | `--amend` skips the rule → SILENT |
+| git commit with no staged files is silent | empty index → SILENT |
+| git commit with only README staged is silent | only `README.md` staged → SILENT |
+| git commit with build.sh (non-core script) is silent | `build.sh` is not a core install/upgrade script → SILENT |
+| git commit with template/upgrade.sh and no README fires | core script + no README → FIRE |
+| git commit with template/init.sh and no README fires | core script + no README → FIRE |
+| git commit with template/script/docker/setup.sh and no README fires | core script + no README → FIRE |
+| git commit with upgrade.sh (template-internal session, no prefix) fires | path without `template/` prefix still matches → FIRE |
+| git commit with core script + README is silent | both staged → SILENT |
+| git commit with core script + translated README is silent | `README.zh-TW.md` counts → SILENT |
+| git -C <path> commit resolves work dir from -C | parses `-C <repo>` to find correct repo → FIRE |
 
 ### test/smoke/check_no_ai_attribution_spec.bats (4)
 | Test | Scenario |

@@ -174,6 +174,7 @@ docker/
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
     │   ├── check_no_ai_attribution.sh  # Edit/Write 後掃 Co-Authored-By/Generated with Claude
     │   ├── check_changelog_drift.sh    # git commit 前比對 staged code vs CHANGELOG.md
+    │   ├── remind_readme_on_core_script.sh # git commit 前提醒 template 核心 .sh 改動是否同步 README
     │   ├── check_test_md_drift.sh      # *.bats / TEST.md 後比對測試數
     │   ├── remind_tdd_categories.sh    # 動到 .sh/Dockerfile/compose 等時提醒 4 類測試
     │   ├── remind_pr_wait_ci.sh        # gh pr create 前提醒用 /wait-pr-ci skill
