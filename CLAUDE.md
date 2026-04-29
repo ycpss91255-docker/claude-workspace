@@ -172,6 +172,7 @@ docker/
     │   ├── batch-pr-merge.sh                # 批次 squash-merge 多個 <repo>:<pr>（接 short / full repo 名都可）
     │   ├── check-template-versions.sh       # HTTPS curl 17 repo `template/.version` 對齊檢查（release 後驗證）
     │   ├── fix-compose-copy-line.sh         # 一次性 compose.yaml COPY 路徑修正
+    │   ├── check-claude-md-tree.sh          # CI lint：parse 此檔 .claude/ tree vs filesystem，drift 就 exit 1
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
     │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
     │   └── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback

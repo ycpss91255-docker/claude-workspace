@@ -32,3 +32,6 @@ jobs:
 
       - name: Run bats specs
         run: make test
+
+      - name: Audit CLAUDE.md `.claude/` tree drift
+        run: make tree-check

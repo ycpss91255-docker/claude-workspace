@@ -15,8 +15,10 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **181 tests** (177 smoke + 4 integration) plus shellcheck (16 hook
-scripts + 7 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
+Total: **189 tests** (185 smoke + 4 integration) plus shellcheck (16 hook
+scripts + 8 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
+`.claude/scripts/check-claude-md-tree.sh`).
 
 ## 4-category coverage
 
@@ -356,6 +358,25 @@ parser never sees is composed correctly.
 | --compose-file overrides default compose.yaml | flag override |
 | HOST_UID / HOST_GID env values come from id stub | env propagation |
 | --head N caps output to first N lines | head/tail mutual exclusion |
+
+### test/smoke/check_claude_md_tree_spec.bats (8)
+
+Covers `.claude/scripts/check-claude-md-tree.sh` — CI lint that parses
+the `.claude/` tree listing in CLAUDE.md and diffs against filesystem.
+Builds a fake repo with a synthetic CLAUDE.md per case and asserts the
+audit's exit code + output. Honours folded subdirs (e.g. `└── test/`
+under hooks/) so they don't false-positive.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing CLAUDE.md exits 2 | required-file validation |
+| missing .claude/ exits 2 | required-dir validation |
+| aligned tree exits 0 | happy path |
+| extra file in fs (missing from tree) exits 1 with + entry | drift: fs has more |
+| extra entry in tree (missing from fs) exits 1 with - entry | drift: tree has more |
+| folded subdir (test/) is honoured — no false positive | placeholder honoured |
+| drift in two dirs reports both | multi-dir drift |
 
 ## Integration specs
 
