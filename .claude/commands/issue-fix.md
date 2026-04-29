@@ -1,20 +1,56 @@
-Auto-fix one open GitHub issue under `ycpss91255-docker/<repo>` if its scope is reasonable, refusing (with an explanatory comment on the issue) when not.
+Auto-fix one or all open GitHub issues under `ycpss91255-docker/<repo>` when their scope is reasonable, refusing (with an explanatory comment on each issue) when not.
 
-Use this when you've already triaged via `/issue-check` and want to delegate one specific issue to the agent.
+Use this when you've already triaged via `/issue-check` and want to delegate one specific issue, or sweep every open issue on a repo in one go.
 
 ## Usage
 
 ```
-/issue-fix <repo> <issue_num> [--dry-run]
+/issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N]
 ```
 
 - `<repo>` (required) — short name under `ycpss91255-docker`, e.g. `template`, `claude-workspace`, `ai_agent`, `ros1_bridge`
-- `<issue_num>` (required) — issue number on that repo
-- `--dry-run` (optional) — read + evaluate + print the plan; do NOT open a worktree, branch, comment on the issue, or open a PR
+- `<issue_num>` (optional) — issue number. **If omitted or set to `all`, run batch mode** over every open issue on the repo (oldest first, FIFO).
+- `--dry-run` (optional) — read + evaluate + print the plan; do NOT open a worktree, branch, comment on the issue, or open a PR. Compatible with batch mode (lists verdict per issue).
+- `--limit N` (optional, batch mode only) — process at most `N` issues after filtering. Default unlimited.
 
-`$ARGUMENTS` is the raw arg string. Parse positionally; reject if `<repo>` or `<issue_num>` is missing or `<issue_num>` is not a positive integer.
+`$ARGUMENTS` is the raw arg string. Parse positionally; reject if `<repo>` is missing or `<issue_num>` (when given) is neither a positive integer nor the literal `all`.
 
-## Steps
+## Modes
+
+### Single-issue mode
+
+Triggered when `<issue_num>` is a positive integer. Run steps 1–7 once for that issue, then emit the single-line Traditional Chinese summary (see Output).
+
+### Batch mode
+
+Triggered when `<issue_num>` is `all` or omitted. Sequence:
+
+1. **List**:
+   ```bash
+   gh issue list -R "ycpss91255-docker/<repo>" --state open \
+     --json number,title,createdAt,labels,assignees,closedByPullRequestsReferences \
+     --limit 200
+   ```
+2. **Sort** ascending by `createdAt` (oldest first — FIFO).
+3. **Pre-filter** (silent skip; counts toward "Skipped", not "Rejected" — these issues already have human action queued):
+   - Has any open linked PR (already in progress)
+   - Labels include `wontfix`, `invalid`, `duplicate`, `do-not-merge`, `discussion`, or `question`
+   - Issue comments already contain a comment starting with `Reviewed by /issue-fix automation` (previously declined — never stack a second reject comment)
+4. **Apply `--limit N`** if given (truncate to first `N` after filter).
+5. **Iterate serially**: for each surviving issue, run the single-issue flow (steps 1–7 below). Wait for each PR's CI to settle (B2) before moving to the next issue.
+6. **Stop the whole batch** (do NOT continue to next issue):
+   - **CI red on a PR** → a real failure waits; don't compound debt by churning through more issues. Leave worktree + branch + report top error.
+   - **`worktree/` directory missing on a fresh machine** → already an exit-2 condition in step 4 below; surface it and stop.
+7. **Continue to next issue** (these are expected per-issue outcomes, not batch failures):
+   - Reject (step 2 reasonableness gate fails) — comment posted, continue.
+   - Scope exceeded mid-implementation (>200 lines) — comment posted, worktree left in place, continue.
+   - PR opened, CI green — report ready-to-merge, continue.
+8. **End conditions**: all issues processed, OR `--limit N` reached, OR a stop condition fired.
+9. Emit the batch summary block (see Output) followed by the per-issue single-line summaries.
+
+Batch mode is **serial, not parallel** — one issue's PR must reach CI green (or fail loudly) before the next starts. Trades wall-clock time for safety: each accepted PR is reviewable in isolation, and a CI red lights up immediately rather than getting buried under five more PRs.
+
+## Steps (single-issue flow — also called once per issue in batch mode)
 
 ### 1. Fetch issue context
 
@@ -23,17 +59,15 @@ gh issue view <issue_num> -R "ycpss91255-docker/<repo>" \
   --json number,title,body,state,labels,assignees,author,createdAt,updatedAt,closedByPullRequestsReferences,comments,timelineItems
 ```
 
-Hard-stop conditions (report to user, do **not** comment, exit):
+Hard-stop conditions (in single-issue mode: report to user, do **not** comment, exit. In batch mode: pre-filter already removed these; if one slipped through due to a race, treat as Skipped and continue):
 
 - Issue is `closed`
 - Has any open linked PR (via `closedByPullRequestsReferences` or timeline cross-references with state `OPEN`)
 - Labels include `wontfix`, `invalid`, `duplicate`, or `do-not-merge`
 
-For these, the user already triaged the issue — don't pile on noise.
-
 ### 2. Reasonableness check (the gate that decides comment-and-reject vs proceed)
 
-Reject if **any** apply. On reject, post exactly one comment on the issue and stop:
+Reject if **any** apply. On reject, post exactly one comment on the issue and stop this issue (in batch mode: continue to next):
 
 | Reject reason | Trigger |
 |---|---|
@@ -52,11 +86,11 @@ The reject comment MUST:
 - Suggest what would unblock auto-fix (e.g. "add a minimal reproducer", "split into two issues — one for the template change, one for the downstream rollout", "discuss the abstraction in a comment first")
 - Use `--body-file /tmp/issue-fix-reject-<num>.md` (write the body via the Write tool first; never inline `--body "$(cat ...)"` per CLAUDE.md `gh ... --body-file` rule)
 
-Then report rejection to user (Traditional Chinese, 1 line) and exit.
+Then record this issue's outcome and (single-issue mode) report rejection / (batch mode) continue to next issue.
 
-### 3. (--dry-run only) Print the plan and exit
+### 3. (--dry-run only) Print the plan and exit (or continue iterating in batch mode)
 
-If `--dry-run`, print to user:
+If `--dry-run`, print to user (per issue):
 
 - Repo / issue number / title
 - Reasonableness verdict: `PASS` or `REJECT: <reason>`
@@ -66,7 +100,9 @@ If `--dry-run`, print to user:
   - Test type(s) needed per CLAUDE.md TDD categories (smoke / unit / integration / lint)
   - Estimated diff size
 
-Do NOT touch the working tree, do NOT open a worktree, do NOT comment on the issue, do NOT push or open a PR. Exit.
+Do NOT touch the working tree, do NOT open a worktree, do NOT comment on the issue, do NOT push or open a PR.
+
+In single-issue mode, exit after this. In batch mode, continue iterating; emit one verdict per issue, then a summary listing PASS / REJECT counts.
 
 ### 4. Open worktree (per CLAUDE.md worktree rule)
 
@@ -82,7 +118,8 @@ Then:
 ```bash
 WORKTREE="${CLAUDE_PROJECT_DIR}/worktree/<repo>-<issue_num>"
 [ -d "${CLAUDE_PROJECT_DIR}/worktree" ] || {
-  # Per feedback_use_worktree memory: ASK user, do NOT silently mkdir
+  # Per feedback_use_worktree memory: ASK user, do NOT silently mkdir.
+  # In batch mode, this is a hard stop for the whole batch.
   echo "worktree dir missing — ask user where to place it before continuing"
   exit 2
 }
@@ -102,12 +139,12 @@ Strict TDD (per CLAUDE.md):
    - `claude-workspace` → `make -C .claude/test test`
    - container repos (`agent/*` / `app/*` / `env/*`) → `./build.sh test`
 
-If during implementation the production diff (excluding test fixtures) exceeds **200 lines**, STOP:
+If during implementation the production diff (excluding test fixtures) exceeds **200 lines**, STOP this issue:
 
 - Do NOT push or open a PR
 - Leave one comment on the issue: `Reviewed by /issue-fix automation; scope grew beyond the 200-line auto-fix limit during implementation. Deferring to a human.` + a 1-sentence summary of what blew the budget
 - Leave the worktree in place for human inspection (do NOT auto-remove)
-- Report to user with the worktree path
+- Single-issue mode: report to user with the worktree path. Batch mode: record outcome and continue to next issue.
 
 Sync `doc/test/TEST.md` / `doc/changelog/CHANGELOG.md` / 4-language READMEs per `/doc-sync` rules — same for any auto-fix as for any human-driven change.
 
@@ -142,21 +179,21 @@ Use the `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`). Per-repo `--c
 | container repos (`agent/*` / `app/*` / `env/*`) | `'.name=="call-docker-build / docker-build"'` |
 | `.github` (org profile) | `'false'` (no CI) |
 
-On `ALL_DONE`: report to user `[OK] <repo>#<num> → PR #<N> CI 綠，待你 merge：<url>`. Do NOT auto-merge — leave that to the user.
+On `ALL_DONE`: record outcome `[OK] <repo>#<num> → PR #<N> CI 綠` with url. Single-issue mode: report and exit. Batch mode: continue to next issue.
 
-On `FAIL`: fetch the failing check log via `gh run view <run-id> --log-failed | tail -200`, summarise the top error in 1–2 lines, report to user with PR url + failure summary. Leave the worktree + branch in place for the user to debug.
+On `FAIL`: fetch the failing check log via `gh run view <run-id> --log-failed | tail -200`, summarise the top error in 1–2 lines. Single-issue mode: report and leave worktree + branch in place. Batch mode: **stop the whole batch here** — emit the batch summary with `Stopped: CI failure on PR #N` and exit.
 
-### 8. Cleanup policy
+### 8. Cleanup policy (same in both modes)
 
 - Reject (step 2): no worktree opened — nothing to clean.
 - Dry-run (step 3): no worktree opened — nothing to clean.
 - Scope-exceeded mid-implementation (step 5 hard limit): leave worktree in place, report path. Do NOT auto-remove.
 - CI failure (step 7): leave worktree + branch in place, report path. Do NOT auto-remove.
-- CI green (step 7): leave worktree alive — user may want to inspect before merging. After they merge, they can `git worktree remove <path>` themselves (the rm-worktree-no-prompt clause in `feedback_use_worktree` memory means you can remove worktree dirs without asking, but only when the user explicitly asks for cleanup; don't preemptively remove on success).
+- CI green (step 7): leave worktree alive — user may want to inspect before merging. After they merge, they can `git worktree remove <path>` themselves.
 
-## Output (Traditional Chinese, 1 line)
+## Output
 
-Always finish with exactly one line summary to the user:
+### Single-issue mode (Traditional Chinese, 1 line)
 
 | Outcome | Format |
 |---|---|
@@ -167,12 +204,29 @@ Always finish with exactly one line summary to the user:
 | PR opened, CI green | `[OK] <repo>#<num> → PR #<N> CI 綠，待你 merge：<url>` |
 | PR opened, CI red | `[FAIL] <repo>#<num> PR #<N> CI 紅：<error summary>，worktree 留在 <path>` |
 
+### Batch mode summary block (Traditional Chinese)
+
+End of run, after all per-issue lines (each in the single-issue format above), emit:
+
+```
+[BATCH] <repo>: N issue 處理完畢
+  完成 (PR 開了 + CI 綠)：K — 待你 merge
+  拒絕 (已留 comment)：M
+  超出 200 行 (已留 comment + worktree)：S
+  跳過 (既有 PR / wontfix / 之前已 declined)：T
+  停止原因：<reason>
+```
+
+Where `<reason>` is one of: `批次跑完` / `--limit <N> 達上限` / `PR #<N> CI 紅` / `worktree 資料夾不存在` / `處理 dry-run 完畢`.
+
+If `--dry-run`, replace the verb breakdown with: `預計修：K · 預計拒絕：M · 跳過：T`.
+
 ## Notes
 
-- **Never auto-merge** — even if CI is green and the diff is small. Final merge is always a human decision.
-- **One issue per invocation** — don't loop. Use `/issue-check` to triage, then call `/issue-fix` once per actionable issue.
-- **Do not retry rejected issues** — if you've already commented "Reviewed by /issue-fix automation", subsequent invocations on the same issue should detect the existing reject comment and report `[REJECT] <repo>#<num>: previously declined`. This prevents stacking comments on disputed issues.
-- **Branch protection respected** — all PRs go through review. Even though CI may pass, `gh pr merge` is the user's call.
-- **CJK block** — `remind_no_chinese_in_git_artifacts.sh` (PreToolUse, blocking) prevents CJK in commit / PR / issue comment bodies. The user-facing summary line above stays in Traditional Chinese (terminal output, not a git/GitHub artifact).
+- **Never auto-merge** — not in single-issue mode, not in batch mode. Final merge is always a human decision.
+- **Batch mode is serial** — one PR's CI must settle before the next issue starts. Trades wall-clock time for safety; the agent makes one fix at a time, the user reviews / merges in their own pace.
+- **Do not stack reject comments** — both modes detect existing `Reviewed by /issue-fix automation` comments and skip without re-commenting. Single-issue mode reports `[REJECT] <repo>#<num>: previously declined`; batch mode counts the issue under "跳過".
+- **Branch protection respected** — all PRs go through review. Even if CI passes, `gh pr merge` is the user's call.
+- **CJK block** — `remind_no_chinese_in_git_artifacts.sh` (PreToolUse, blocking) prevents CJK in commit / PR / issue comment bodies. The user-facing summary lines (single-issue + batch summary block) stay in Traditional Chinese — terminal output is not a git/GitHub artifact.
 
 Context from user: $ARGUMENTS

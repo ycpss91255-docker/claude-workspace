@@ -159,7 +159,7 @@ docker/
     │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級 17 下游 template tag
     │   ├── doc-sync.md                # /doc-sync — 變更完成 checklist 對齊檢查
     │   ├── issue-check.md             # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
-    │   ├── issue-fix.md               # /issue-fix <repo> <issue_num> [--dry-run] — auto-fix 一個合理 issue，不合理留 comment 拒絕
+    │   ├── issue-fix.md               # /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N] — auto-fix 一個或全部 open issue（合理才修，不合理留 comment）
     │   ├── new-repo.md                # /new-repo — 建立新 Docker repo
     │   ├── pr.md                      # /pr — Bug fix / 新功能 PR 流程
     │   ├── release.md                 # /release — Tag 與 release 流程
