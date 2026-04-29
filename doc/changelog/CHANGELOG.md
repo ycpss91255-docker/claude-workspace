@@ -6,6 +6,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+- Catch up `CLAUDE.md` `.claude/` directory tree drift (audit found 7
+  entries added in past PRs but never synced into the tree listing):
+  - `hooks/`: + `remind_no_chinese_in_git_artifacts.sh` (PR #20),
+    + `remind_test_tools_smoke_sync.sh`
+  - `scripts/`: + `batch-gitignore-fix.sh` (PR #21),
+    + `batch-gitignore-add-line.sh` (PR #23),
+    + `batch-pr-merge.sh`,
+    + `check-template-versions.sh` (PR #18),
+    + `fix-compose-copy-line.sh`
+  No code change. Follow-up `.claude/scripts/check-claude-md-tree.sh`
+  CI lint planned to prevent recurrence (drift accumulated ~7 entries
+  in roughly one week of feature work).
+
 ### Changed
 - `/issue-fix` now auto-merges PRs on CI green (matching `/pr.md` and
   `wait-pr-ci` skill defaults) instead of leaving them for human merge.
