@@ -6,6 +6,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- New helper script `.claude/scripts/run-bats-in-compose.sh` — wraps
+  `docker compose run --entrypoint bash <service> -c '<inline>'` so
+  Claude's bash AST parser sees only atomic flags (`--service`,
+  `--suite`, `--grep`, `--tail`, `--head`, `--compose-file`), not a
+  quoted shell body. Avoids the "Unhandled node type: string" fallback
+  that fires on `docker compose ... bash -c '<long string>'` patterns
+  even when `Bash(docker:*)` is allow-listed (the parser fallback is
+  pre-allowlist). Default behaviour: `--suite all`, `--grep '^not ok'`
+  (fail-only), `--tail 25`. Composable: `--suite <kind>` accepts
+  `unit` / `integration` / `all` / arbitrary path under `/source`,
+  `--grep ''` disables filter for full output. 14 bats specs cover
+  flag parsing, suite resolution, grep-pipe composition, env
+  propagation, --head / --tail mutual exclusion, and quoting-injection
+  rejection.
+
 ### Changed
 - `/issue-fix` second arg now accepts `all` (or omitted) for batch mode —
   iterates every open issue on `<repo>` serially, oldest first (FIFO),

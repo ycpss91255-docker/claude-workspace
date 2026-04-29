@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **167 tests** (163 smoke + 4 integration) plus shellcheck (16 hook
-scripts + 6 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
+Total: **181 tests** (177 smoke + 4 integration) plus shellcheck (16 hook
+scripts + 7 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
 
@@ -329,6 +329,33 @@ longer pollute `git status`). Smoke-only; no network in tests.
 | unknown arg exits 2 | unknown flag |
 | --dry-run prints would-do line per repo without mutating | dry-run path |
 | --only narrows to listed repos in dry-run | scope filter |
+
+### test/smoke/run_bats_in_compose_spec.bats (14)
+
+Covers `.claude/scripts/run-bats-in-compose.sh` — wrapper around
+`docker compose run --entrypoint bash <service> -c '<inline>'` that
+side-steps the Claude bash AST parser fallback "Unhandled node type:
+string" by exposing atomic flags (`--service`, `--suite`, `--grep`,
+`--tail`, `--head`, `--compose-file`) instead of an inline shell body.
+Stubs `docker` + `id` and asserts the inner shell command Claude's
+parser never sees is composed correctly.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown arg exits 2 | unknown flag |
+| missing compose.yaml exits 2 | required-file validation |
+| single-quote in --grep is rejected | guard against quoting injection |
+| default suite=all targets unit + integration dirs | path-resolution default |
+| --suite unit narrows to /source/test/unit/ | suite kind handling |
+| --suite integration narrows to /source/test/integration/ | suite kind handling |
+| --suite <path> uses literal /source/<path> | escape hatch for arbitrary path |
+| default --grep produces inner cmd with grep filter pipe | grep wiring |
+| --grep '' disables filter (full output) | empty pattern disables grep |
+| --service overrides default service name | flag override |
+| --compose-file overrides default compose.yaml | flag override |
+| HOST_UID / HOST_GID env values come from id stub | env propagation |
+| --head N caps output to first N lines | head/tail mutual exclusion |
 
 ## Integration specs
 
