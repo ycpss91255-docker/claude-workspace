@@ -506,6 +506,26 @@ git push origin v1.3.0-rc2
 
 ## Git 工作流程
 
+### git worktree 用法（強制）
+
+對任一 repo 開新 branch / 做修改時，**必須走 `git worktree add`**，不准
+直接在主 checkout 跑 `git checkout -B <branch>` 弄髒 working tree。
+
+| 規則 | 內容 |
+|---|---|
+| 工作位置 | **`<workspace>/worktree/<repo>-<N>/`**（已 gitignored 在 workspace `.gitignore`）。N 通常用 PR / issue 編號（如 `template-177` `claude-workspace-22`），新工作沒編號可用 branch slug |
+| 主 checkout 狀態 | 18 個下游 repo + template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP |
+| 起 branch | `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main` |
+| 收尾 | merge 後 `git worktree remove <path>`，或 `git worktree prune` 清理 stale entry |
+| 平行工作 | 同一 repo 可有多個 worktree，每個對應一個 branch / PR — 不會互相打架 |
+| 跨 repo 批次 | `batch-template-upgrade.sh` 等批次 script 自帶 `git fetch + checkout -B main FETCH_HEAD + checkout -B <branch>` 流程，已在主 checkout 跑（不適用 worktree 規則的例外）。**逐 repo 單獨改動**才用 worktree |
+
+**fresh machine 沒有 `worktree/` 資料夾的處理**：
+
+如果 `<workspace>/worktree/` 不存在（剛換機器、或全新 clone），**Claude
+必須先問 user**「要建在 `<workspace>/worktree/` 還是別的位置？」或
+「直接幫你 mkdir 嗎？」，**不准自行猜測位置直接建**。
+
 ### 變更分類與流程
 
 | 類型 | 流程 | 範例 |

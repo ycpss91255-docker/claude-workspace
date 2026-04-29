@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **147 tests** (143 smoke + 4 integration) plus shellcheck (15 hook
-scripts + 5 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
+Total: **154 tests** (150 smoke + 4 integration) plus shellcheck (15 hook
+scripts + 6 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
 
@@ -279,6 +279,24 @@ without network.
 | --expect matches all → exit 0 | release-verify happy path |
 | --expect mismatch → exit 1 | release-verify partial-rollout failure |
 | --skip removes listed repo from default iteration | exclusion filter |
+
+### test/smoke/batch_gitignore_add_line_spec.bats (7)
+
+Covers `.claude/scripts/batch-gitignore-add-line.sh` (generic sister
+of `batch-gitignore-fix.sh` that **appends** an arbitrary line to each
+downstream `.gitignore` if absent — idempotent, mirrors the same
+`--why` / `--only` / `--skip` / `--dry-run` / `--continue-on-error`
+shape). Smoke-only; no network in tests.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --line exits 2 | required-arg validation |
+| missing --why-file and --why exits 2 | required-arg validation |
+| unknown arg exits 2 | unknown flag |
+| --dry-run prints would-do line per repo without mutating | dry-run path |
+| --only narrows to listed repos in dry-run | scope filter |
+| branch name slugifies the --line value | safe branch-name derivation |
 
 ### test/smoke/batch_gitignore_fix_spec.bats (5)
 
