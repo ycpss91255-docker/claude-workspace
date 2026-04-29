@@ -31,10 +31,11 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | 觸發 prompt 的 pattern | parser 警告 | 替代寫法 |
 |---|---|---|
 | `cat <<EOF > /path` 寫檔 | `Unhandled node type: file_redirect` | **用 Write 工具**直接寫檔。非寫不可時用 `bash -c 'cat <<EOF > X ...'` 包起來 |
-| `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` | `Unhandled node type: string` | **用 `--body-file <path>`**（gh CLI 原生支援，所有 subcommand 都有） |
+| `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` / `--body-file - <<'EOF'`（heredoc 串 stdin） | `Unhandled node type: string` 或 `Contains zsh =cmd equals expansion` | **先 Write 落地成 `/tmp/<name>.md`，再 `gh ... --body-file /tmp/<name>.md`**（gh CLI 原生支援，所有 subcommand 都有；長 body 永遠寫成檔案，不要 inline、也不要串 stdin） |
 | `for x in $X; do ${x%:*}; done` 多 PR/repo for-loop | `Contains simple_expansion` | **抽永久 `.claude/scripts/<name>.sh`**，主程序只呼叫一行 |
 | Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
+| `gh pr merge N --repo X` 從非該 repo cwd | 內建 state-changing safety 提示（不可 bypass，與 parser、allowlist 都無關） | **接受 1-click 提示即可** — 這是合理的安全檢查，且 `docker` monorepo 裡沒有 `ycpss91255-docker/template` 的獨立 checkout（只是 git subtree），無法 cd 進去規避；`-R X` 短形式 / `(cd path && ...)` 子 shell 都不能繞 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
 | `docker run ... bash -c '<長 inline 字串>'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **用 Write 寫成 `/tmp/<name>.sh`**，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`。同個原則：長 quoted body 永遠抽成檔案，不要用 inline 字串塞給 `-c` |

@@ -24,6 +24,34 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   /source/<rel-path>/<name>.sh`. Generalises the existing rule for
   `gh ... --body "$(cat)"` — long quoted bodies always extract to
   files, never inline.
+- `CLAUDE.md` `gh ... --body "$(cat path)"` row strengthened to also
+  cover `gh ... --body-file - <<'EOF'` (heredoc-into-stdin), which
+  trips either `Unhandled node type: string` or `Contains zsh =cmd
+  equals expansion` depending on body content. Canonical fix is the
+  same: write body to `/tmp/<name>.md` via Write, then
+  `gh ... --body-file /tmp/<name>.md`. The single-row update keeps the
+  cheat sheet consolidated rather than splitting into two near-duplicate
+  entries.
+- `CLAUDE.md` cheat sheet adds a row for `gh pr merge N --repo X` from
+  a foreign cwd. Claude Code's built-in state-changing safety check
+  fires regardless of allowlist or `autoAllowBashIfSandboxed` — this is
+  intentional, not a parser limit, and not bypassable via `-R X` short
+  form or `(cd path && ...)` subshell (the `docker` monorepo carries
+  `ycpss91255-docker/template` only as a git subtree, not a separate
+  checkout, so there's no template-rooted cwd to cd into). Captured to
+  CLAUDE.md so Claude expects the prompt and accepts it instead of
+  retrying alternative shapes.
+- `remind_use_body_file.sh` hook extended to also detect
+  `gh ... --body-file -` (stdin variant, typically `--body-file - <<EOF`).
+  Previously the hook only caught `--body|--comment "$(cat path)"`,
+  letting the heredoc-stdin variant slip through and re-prompt the
+  user (observed during the v0.12.2 / v0.12.3 release cycle where
+  release-PR creation kept hitting `Unhandled node type: string` or
+  `Contains zsh =cmd equals expansion` despite the existing rule).
+  Detection regex looks for `--body-file -` terminated by whitespace,
+  end-of-string, or shell operator; silent on `--body-file <real-path>`.
+  3 new bats specs (FIRE on heredoc, FIRE on bare `-`, SILENT on a
+  path containing `-`).
 
 ### Added
 - New PostToolUse hook `remind_test_tools_smoke_sync.sh` fires on Edit
@@ -40,6 +68,17 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   left for human judgment. Includes 7 bats specs covering fire /
   silent / final-stage-only parsing paths; registered in
   `.claude/settings.json` PostToolUse next to `remind_tdd_categories.sh`.
+- New helper script `.claude/scripts/check-template-versions.sh` —
+  read-only HTTPS fetch of `template/.version` from main for every
+  downstream repo (17 repos in `DEFAULT_REPOS`, mirroring
+  `batch-template-upgrade.sh`). Used during release verification to
+  confirm `/batch-template-upgrade <vX.Y.Z>` PRs have all merged.
+  Replaces the ad-hoc `for repo in ...; do curl ...; done` pattern that
+  trips Claude Code's bash AST parser (`Unhandled node type: string`).
+  Supports `--only` / `--skip` filters and `--expect <vX.Y.Z>` (exit 1
+  on any mismatch). 7 bats specs stub `curl` via PATH for offline
+  testing; registered in `.claude/settings.local.json` allow list and
+  documented in `doc/test/TEST.md`.
 - Hook test infrastructure relocated to `.claude/test/` so the workspace
   root is no longer polluted with Claude-only files. `Dockerfile.test`
   → `.claude/test/Dockerfile`; root `Makefile` → `.claude/test/Makefile`.

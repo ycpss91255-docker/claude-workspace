@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **112 tests** (108 smoke + 4 integration) plus shellcheck (13 hook
-scripts + 3 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
+Total: **129 tests** (125 smoke + 4 integration) plus shellcheck (14 hook
+scripts + 4 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
 
@@ -172,7 +172,18 @@ stdin and asserts one of three behaviours:
 | silent on bash -c "cat <<EOF > path" (allowed wrapper) | `bash -c` wraps the heredoc → SILENT |
 | fires on chained command: git status && cat <<EOF > /path | command-position heredoc after `&&` → FIRE |
 
-### test/smoke/remind_use_body_file_spec.bats (6)
+### test/smoke/remind_test_tools_smoke_sync_spec.bats (7)
+| Test | Scenario |
+|------|----------|
+| fires on Dockerfile.test-tools edit, listing apk packages and smoke commands | edit Dockerfile.test-tools → FIRE with both lists |
+| lists every package on the final stage apk add line | final-stage parsing covers full payload |
+| ignores apk add lines from non-final stages | only final stage is parsed |
+| silent when sibling release-test-tools.yaml is missing | YAML missing → SILENT |
+| silent on unrelated Dockerfile | non-target Dockerfile → SILENT |
+| silent when Dockerfile.test-tools has no final-stage apk add | no final apk → SILENT |
+| handles empty smoke step gracefully | YAML run block empty → no crash |
+
+### test/smoke/remind_use_body_file_spec.bats (9)
 | Test | Scenario |
 |------|----------|
 | fires on gh issue close --comment "$(cat path)" | gh + comment substitution → FIRE |
@@ -181,6 +192,9 @@ stdin and asserts one of three behaviours:
 | silent on gh ... --body-file already | already canonical form → SILENT |
 | silent on gh ... --body "inline string" | inline body → SILENT |
 | silent on non-gh command using $(cat path) | non-gh substitution → SILENT |
+| fires on gh pr create --body-file - <<EOF (heredoc stdin) | `--body-file -` heredoc variant → FIRE |
+| fires on gh issue create --body-file - alone (stdin variant) | `--body-file -` followed by EOL → FIRE |
+| silent on --body-file with non-dash path that happens to start with dash-like name | path containing `-` but not literal `-` → SILENT |
 
 ### test/smoke/wait_pr_ci_spec.bats (11)
 
@@ -222,6 +236,24 @@ via PATH.
 | empty run list (tag just pushed) keeps polling and hits max-iterations 124 | total==0 ≠ green |
 | custom --check-filter narrows to a specific run name | filter ignores out-of-scope in-progress runs |
 | cancelled conclusion counts as failure | non-success conclusion handling |
+
+### test/smoke/check_template_versions_spec.bats (7)
+
+Covers `.claude/scripts/check-template-versions.sh` (read-only HTTPS fetch
+of `template/.version` for every downstream repo, used during release
+verification). Replaces an ad-hoc multi-repo for-loop curl pattern that
+trips the bash AST parser. `curl` is stubbed via PATH so the script runs
+without network.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown arg exits 2 | unknown flag |
+| --only narrows to listed repos and prints versions | scope filter |
+| missing version maps to MISSING | non-zero curl exit handling |
+| --expect matches all → exit 0 | release-verify happy path |
+| --expect mismatch → exit 1 | release-verify partial-rollout failure |
+| --skip removes listed repo from default iteration | exclusion filter |
 
 ## Integration specs
 
