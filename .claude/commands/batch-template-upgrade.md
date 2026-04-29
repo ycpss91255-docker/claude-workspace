@@ -66,12 +66,22 @@ Re-run for one failed repo:
 
 ## After the script
 
-1. Wait for all 17 (or N) PRs' CI to settle. Use `/wait-pr-ci` for batches.
-2. Merge each (squash + delete-branch). Per repo:
-   ```bash
-   gh pr merge <num> -R ycpss91255-docker/<repo> --squash --delete-branch
+1. Wait for all 17 (or N) PRs' CI to settle in one Monitor stream. Use `wait-pr-ci-batch.sh`:
    ```
-3. Verify each downstream main is now at the target tag (`cat template/.version`).
+   Monitor(
+     description: "batch v<X> CI",
+     command: ".claude/scripts/wait-pr-ci-batch.sh ai_agent:<pr> claude_code:<pr> ... --check-filter '.name==\"call-docker-build / docker-build\"'",
+     timeout_ms: 2400000,
+     persistent: false,
+   )
+   ```
+   (Container repos all use `call-docker-build / docker-build` as the only required check.) See `.claude/skills/wait-pr-ci/SKILL.md` for the full reference.
+2. After `ALL_DONE`, batch-merge with `.claude/scripts/batch-pr-merge.sh`:
+   ```bash
+   .claude/scripts/batch-pr-merge.sh ai_agent:<pr> claude_code:<pr> ... | tail -30
+   ```
+   Short repo form is auto-prefixed with `ycpss91255-docker/`. Don't use an ad-hoc per-repo `for` loop — that's exactly the pattern the CLAUDE.md cross-repo batch-mutation rule rules out (one prompt per loop iteration -> yes-fatigue -> effectively bypasses the ask gate).
+3. Verify each downstream main is now at the target tag with `.claude/scripts/check-template-versions.sh --expect v<X>`.
 
 ## Repo list
 

@@ -7,14 +7,15 @@ description: Wait for GitHub CI to settle — PR-scoped checks or tag/branch-sco
 
 Wait for GitHub CI to finish before merging or releasing, using `Monitor` so each state transition streams in as a notification and the agent isn't blocked on busy-poll sleeps.
 
-Two flavours, one script each:
+Three flavours, one script each:
 
 | Flavour | Script | When |
 |---|---|---|
-| **PR-scoped** (statusCheckRollup) | `.claude/scripts/wait-pr-ci.sh` | After `gh pr create` — waiting to merge once green. |
+| **PR-scoped** (statusCheckRollup) | `.claude/scripts/wait-pr-ci.sh` | After `gh pr create` — single repo, one or several PRs, waiting to merge once green. |
+| **Multi-repo PR-scoped** | `.claude/scripts/wait-pr-ci-batch.sh` | After `/batch-template-upgrade` opens N PRs across N downstream repos — one Monitor for the whole batch instead of N parallel streams. |
 | **Tag/branch-scoped** (`gh run list --branch <ref>`) | `.claude/scripts/wait-tag-ci.sh` | After `git push origin <tag>` triggered `on: push: tags:` workflows like `release-test-tools` or `release-worker` — waiting to verify the release pipeline. |
 
-The two are intentionally siblings — same CLI shape (`--repo`, `--check-filter`, `--interval`, `--max-iterations`), same exit codes (`0` = ALL_DONE, `1` = FAIL, `2` = arg error, `124` = max-iter exhausted), same Monitor-wrap pattern.
+All three are intentionally siblings — same output shape, same exit codes (`0` = ALL_DONE, `1` = FAIL, `2` = arg error, `124` = max-iter exhausted), same Monitor-wrap pattern. CLI shape differs: `wait-pr-ci.sh` takes `--repo` + `--prs`; `wait-pr-ci-batch.sh` takes positional `<repo>:<pr>` pairs; `wait-tag-ci.sh` takes `--repo` + `--branch`.
 
 ## PR-scoped — `wait-pr-ci.sh`
 
@@ -37,7 +38,31 @@ The script prints one snapshot block (`PR<n>: checks=... mergeable=...` + `---`)
 | Container repos (`agent/*`, `app/*`, `env/*`) | `call-docker-build / docker-build` | `'.name=="call-docker-build / docker-build"'` |
 | `.github` (org profile) | none — PR review only | `'false'` (forces `no-checks` immediately) |
 
-Cross-repo batches (e.g. one PR per downstream repo, like `/batch-template-upgrade` produces): spawn one Monitor per repo in parallel, each with `--repo <X> --prs <Y>`. Don't try to multiplex repos through one Monitor — `wait-pr-ci.sh` is single-repo by design.
+Cross-repo batches: see `wait-pr-ci-batch.sh` below. For N=2-3 spawning N parallel single-repo Monitors is fine; from N=4+ the notification streams get noisy and `wait-pr-ci-batch.sh` aggregates them into one.
+
+## Multi-repo PR-scoped — `wait-pr-ci-batch.sh`
+
+```
+Monitor(
+  description: "batch PR CI (N repos)",
+  command: ".claude/scripts/wait-pr-ci-batch.sh <repo>:<pr> <repo>:<pr> ... [--check-filter <expr>]",
+  timeout_ms: 2400000,            # 40 min for batches
+  persistent: false,
+)
+```
+
+Positional pairs use short form (`ai_agent:28` — owner defaults to `ycpss91255-docker`, override with `--owner`) or full form (`other-org/repo:5`). Output line per pair:
+
+```
+ycpss91255-docker/ai_agent#28: checks=all-pass mergeable=MERGEABLE
+ycpss91255-docker/claude_code#27: checks=pending mergeable=MERGEABLE
+...
+---
+```
+
+`ALL_DONE` / `FAIL <owner>/<repo>#<pr>` final lines, same as the single-repo flavour. `--check-filter` is global across all pairs (applies the same jq filter to every PR's `statusCheckRollup`) — for `/batch-template-upgrade` rollouts that's fine because the 17 downstream repos all use `call-docker-build / docker-build`. Pass `--check-filter '.name=="call-docker-build / docker-build"'` for that case.
+
+Pairs with `wait-pr-ci.sh` for single-repo cases — same skill, same patterns, just batched.
 
 ## Tag/branch-scoped — `wait-tag-ci.sh`
 
@@ -90,7 +115,7 @@ For non-bot PRs, rebase locally + force-push, then re-invoke.
 
 ## See also
 
-- `.claude/scripts/wait-pr-ci.sh` / `.claude/scripts/wait-tag-ci.sh` — the polling implementations. `--help` prints usage.
+- `.claude/scripts/wait-pr-ci.sh` / `.claude/scripts/wait-pr-ci-batch.sh` / `.claude/scripts/wait-tag-ci.sh` — the polling implementations. `--help` prints usage.
 - CLAUDE.md → "## CI 監控（PR open 後）" — the project-level rule pointing back here.
 - `.claude/commands/pr.md` — full PR workflow, calls this skill at step 6 ("Wait for CI").
 - `.claude/commands/release.md` — release / tag workflow that should call the tag flavour after pushing the tag.

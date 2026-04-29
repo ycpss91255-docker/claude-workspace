@@ -7,6 +7,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo PR-scoped sibling
+  of `wait-pr-ci.sh`, aggregating N PRs across N repos into one
+  Monitor stream. Args: positional `<repo>:<pr>` pairs (short form
+  auto-prefixed with `ycpss91255-docker/` via `--owner` default).
+  Same output shape, exit codes, `--check-filter`, `--interval`,
+  `--max-iterations` semantics as the single-repo flavour. Resolves
+  the "spawn one Monitor per repo" guidance for N=15+ batches that
+  produces noisy parallel notification streams. Closes #16.
 - `.claude/scripts/check-claude-md-tree.sh` — CI lint that parses the
   `.claude/` tree listing in `CLAUDE.md` and diffs against the
   filesystem under `.claude/commands/`, `.claude/scripts/`,
@@ -20,6 +28,17 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the build instead of relying on memory or `/doc-sync`. 8 bats specs
   cover help / missing inputs / aligned / fs-drift / tree-drift /
   folded subdir handling / multi-dir drift.
+
+### Changed
+- `.claude/skills/wait-pr-ci/SKILL.md` documents the new third
+  flavour (multi-repo batch). Replaces the previous "spawn one
+  Monitor per repo in parallel" guidance with: N=2-3 use single-repo
+  Monitors, N=4+ use `wait-pr-ci-batch.sh`.
+- `.claude/commands/batch-template-upgrade.md` "After the script"
+  section now points at `wait-pr-ci-batch.sh` for the wait step and
+  `batch-pr-merge.sh` for the merge step (was an ad-hoc `gh pr merge`
+  per-repo block — exactly the loop pattern the CLAUDE.md cross-repo
+  batch-mutation rule rules out). Closes #17.
 
 ### Documentation
 - Catch up `CLAUDE.md` `.claude/` directory tree drift (audit found 7
