@@ -179,7 +179,15 @@ Use the `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`). Per-repo `--c
 | container repos (`agent/*` / `app/*` / `env/*`) | `'.name=="call-docker-build / docker-build"'` |
 | `.github` (org profile) | `'false'` (no CI) |
 
-On `ALL_DONE`: record outcome `[OK] <repo>#<num> → PR #<N> CI 綠` with url. Single-issue mode: report and exit. Batch mode: continue to next issue.
+On `ALL_DONE`: **auto-merge** (matching `/pr.md` and `wait-pr-ci` skill defaults) and clean up:
+
+```bash
+gh pr merge <N> --repo "ycpss91255-docker/<repo>" --squash --delete-branch
+git -C "<source-tree>" fetch origin main
+git -C "<source-tree>" worktree remove "$WORKTREE"
+```
+
+Then record outcome `[OK] <repo>#<num> → PR #<N> merged: <url>`. Single-issue mode: report and exit. Batch mode: continue to next issue.
 
 On `FAIL`: fetch the failing check log via `gh run view <run-id> --log-failed | tail -200`, summarise the top error in 1–2 lines. Single-issue mode: report and leave worktree + branch in place. Batch mode: **stop the whole batch here** — emit the batch summary with `Stopped: CI failure on PR #N` and exit.
 
@@ -189,7 +197,7 @@ On `FAIL`: fetch the failing check log via `gh run view <run-id> --log-failed | 
 - Dry-run (step 3): no worktree opened — nothing to clean.
 - Scope-exceeded mid-implementation (step 5 hard limit): leave worktree in place, report path. Do NOT auto-remove.
 - CI failure (step 7): leave worktree + branch in place, report path. Do NOT auto-remove.
-- CI green (step 7): leave worktree alive — user may want to inspect before merging. After they merge, they can `git worktree remove <path>` themselves.
+- CI green (step 7): auto-merged + worktree removed inline (see step 7 above). Nothing left to clean.
 
 ## Output
 
@@ -201,7 +209,7 @@ On `FAIL`: fetch the failing check log via `gh run view <run-id> --log-failed | 
 | Dry-run, would proceed | `[DRY-RUN] <repo>#<num>: PASS — 預估 <X> 行 diff，分類 <test types>` |
 | Dry-run, would reject | `[DRY-RUN] <repo>#<num>: REJECT — <原因>` |
 | Scope exceeded | `[ABORT] <repo>#<num>: 修改超過 200 行，已留 comment、worktree 留在 <path>` |
-| PR opened, CI green | `[OK] <repo>#<num> → PR #<N> CI 綠，待你 merge：<url>` |
+| PR opened, CI green, merged | `[OK] <repo>#<num> → PR #<N> 已 merge：<url>` |
 | PR opened, CI red | `[FAIL] <repo>#<num> PR #<N> CI 紅：<error summary>，worktree 留在 <path>` |
 
 ### Batch mode summary block (Traditional Chinese)
@@ -210,7 +218,7 @@ End of run, after all per-issue lines (each in the single-issue format above), e
 
 ```
 [BATCH] <repo>: N issue 處理完畢
-  完成 (PR 開了 + CI 綠)：K — 待你 merge
+  完成 (PR 已 merge)：K
   拒絕 (已留 comment)：M
   超出 200 行 (已留 comment + worktree)：S
   跳過 (既有 PR / wontfix / 之前已 declined)：T
@@ -223,10 +231,10 @@ If `--dry-run`, replace the verb breakdown with: `預計修：K · 預計拒絕�
 
 ## Notes
 
-- **Never auto-merge** — not in single-issue mode, not in batch mode. Final merge is always a human decision.
-- **Batch mode is serial** — one PR's CI must settle before the next issue starts. Trades wall-clock time for safety; the agent makes one fix at a time, the user reviews / merges in their own pace.
+- **Auto-merge on CI green** — matches `/pr.md` and `wait-pr-ci` skill defaults. CI green is the gate; passing CI on a 0-required-review repo means the change is shippable. The user can always revert via PR or pull the auto-merged commit out if something slipped through. CI red still halts (single-issue: report; batch: stop the whole batch).
+- **Batch mode is serial** — one PR's CI must settle (and merge) before the next issue starts. Trades wall-clock time for safety; CI red on issue K means the agent doesn't compound debt by piling on issues K+1, K+2 with potentially conflicting fixes.
 - **Do not stack reject comments** — both modes detect existing `Reviewed by /issue-fix automation` comments and skip without re-commenting. Single-issue mode reports `[REJECT] <repo>#<num>: previously declined`; batch mode counts the issue under "跳過".
-- **Branch protection respected** — all PRs go through review. Even if CI passes, `gh pr merge` is the user's call.
+- **Branch protection still applies** — `enforce_admins=true` + `required_status_checks` (strict) on every `ycpss91255-docker` repo means `gh pr merge` will refuse if CI didn't really pass or if the branch is out of date with main. Auto-merge here is just "stop asking the human after CI green", not "skip the branch protection gate".
 - **CJK block** — `remind_no_chinese_in_git_artifacts.sh` (PreToolUse, blocking) prevents CJK in commit / PR / issue comment bodies. The user-facing summary lines (single-issue + batch summary block) stay in Traditional Chinese — terminal output is not a git/GitHub artifact.
 
 Context from user: $ARGUMENTS
