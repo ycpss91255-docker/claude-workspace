@@ -6,6 +6,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Documentation
+- `CLAUDE.md` new section "Sandbox baseline (settings.local.json)" —
+  explains the `sandbox.enabled` + `autoAllowBashIfSandboxed` +
+  `filesystem.allowWrite` combination and what it lets the
+  `permissions.allow` list shed. Tables out the per-key semantics and
+  notes when sandbox isn't enough (parser fallback fires before
+  sandbox eval). Onboarding aid for newcomers grappling with bloated
+  allow lists; addresses #7 (1) (CoreSAM downstream port feedback).
+
 ### Added
 - `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo PR-scoped sibling
   of `wait-pr-ci.sh`, aggregating N PRs across N repos into one
