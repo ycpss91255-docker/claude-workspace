@@ -3,17 +3,27 @@
 #
 # Fires before any Bash command. When the command directly invokes a
 # lint / test tool (bats / shellcheck / hadolint / kcov) outside of
-# Docker / make / build.sh wrappers, remind that 驗證一律走 Docker.
+# a recognised wrapper, remind that lint/test must run via Docker.
 # Non-blocking (always exit 0).
 #
-# Why: CLAUDE.md「驗證一律走 Docker」明文禁止本機直接呼叫 — 本機
-# bats-mock / bats-support / shellcheck 版本可能與 CI 不同,結果會
-# 不一致。CI reusable workflow 也是透過同一組 Docker image 執行。
+# Why: CLAUDE.md "驗證一律走 Docker" forbids bare host invocations —
+# host bats-mock / bats-support / shellcheck versions may differ from
+# CI, producing inconsistent results. CI's reusable workflow runs the
+# same docker image we use locally.
 #
-# Trigger pattern: command 含 standalone tool word（line start 或
-# `;`/`&&`/`||`/`|` 之後),且 command 不在 wrapper 內
-# (`docker run`/`docker exec`/`docker compose`/`make -f Makefile.ci`/
-# `./build.sh`)。
+# Wrapper list: by default, recognises these substring patterns as
+# "already wrapped, no reminder":
+#   docker run / docker exec / docker compose
+#   make -f Makefile.ci
+#   ./build.sh
+#   make -C .claude/test
+#
+# Override per-repo: drop a `.claude/lint_wrappers.txt` next to
+# settings.json — one substring pattern per line, blank/`#`-prefixed
+# lines ignored. When the file is present it REPLACES the default
+# list (full override, not append). Useful for downstream forks that
+# wrap lint differently (e.g. coreSAM uses `make -C .claude` instead
+# of `make -f Makefile.ci`).
 
 set -uo pipefail
 
@@ -24,15 +34,40 @@ main() {
 
   [[ -z "${cmd}" ]] && return 0
 
-  case "${cmd}" in
-    *"docker run"*|*"docker exec"*|*"docker compose"*) return 0 ;;
-    *"make -f Makefile.ci"*|*"./build.sh"*) return 0 ;;
-  esac
+  local -a wrappers=()
+  local wrappers_file="${CLAUDE_PROJECT_DIR:-}/.claude/lint_wrappers.txt"
+  if [[ -n "${CLAUDE_PROJECT_DIR:-}" && -f "${wrappers_file}" ]]; then
+    local line
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+      # strip leading whitespace
+      line="${line#"${line%%[![:space:]]*}"}"
+      [[ -z "${line}" || "${line}" == \#* ]] && continue
+      wrappers+=("${line}")
+    done < "${wrappers_file}"
+  fi
+
+  if (( ${#wrappers[@]} == 0 )); then
+    wrappers=(
+      "docker run"
+      "docker exec"
+      "docker compose"
+      "make -f Makefile.ci"
+      "./build.sh"
+      "make -C .claude/test"
+    )
+  fi
+
+  local w
+  for w in "${wrappers[@]}"; do
+    case "${cmd}" in
+      *"${w}"*) return 0 ;;
+    esac
+  done
 
   [[ "${cmd}" =~ (^|[\;\&\|][[:space:]]*)(bats|shellcheck|hadolint|kcov)([[:space:]]|$) ]] || return 0
 
   local tool="${BASH_REMATCH[2]}"
-  msg="$(printf '驗證一律走 Docker 提醒：偵測到直接跑 %s,結果可能與 CI 不一致(本機 bats-mock / shellcheck 版本可能不同)。改用 ./build.sh test 或 make -f Makefile.ci test/lint。' "${tool}")"
+  msg="$(printf '驗證一律走 Docker 提醒：偵測到直接跑 %s,結果可能與 CI 不一致(本機 bats-mock / shellcheck 版本可能不同)。改用 ./build.sh test、make -f Makefile.ci test/lint、或 make -C .claude/test test。' "${tool}")"
 
   jq -n --arg m "${msg}" '{
     systemMessage: $m,

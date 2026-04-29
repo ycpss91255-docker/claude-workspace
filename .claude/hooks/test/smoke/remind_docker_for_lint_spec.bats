@@ -36,3 +36,50 @@ load '../lib/test_helper'
   run "$(hook remind_docker_for_lint.sh)" <<< '{"tool_input":{"command":"ls /usr/lib/bats-core"}}'
   assert_silent
 }
+
+@test "silent inside make -C .claude/test wrapper (default list)" {
+  run "$(hook remind_docker_for_lint.sh)" <<< '{"tool_input":{"command":"make -C .claude/test test"}}'
+  assert_silent
+}
+
+@test "lint_wrappers.txt overrides default list" {
+  local repo
+  repo="$(mktemp -d)"
+  mkdir -p "${repo}/.claude"
+  printf '%s\n' "make -C .claude" "my-wrapper" > "${repo}/.claude/lint_wrappers.txt"
+  CLAUDE_PROJECT_DIR="${repo}" \
+    run "$(hook remind_docker_for_lint.sh)" <<< '{"tool_input":{"command":"my-wrapper bats foo.bats"}}'
+  assert_silent
+  rm -rf "${repo}"
+}
+
+@test "lint_wrappers.txt override drops the default docker pattern" {
+  # With default wrappers, the "docker run" prefix matches and silences;
+  # with override = ["make -C .claude"], no wrapper matches, so the
+  # boundary regex catches "; bats" and fires.
+  local repo
+  repo="$(mktemp -d)"
+  mkdir -p "${repo}/.claude"
+  echo "make -C .claude" > "${repo}/.claude/lint_wrappers.txt"
+  CLAUDE_PROJECT_DIR="${repo}" \
+    run "$(hook remind_docker_for_lint.sh)" <<< '{"tool_input":{"command":"docker run img echo hi; bats foo"}}'
+  assert_message_contains "驗證一律走 Docker"
+  rm -rf "${repo}"
+}
+
+@test "lint_wrappers.txt ignores blank and # comment lines" {
+  local repo
+  repo="$(mktemp -d)"
+  mkdir -p "${repo}/.claude"
+  printf '%s\n' "" "# comment" "  " "make -C .claude" > "${repo}/.claude/lint_wrappers.txt"
+  CLAUDE_PROJECT_DIR="${repo}" \
+    run "$(hook remind_docker_for_lint.sh)" <<< '{"tool_input":{"command":"make -C .claude bats-host test"}}'
+  assert_silent
+  rm -rf "${repo}"
+}
+
+@test "missing CLAUDE_PROJECT_DIR falls back to default list" {
+  unset CLAUDE_PROJECT_DIR
+  run "$(hook remind_docker_for_lint.sh)" <<< '{"tool_input":{"command":"docker run img shellcheck foo.sh"}}'
+  assert_silent
+}

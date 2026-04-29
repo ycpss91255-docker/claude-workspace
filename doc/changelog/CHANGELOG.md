@@ -6,6 +6,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `remind_docker_for_lint.sh` wrapper list now configurable per repo
+  via sibling `.claude/lint_wrappers.txt` (one substring pattern per
+  line; blank / `#`-prefixed lines skipped). When the file is present
+  it FULLY REPLACES the default list, not appends. Useful for
+  downstream forks that wrap lint differently — coreSAM (#7) needs
+  `make -C .claude` instead of this repo's `make -f Makefile.ci`.
+  Default list also extended to include `make -C .claude/test`
+  (already used in this repo for the test infra Makefile but missing
+  from the previous hardcoded list). 5 new bats specs cover the
+  default fallback + file override + comment/blank line skipping +
+  missing `CLAUDE_PROJECT_DIR` defensive path; existing 7 specs
+  remain. Addresses #7 (2).
+
 ### Documentation
 - `CLAUDE.md` new section "Sandbox baseline (settings.local.json)" —
   explains the `sandbox.enabled` + `autoAllowBashIfSandboxed` +
