@@ -80,6 +80,26 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   path containing `-`).
 
 ### Added
+- New blocking PreToolUse hook
+  `remind_no_chinese_in_git_artifacts.sh` enforces English-only commit
+  messages, PR + issue titles, bodies, and comments. Detects CJK
+  Unified Ideographs (U+4E00-9FFF), CJK Ext-A (U+3400-4DBF), CJK
+  Symbols & Punctuation (U+3000-303F: corner brackets, fullstop,
+  enumeration comma), and Halfwidth / Fullwidth forms (U+FF00-FFEF:
+  fullwidth comma, exclamation, question mark, fullwidth digits and
+  letters). En-dash / em-dash / smart quotes / ellipsis stay allowed
+  (English typography uses these). Triggers on `git commit -m / -F`,
+  `gh pr create | edit | comment` with `--title / --body / --body-file`,
+  `gh issue create | edit | close | comment` with the same flags +
+  `--comment`. `--body-file` referenced paths are read and scanned;
+  README\*.md and i18n / locale files (`*.zh-TW.md`, `*.zh-CN.md`,
+  `*.ja.md`, `*.ko.md`, `*i18n*`, `*.po*`, `*.mo`) are exempt.
+  Returns `permissionDecision: "deny"` rather than a non-blocking
+  systemMessage so the offending command never reaches GitHub —
+  no `git commit --amend` / `gh pr edit` cleanup needed afterwards.
+  11 bats specs cover ideograph + fullwidth punctuation + fullwidth
+  digit + CJK in `--body-file` (with exempt-path skip) + English
+  typography passthrough + non-target commands.
 - New PostToolUse hook `remind_test_tools_smoke_sync.sh` fires on Edit
   / Write to `dockerfile/Dockerfile.test-tools` and prints the alpine
   packages on the final-stage `apk add --no-cache` line alongside the
