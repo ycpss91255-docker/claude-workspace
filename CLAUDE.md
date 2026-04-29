@@ -167,6 +167,11 @@ docker/
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
     │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
+    │   ├── batch-gitignore-fix.sh           # 一次性 .gitignore `.claude/` -> `.claude` 17 repo fanout（PR #21）
+    │   ├── batch-gitignore-add-line.sh      # 通用 .gitignore 追加任意行的 17 repo fanout（PR #23）
+    │   ├── batch-pr-merge.sh                # 批次 squash-merge 多個 <repo>:<pr>（接 short / full repo 名都可）
+    │   ├── check-template-versions.sh       # HTTPS curl 17 repo `template/.version` 對齊檢查（release 後驗證）
+    │   ├── fix-compose-copy-line.sh         # 一次性 compose.yaml COPY 路徑修正
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
     │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
     │   └── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
@@ -183,7 +188,9 @@ docker/
     │   ├── remind_subtree_init.sh      # git subtree pull template 前提醒跑 init.sh
     │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker
     │   ├── remind_no_heredoc_redirect.sh # cat <<EOF > file 時提醒用 Write 工具
+    │   ├── remind_no_chinese_in_git_artifacts.sh # git commit / gh PR / issue title|body|comment 前 BLOCK CJK 與全形字符
     │   ├── remind_use_body_file.sh     # gh ... --body|--comment "$(cat ...)" 時提醒用 --body-file
+    │   ├── remind_test_tools_smoke_sync.sh # Dockerfile.test-tools 改動但同層 release-test-tools.yaml 未同步時提醒
     │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
