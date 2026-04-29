@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **131 tests** (127 smoke + 4 integration) plus shellcheck (14 hook
+Total: **142 tests** (138 smoke + 4 integration) plus shellcheck (15 hook
 scripts + 4 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
@@ -173,6 +173,29 @@ stdin and asserts one of three behaviours:
 | silent on git commit message describing the pattern (false-positive guard) | `git commit -m "...cat <<EOF > path..."` → SILENT |
 | silent on bash -c "cat <<EOF > path" (allowed wrapper) | `bash -c` wraps the heredoc → SILENT |
 | fires on chained command: git status && cat <<EOF > /path | command-position heredoc after `&&` → FIRE |
+
+### test/smoke/remind_no_chinese_in_git_artifacts_spec.bats (11)
+
+Covers `.claude/hooks/remind_no_chinese_in_git_artifacts.sh` — blocking
+PreToolUse hook that DENIES `git commit` and `gh pr|issue` commands when
+the commit message / PR or issue title / body / comment contains CJK
+ideographs (U+4E00-9FFF / Ext-A) or fullwidth punctuation + ASCII forms
+(U+3000-303F / U+FF00-FFEF). README*.md and i18n / locale files are
+exempt from `--body-file` scanning.
+
+| Test | Scenario |
+|------|----------|
+| denies git commit -m with CJK ideograph | inline CJK in commit message → DENY |
+| denies gh pr create --body with fullwidth comma | fullwidth punctuation in PR body → DENY |
+| denies gh issue create --body with fullwidth digit | fullwidth digit in issue body → DENY |
+| denies gh issue close --comment with CJK punctuation | CJK fullstop in --comment → DENY |
+| denies gh pr comment --body-file pointing at file with CJK | file body with CJK → DENY |
+| silent on gh pr create --body-file pointing at README.zh-TW.md (exempt) | exempt file → SILENT |
+| silent on gh issue create --body-file pointing at i18n.sh (exempt) | i18n exempt file → SILENT |
+| silent on git commit -m with plain English | no CJK → SILENT |
+| silent on git commit -m with em-dash and smart quotes (English typography) | allowed non-ASCII typography → SILENT |
+| silent on non-git/gh command containing CJK | matcher narrows to git/gh subcommands → SILENT |
+| silent on gh pr list --json (no body/title editing) | non-editing gh subcommand → SILENT |
 
 ### test/smoke/remind_test_tools_smoke_sync_spec.bats (7)
 | Test | Scenario |
