@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- New PreToolUse Bash hook `.claude/hooks/remind_readme_on_core_script.sh` —
+  fires before `git commit` when staged files include template's core
+  install/upgrade scripts (`template/upgrade.sh`, `template/init.sh`,
+  `template/upgrade-check.sh`, `template/script/docker/setup.sh`, or the
+  same paths from a template-internal session without the `template/`
+  prefix) but no `README*.md` is in the same commit. Advisory only —
+  emits a `systemMessage` reminder, does not block. Closes the gap where
+  README's "Upgrading" / "Configuration" sections drift from upgrade.sh
+  internals (e.g. implicit-downgrade refusal, `_warn_config_drift`,
+  config/ preservation all shipped without README mention). Skips
+  `--amend` / `--allow-empty`. 13 bats specs cover non-commit / amend /
+  no-stage / readme-only / build.sh / each core script path / both
+  prefixes / core+readme together / `git -C <path>`.
 - New slash command `/issue-fix <repo> <issue_num> [--dry-run]` —
   delegates auto-fixing one open `ycpss91255-docker/<repo>` issue to the
   agent when scope is reasonable; rejects (with one explanatory comment
