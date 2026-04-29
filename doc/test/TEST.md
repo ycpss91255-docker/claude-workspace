@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **203 tests** (199 smoke + 4 integration) plus shellcheck (16 hook
+Total: **208 tests** (204 smoke + 4 integration) plus shellcheck (16 hook
 scripts + 9 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -130,7 +130,7 @@ stdin and asserts one of three behaviours:
 | fires when TEST.md lists missing bats file | bats file missing → FIRE |
 | silent when edited file is not .bats or TEST.md | not a tracked file type → SILENT |
 
-### test/smoke/remind_docker_for_lint_spec.bats (7)
+### test/smoke/remind_docker_for_lint_spec.bats (12)
 | Test | Scenario |
 |------|----------|
 | fires on standalone shellcheck | bare `shellcheck ...` → FIRE |
@@ -140,6 +140,11 @@ stdin and asserts one of three behaviours:
 | silent inside ./build.sh test wrapper | `./build.sh test` → SILENT |
 | silent inside make -f Makefile.ci wrapper | `make -f Makefile.ci lint` → SILENT |
 | silent on unrelated command containing the word bats in path | `ls /usr/lib/bats-core` → SILENT |
+| silent inside make -C .claude/test wrapper (default list) | `make -C .claude/test test` → SILENT |
+| lint_wrappers.txt overrides default list | sibling file lists custom wrapper → matches custom, SILENT |
+| lint_wrappers.txt override drops the default docker pattern | with override list = `make -C .claude`, `docker run ...; bats foo` → FIRE |
+| lint_wrappers.txt ignores blank and # comment lines | non-content lines skipped during parse |
+| missing CLAUDE_PROJECT_DIR falls back to default list | unset env, `docker run ... shellcheck ...` → SILENT |
 
 ### test/smoke/remind_no_ai_attribution_spec.bats (5)
 | Test | Scenario |

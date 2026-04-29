@@ -216,7 +216,7 @@ docker/
     │   ├── remind_pr_wait_ci.sh        # gh pr create 前提醒用 /wait-pr-ci skill
     │   ├── remind_no_ai_attribution.sh # git commit / gh pr create 前掃 inline 歸屬字串
     │   ├── remind_subtree_init.sh      # git subtree pull template 前提醒跑 init.sh
-    │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker
+    │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker (wrapper list 可被 .claude/lint_wrappers.txt override)
     │   ├── remind_no_heredoc_redirect.sh # cat <<EOF > file 時提醒用 Write 工具
     │   ├── remind_no_chinese_in_git_artifacts.sh # git commit / gh PR / issue title|body|comment 前 BLOCK CJK 與全形字符
     │   ├── remind_use_body_file.sh     # gh ... --body|--comment "$(cat ...)" 時提醒用 --body-file
