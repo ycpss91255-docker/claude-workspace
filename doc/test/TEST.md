@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **142 tests** (138 smoke + 4 integration) plus shellcheck (15 hook
-scripts + 4 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
+Total: **147 tests** (143 smoke + 4 integration) plus shellcheck (15 hook
+scripts + 5 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
 
@@ -279,6 +279,21 @@ without network.
 | --expect matches all → exit 0 | release-verify happy path |
 | --expect mismatch → exit 1 | release-verify partial-rollout failure |
 | --skip removes listed repo from default iteration | exclusion filter |
+
+### test/smoke/batch_gitignore_fix_spec.bats (5)
+
+Covers `.claude/scripts/batch-gitignore-fix.sh` (one-shot helper that
+opens one chore PR per downstream repo to replace `.claude/` with
+`.claude` in `.gitignore`, so per-repo Claude session symlinks no
+longer pollute `git status`). Smoke-only; no network in tests.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --why-file and --why exits 2 | required-arg validation |
+| unknown arg exits 2 | unknown flag |
+| --dry-run prints would-do line per repo without mutating | dry-run path |
+| --only narrows to listed repos in dry-run | scope filter |
 
 ## Integration specs
 
