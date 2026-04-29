@@ -31,3 +31,18 @@ load '../lib/test_helper'
   run "$(hook remind_use_body_file.sh)" <<< '{"tool_input":{"command":"echo \"$(cat /tmp/x.md)\""}}'
   assert_silent
 }
+
+@test "fires on gh pr create --body-file - <<EOF (heredoc stdin)" {
+  run "$(hook remind_use_body_file.sh)" <<< '{"tool_input":{"command":"gh pr create --title T --body-file - <<EOF\nbody line\nEOF"}}'
+  assert_message_contains "--body-file"
+}
+
+@test "fires on gh issue create --body-file - alone (stdin variant)" {
+  run "$(hook remind_use_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file -"}}'
+  assert_message_contains "--body-file"
+}
+
+@test "silent on --body-file with non-dash path that happens to start with dash-like name" {
+  run "$(hook remind_use_body_file.sh)" <<< '{"tool_input":{"command":"gh pr create --body-file /tmp/-weird-name.md --title T"}}'
+  assert_silent
+}
