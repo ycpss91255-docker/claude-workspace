@@ -14,7 +14,7 @@ HADOLINT_IMAGE := hadolint/hadolint:latest-alpine
 # stay relative to that context (`.claude/hooks/`, `.claude/scripts/`).
 REPO_ROOT := $(CURDIR)/../..
 
-.PHONY: help build test lint hadolint check clean
+.PHONY: help build test lint hadolint tree-check check clean
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -37,7 +37,10 @@ hadolint:  ## Lint .claude/test/Dockerfile with Hadolint
 	  $(HADOLINT_IMAGE) \
 	  hadolint --config /.hadolint.yaml - < $(CURDIR)/Dockerfile
 
-check: lint hadolint test  ## Full CI gate: shellcheck + Hadolint + bats
+tree-check:  ## Audit CLAUDE.md `.claude/` tree listing vs filesystem (host bash+python3, no docker)
+	$(REPO_ROOT)/.claude/scripts/check-claude-md-tree.sh $(REPO_ROOT)/CLAUDE.md
+
+check: lint hadolint test tree-check  ## Full CI gate: shellcheck + Hadolint + bats + tree audit
 
 clean:  ## Remove the test image
 	docker image rm $(IMAGE) 2>/dev/null || true

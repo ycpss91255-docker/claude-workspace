@@ -6,6 +6,21 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/scripts/check-claude-md-tree.sh` — CI lint that parses the
+  `.claude/` tree listing in `CLAUDE.md` and diffs against the
+  filesystem under `.claude/commands/`, `.claude/scripts/`,
+  `.claude/hooks/`. Exits 1 on drift with `+` / `-` entry diff;
+  exits 2 on usage / parse error. Honours folded subdirs
+  (`└── test/` placeholder under `hooks/`) so they don't false
+  positive. Wired into `.claude/test/Makefile` as a new `tree-check`
+  target (also added to `check`) and into `.github/workflows/test.yaml`
+  as a CI step. Background: PR #29 caught up 7 entries that drifted in
+  one week of feature work; this lint prevents recurrence by failing
+  the build instead of relying on memory or `/doc-sync`. 8 bats specs
+  cover help / missing inputs / aligned / fs-drift / tree-drift /
+  folded subdir handling / multi-dir drift.
+
 ### Documentation
 - Catch up `CLAUDE.md` `.claude/` directory tree drift (audit found 7
   entries added in past PRs but never synced into the tree listing):
