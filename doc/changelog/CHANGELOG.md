@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- New slash command `/issue-fix <repo> <issue_num> [--dry-run]` —
+  delegates auto-fixing one open `ycpss91255-docker/<repo>` issue to the
+  agent when scope is reasonable; rejects (with one explanatory comment
+  on the issue) when not. Reasonableness gate covers: thin body, pure
+  question, architectural decision, cross-repo coordinated change,
+  destructive migration, >200-line diff estimate, conflicting reports.
+  On accept: opens a worktree per the worktree workflow, writes a
+  regression test first (TDD), implements the minimal fix, runs the
+  repo's standard Docker-based test runner, opens a PR with
+  `Closes #<num>`, then waits for CI to settle via `wait-pr-ci` skill
+  (B2 — block until green). Never auto-merges. If diff exceeds 200
+  lines mid-implementation, comments on the issue and leaves the
+  worktree for human inspection. Per-repo `--check-filter` for
+  `wait-pr-ci.sh` documented in the command (template / multi_run
+  default; claude-workspace `bats + shellcheck + hadolint`; container
+  repos `call-docker-build / docker-build`). Pairs with the
+  read-only `/issue-check`.
 - `CLAUDE.md` new section "git worktree 用法（強制）": for any new
   branch / WIP / chore PR on any of the 18 git repos, use
   `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main`.
