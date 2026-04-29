@@ -1,5 +1,7 @@
 Batch-upgrade all downstream repos under `ycpss91255-docker` to a target template tag.
 
+**Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-template-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `template/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
+
 Use this **after** a new `template` tag has been pushed and the tag's CI is green. This propagates the new template version to all 17 downstream repos (agent / app / env) by opening one PR per repo.
 
 ## When to invoke

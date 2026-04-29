@@ -1,5 +1,7 @@
 Create a new Docker container repo under the ycpss91255-docker GitHub organization.
 
+**Scope: workspace cwd only.** This command creates `${CLAUDE_PROJECT_DIR}/<category>/<repo>/` (sibling to the existing 17 sub-repos) and updates `${CLAUDE_PROJECT_DIR}/org-profile/profile/README.md`. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root before running `/new-repo` again.
+
 Follow the standard workflow defined in CLAUDE.md. The user will specify the repo type and name.
 
 Repo types:

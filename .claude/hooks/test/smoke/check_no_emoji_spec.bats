@@ -32,3 +32,17 @@ teardown() {
   run "$(hook check_no_emoji.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/bin\"}}"
   assert_silent
 }
+
+@test "silent on meta-doc CLAUDE.md (legitimate emoji quoting)" {
+  mkdir -p "${TMPDIR}/repo"
+  printf 'rule: do not use emoji like \xF0\x9F\x9A\x80\n' > "${TMPDIR}/repo/CLAUDE.md"
+  run "$(hook check_no_emoji.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/repo/CLAUDE.md\"}}"
+  assert_silent
+}
+
+@test "silent on .claude/commands/*.md meta-doc (rule description)" {
+  mkdir -p "${TMPDIR}/repo/.claude/commands"
+  printf 'detect this: \xF0\x9F\x9A\x80\n' > "${TMPDIR}/repo/.claude/commands/foo.md"
+  run "$(hook check_no_emoji.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/repo/.claude/commands/foo.md\"}}"
+  assert_silent
+}

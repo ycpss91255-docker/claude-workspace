@@ -26,6 +26,10 @@ main() {
 
   case "${file_path}" in
     */.git/*|*/node_modules/*|*/coverage/*|*/.cache/*) return 0 ;;
+    # Meta-docs that legitimately quote the rules they enforce
+    # (mirrors check_no_ai_attribution.sh skip list).
+    */CLAUDE.md|*/.claude/commands/*.md|*/.claude/skills/*/SKILL.md) return 0 ;;
+    */doc/test/TEST.md|*/doc/changelog/CHANGELOG.md) return 0 ;;
     # Hook-test fixtures may legitimately contain emoji bytes for detection tests.
     */.claude/hooks/test/*) return 0 ;;
   esac

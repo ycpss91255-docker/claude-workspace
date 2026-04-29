@@ -1,5 +1,7 @@
 Create and manage PRs across multiple repos in batch.
 
+**Scope: workspace cwd only.** This command iterates `${CLAUDE_PROJECT_DIR}/<category>/<repo>` paths and only works when the session was started from the docker workspace root. If running from a per-repo session (e.g. `cd template && claude`), refuse and instruct the user to either: (a) re-open Claude from the workspace root, or (b) for a single-repo PR use `/pr` instead.
+
 Use this when the same change needs to be applied to multiple repos (e.g., all env repos, all agent repos).
 
 Follow this workflow:
