@@ -38,7 +38,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | `gh pr merge N --repo X` 從非該 repo cwd | 內建 state-changing safety 提示（不可 bypass，與 parser、allowlist 都無關） | **接受 1-click 提示即可** — 這是合理的安全檢查，且 `docker` monorepo 裡沒有 `ycpss91255-docker/template` 的獨立 checkout（只是 git subtree），無法 cd 進去規避；`-R X` 短形式 / `(cd path && ...)` 子 shell 都不能繞 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
-| `docker run ... bash -c '<長 inline 字串>'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **用 Write 寫成 `/tmp/<name>.sh`**，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`。同個原則：長 quoted body 永遠抽成檔案，不要用 inline 字串塞給 `-c` |
+| `docker run ... bash -c '<長 inline 字串>'` 或 `docker compose ... bash -c '...'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **抽成 script** — 用 Write 寫成 `/tmp/<name>.sh`，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`；或抽 permanent `.claude/scripts/<name>.sh` 接 atomic flags（如 `run-bats-in-compose.sh --suite all --grep '^not ok'`），Claude parser 只看到 atomic args 不 hit string node。長 quoted body 永遠抽成檔案，不要 inline |
 
 對應有兩個 hook 自動偵測並提醒：
 - `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法
@@ -168,7 +168,8 @@ docker/
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
     │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
-    │   └── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
+    │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
+    │   └── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
