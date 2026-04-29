@@ -6,6 +6,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `/issue-fix` now auto-merges PRs on CI green (matching `/pr.md` and
+  `wait-pr-ci` skill defaults) instead of leaving them for human merge.
+  Step 7 ALL_DONE handler now runs `gh pr merge --squash --delete-branch`
+  + `git fetch` + `git worktree remove` inline; CI red still halts (no
+  auto-merge, worktree left for inspection). The "Never auto-merge"
+  note in the original `/issue-fix` was inconsistent with the rest of
+  the project's PR workflow — `/pr.md` step 6 and the `wait-pr-ci`
+  skill's "Pairing with merge" section both auto-merge on `ALL_DONE`.
+  Branch protection (`enforce_admins=true` + `required_status_checks`
+  strict) still applies, so `gh pr merge` refuses if CI didn't really
+  pass or the branch is stale.
+
 ### Added
 - New helper script `.claude/scripts/run-bats-in-compose.sh` — wraps
   `docker compose run --entrypoint bash <service> -c '<inline>'` so
