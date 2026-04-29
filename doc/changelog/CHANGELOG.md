@@ -6,6 +6,21 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `/issue-fix` second arg now accepts `all` (or omitted) for batch mode —
+  iterates every open issue on `<repo>` serially, oldest first (FIFO),
+  pre-filtering out issues with open linked PRs / `wontfix` / `invalid` /
+  `duplicate` / `do-not-merge` / `discussion` / `question` labels and
+  any issue already carrying a `Reviewed by /issue-fix automation`
+  comment. New `--limit N` flag truncates the post-filter list. Each
+  surviving issue runs the full single-issue flow (reasonableness check
+  → reject + comment, or worktree + PR + CI wait); the batch stops on
+  the first CI red but continues through reject / scope-exceeded
+  outcomes per issue. Ends with a Traditional Chinese summary block
+  listing accepted / rejected / scope-exceeded / skipped counts plus
+  the stop reason. Single-issue mode (when `<issue_num>` is a positive
+  integer) preserves the original behaviour.
+
 ### Added
 - New PreToolUse Bash hook `.claude/hooks/remind_readme_on_core_script.sh` —
   fires before `git commit` when staged files include template's core
