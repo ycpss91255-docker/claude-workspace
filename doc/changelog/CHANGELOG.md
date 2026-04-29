@@ -114,6 +114,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   left for human judgment. Includes 7 bats specs covering fire /
   silent / final-stage-only parsing paths; registered in
   `.claude/settings.json` PostToolUse next to `remind_tdd_categories.sh`.
+- New helper script `.claude/scripts/batch-gitignore-fix.sh` — opens
+  one chore PR per downstream repo (17 + template) to replace
+  `.claude/` with `.claude` in each repo's `.gitignore`. The trailing
+  slash form only matches a real directory; the docker monorepo
+  creates `<repo>/.claude` as a relative symlink to the workspace
+  `.claude/` for per-repo Claude sessions, which leaks into
+  `git status` as `?? .claude` under the old pattern. Mirrors
+  `batch-template-upgrade.sh` shape (`--why-file` / `--why` /
+  `--only` / `--skip` / `--dry-run` / `--continue-on-error`),
+  idempotent (skip if `.claude/` line already absent), no code or
+  build impact in any downstream repo (gitignore-only). 5 bats specs
+  (--help / required-arg / unknown-arg / dry-run / --only filter).
 - New helper script `.claude/scripts/check-template-versions.sh` —
   read-only HTTPS fetch of `template/.version` from main for every
   downstream repo (17 repos in `DEFAULT_REPOS`, mirroring
