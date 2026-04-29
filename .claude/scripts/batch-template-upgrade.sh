@@ -211,7 +211,13 @@ upgrade_one() {
   ./template/upgrade.sh "${version}" || return 1
   ./template/init.sh || return 1
 
-  if git diff --quiet HEAD; then
+  # Skip only if the branch is fully equivalent to main: no commits ahead
+  # AND no uncommitted edits AND no untracked files. `git diff --quiet HEAD`
+  # alone misses the upgrade case — upgrade.sh commits its work, so HEAD vs
+  # working-tree is always clean even when the branch carries a real upgrade.
+  if git diff --quiet main HEAD \
+     && git diff --quiet \
+     && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
     info "[${reponame}] no changes after upgrade — already at ${version}"
     git checkout main || return 1
     git branch -D "${branch}" || return 1
