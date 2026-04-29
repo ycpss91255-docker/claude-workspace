@@ -6,6 +6,30 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `CLAUDE.md` new section "git worktree 用法（強制）": for any new
+  branch / WIP / chore PR on any of the 18 git repos, use
+  `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main`.
+  Standard location `<workspace>/worktree/` is already gitignored at
+  workspace level. Existing 18 main checkouts (workspace + 17
+  downstream + template) stay fixed at origin/main — no branches, no
+  WIP commits, no dirty working tree. Multiple worktrees can coexist
+  for parallel sessions on the same repo. Cross-repo batch scripts
+  (`batch-template-upgrade.sh` etc.) are exempt — they manage their
+  own fetch / branch flow internally. On a fresh machine without
+  `<workspace>/worktree/`, Claude must ask the user where to place
+  worktrees rather than guess. Closes part of #22.
+- New helper script `.claude/scripts/batch-gitignore-add-line.sh` —
+  generic sister of `batch-gitignore-fix.sh` that **appends** an
+  arbitrary line to each downstream `.gitignore` if not already
+  present. Mirrors the `--why-file` / `--why` / `--only` / `--skip` /
+  `--dry-run` / `--continue-on-error` shape. Idempotent (skip if line
+  already exists). 7 bats specs cover help / required-arg /
+  unknown-arg / dry-run / scope filter / branch-name slugification.
+  First use case: add `CLAUDE.md` to each downstream `.gitignore` so
+  per-repo `<repo>/CLAUDE.md → ../<n>/CLAUDE.md` symlinks (issue #22)
+  don't leak into git status.
+
 ### Changed
 - Slash commands made cwd-aware so they degrade gracefully when invoked
   from per-repo sessions (e.g. `cd template && claude`) instead of the
