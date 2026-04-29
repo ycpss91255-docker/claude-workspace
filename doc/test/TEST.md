@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **129 tests** (125 smoke + 4 integration) plus shellcheck (14 hook
+Total: **131 tests** (127 smoke + 4 integration) plus shellcheck (14 hook
 scripts + 4 helper scripts) plus Hadolint (`.claude/test/Dockerfile`).
 
 ## 4-category coverage
@@ -92,13 +92,15 @@ stdin and asserts one of three behaviours:
 | silent on clean file | no markers → SILENT |
 | silent on .md file (skip) | `.md` is skipped by hook → SILENT |
 
-### test/smoke/check_no_emoji_spec.bats (4)
+### test/smoke/check_no_emoji_spec.bats (6)
 | Test | Scenario |
 |------|----------|
 | fires when file contains emoji | emoji codepoint present → FIRE |
 | silent on clean ASCII file | no emoji → SILENT |
 | silent when file does not exist | file path missing → SILENT |
 | silent when file is binary | binary file detected → SILENT |
+| silent on meta-doc CLAUDE.md (legitimate emoji quoting) | rule-describing CLAUDE.md → SILENT |
+| silent on .claude/commands/*.md meta-doc (rule description) | command markdown → SILENT |
 
 ### test/smoke/check_test_md_drift_spec.bats (5)
 | Test | Scenario |

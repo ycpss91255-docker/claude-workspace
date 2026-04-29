@@ -7,6 +7,32 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- Slash commands made cwd-aware so they degrade gracefully when invoked
+  from per-repo sessions (e.g. `cd template && claude`) instead of the
+  workspace root:
+  - `/doc-sync` default path changed from hardcoded
+    `/home/yunchien/workspace/docker` to `${CLAUDE_PROJECT_DIR}`. From
+    workspace cwd it covers all sub-repos as before; from per-repo cwd
+    it scopes to that single repo. Removes a user-specific path that
+    would have failed on any other machine.
+  - `/pr` step 7 (template-merge fanout to 17 downstream repos) now
+    explicitly notes "Scope: workspace cwd only" and points at
+    `/batch-template-upgrade` for the per-repo session case. Manual
+    fanout block kept for reference but `(cd ... && cmd)` subshell
+    replaces the bare `cd` to avoid session cwd pollution.
+  - `/batch-pr`, `/new-repo`, `/batch-template-upgrade` each gain a
+    `Scope: workspace cwd only` block at the top — these commands
+    iterate `${CLAUDE_PROJECT_DIR}/<category>/<repo>` paths and only
+    work from the docker workspace root. Per-repo session use should
+    fail loudly with a clear redirect to `/pr` (single-repo) or
+    workspace re-entry.
+- `check_no_emoji.sh` skip list extended to mirror
+  `check_no_ai_attribution.sh`: meta-doc files (`CLAUDE.md`,
+  `.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
+  `doc/test/TEST.md`, `doc/changelog/CHANGELOG.md`) that legitimately
+  quote the rules they enforce are no longer flagged. Surfaced when
+  doc-sync.md `🤖 Generated` (a forbidden-pattern reference, not a
+  violation) caused the hook to fire on every edit. 2 new bats specs.
 - `release` slash command rewritten to match the actual
   ycpss91255-docker repo convention. Previously the skill said "tag and
   push" only; the real flow used by v0.12.0 → v0.12.3 is **branch →

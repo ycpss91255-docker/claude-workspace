@@ -41,15 +41,27 @@ Follow this workflow:
      ```
    - If merge fails with "branch is not up to date" (dependabot batch / main moved), comment `@dependabot rebase` (or rebase locally + force-push) and re-invoke the skill on the same PR.
 
-7. **If template repo**: after merge + tag, run `./template/upgrade.sh` in each
-   of the 17 other repos to pull the new template subtree version:
+7. **If this PR was on the `template` repo**: after merge + tag, the
+   17 downstream repos need the new template subtree version pulled.
+   **Scope: workspace cwd only** — the fanout below assumes
+   `${CLAUDE_PROJECT_DIR}` is the workspace dir that contains all 17
+   sub-repos. If the current session was started inside a single repo
+   (per-repo cwd), skip step 7 entirely and instead run
+   `/batch-template-upgrade <vX.Y.Z>` from a workspace session, which
+   handles the same fan-out via a permanent script and avoids `cd`
+   parser warnings:
+   ```
+   .claude/scripts/batch-template-upgrade.sh vX.Y.Z --why "..." --issue <num>
+   ```
+   Manual fan-out (kept for reference; prefer the batch script):
    ```
    for repo in env/ros_noetic env/ros_kinetic env/ros2_humble env/osrf_ros_noetic env/osrf_ros_kinetic env/osrf_ros2_humble agent/ai_agent agent/claude_code agent/codex_cli agent/gemini_cli app/realsense_humble app/realsense_noetic app/sick_humble app/sick_noetic app/urg_node_noetic app/ros1_bridge app/urg_node_humble; do
-     cd ${CLAUDE_PROJECT_DIR}/$repo
-     ./template/upgrade.sh
-     git push
+     git -C "${CLAUDE_PROJECT_DIR}/$repo" pull
+     (cd "${CLAUDE_PROJECT_DIR}/$repo" && ./template/upgrade.sh && git push)
    done
    ```
+   For non-template PRs (fix / feat / refactor on a single repo), step 7
+   is **N/A** — your work ends at step 6.
 
 Context from user: $ARGUMENTS
 

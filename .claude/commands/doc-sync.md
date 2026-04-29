@@ -2,7 +2,7 @@ Run the project's "變更完成 checklist" doc-alignment checks against the curr
 
 Usage: `/doc-sync` (no args), or `/doc-sync <repo-path>` to scope to a single repo subtree.
 
-For the path: $ARGUMENTS — if empty, default to `/home/yunchien/workspace/docker` and run the checks against every repo under it that has a `doc/test/TEST.md` (skip directories without that marker).
+For the path: $ARGUMENTS — if empty, default to `${CLAUDE_PROJECT_DIR}` (session cwd) and run the checks against every repo under it that has a `doc/test/TEST.md` (skip directories without that marker). When invoked from a per-repo session, this naturally scopes to that single repo; from workspace cwd it covers all sub-repos.
 
 For each in-scope repo, run these checks and collect findings:
 
