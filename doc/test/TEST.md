@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **189 tests** (185 smoke + 4 integration) plus shellcheck (16 hook
-scripts + 8 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **203 tests** (199 smoke + 4 integration) plus shellcheck (16 hook
+scripts + 9 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -257,6 +257,30 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | any FAILURE check exits 1 with FAIL <pr> | fail-fast on FAILURE |
 | multiple PRs all-pass + MERGEABLE exits 0 | CSV PR batching |
 | custom --check-filter narrows to a non-default check name | filter override (container-repo / org-profile usage) |
+| max-iterations exits 124 when stuck pending | iteration cap |
+| no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
+| all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
+
+### test/smoke/wait_pr_ci_batch_spec.bats (14)
+
+Covers `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo flavour for
+`/batch-template-upgrade` follow-up. Same Monitor pattern + output
+shape as `wait-pr-ci.sh`, but takes positional `<repo>:<pr>` pairs
+and aggregates all PRs into one stream.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| no pairs exits 2 | required-arg validation |
+| bad pair (no colon) exits 2 | format validation |
+| non-numeric PR exits 2 | PR validation |
+| unknown flag exits 2 | flag validation |
+| all-pass single short-form pair exits 0 with ALL_DONE | happy path + default owner prefix |
+| full owner/repo form is accepted (no prefix added) | full form override |
+| --owner overrides default for short form | owner flag |
+| any FAILURE check exits 1 with FAIL <repo>#<pr> | failure surfacing |
+| multiple pairs all-pass + MERGEABLE exits 0 | batch happy path |
+| custom --check-filter narrows to a non-default check name | container-repo filter usage |
 | max-iterations exits 124 when stuck pending | iteration cap |
 | no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
 | all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
