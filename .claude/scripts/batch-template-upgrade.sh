@@ -225,6 +225,18 @@ upgrade_one() {
   git checkout -B main FETCH_HEAD || return 1
   git checkout -B "${branch}" || return 1
 
+  # One-shot pre-upgrade migration for template #201 (v0.16.0).
+  # Renames setup.conf.local → setup.conf and drops the obsolete
+  # `setup.conf` line from .gitignore. Idempotent: skips on repos that
+  # have already migrated. Delete this block (and the script it calls)
+  # after the v0.16.x cycle.
+  if [[ -f "${dir}/setup.conf.local" ]] \
+      && [[ -x "${SCRIPT_DIR}/migrate-local-to-setupconf.sh" ]]; then
+    "${SCRIPT_DIR}/migrate-local-to-setupconf.sh" "${dir}" || return 1
+    git commit -m "chore: migrate setup.conf.local to setup.conf for ${version} (#201)" \
+      || return 1
+  fi
+
   ./template/upgrade.sh "${version}" || return 1
   ./template/init.sh || return 1
 
