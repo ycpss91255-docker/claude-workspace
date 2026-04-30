@@ -13,12 +13,18 @@
 #      old gitignored snapshot). The .local content is the source of
 #      truth; the old setup.conf snapshot is reproducible from
 #      template/setup.conf + .local merge.
-#   2. Stage setup.conf (no longer gitignored after the next template
-#      upgrade applies the new lib/gitignore.sh canonical list).
-#   3. .gitignore canonical sync runs separately via init.sh on the
-#      same upgrade — that pass adds setup.conf.local to canonical
-#      gitignore. We do NOT edit .gitignore here; init.sh's resync
-#      handles it.
+#   2. Drop the obsolete `setup.conf` line from .gitignore. Pre-v0.16.0
+#      template's lib/gitignore.sh listed it as canonical; #201 removes
+#      it. Without this step, `git add setup.conf` would be silently
+#      dropped by the still-present ignore line.
+#   3. Stage setup.conf + .gitignore.
+#   4. git rm --cached setup.conf.local so the user's commit reflects
+#      the rename.
+#
+# The post-migration `make upgrade VERSION=v0.16.0` pulls the new
+# template subtree, which `init.sh` resync then uses to add
+# `setup.conf.local` to canonical gitignore (so leftover legacy files
+# don't drift back).
 #
 # Idempotent: re-running on a repo that has already been migrated
 # (setup.conf committed, no .local) is a no-op.
