@@ -66,6 +66,17 @@ Re-run for one failed repo:
 
 ## After the script
 
+The script self-prints a copy-pasteable next-step block at end of run, with the exact `<reponame>:<pr_num>` pairs filled in:
+
+```
+next: wait CI then merge:
+  .claude/scripts/wait-pr-ci-batch.sh ai_agent:194 claude_code:195 ... \
+    --check-filter '.name=="call-docker-build / docker-build"'
+  .claude/scripts/batch-pr-merge.sh ai_agent:194 claude_code:195 ...
+```
+
+Wrap the first line in a Monitor (so it doesn't block the agent on a long poll) and run the second after `ALL_DONE`. Detail below.
+
 1. Wait for all 17 (or N) PRs' CI to settle in one Monitor stream. Use `wait-pr-ci-batch.sh`:
    ```
    Monitor(
