@@ -130,6 +130,7 @@ _migrate_one() {
 
   if (( _DRY_RUN )); then
     printf '         [dry-run] mv %s %s\n' "${_local}" "${_conf}"
+    # shellcheck disable=SC2016  # literal backticks in informational dry-run text
     printf '         [dry-run] sed -i remove obsolete `setup.conf` line from %s/.gitignore\n' "${_repo}"
     printf '         [dry-run] git -C %s add setup.conf .gitignore\n' "${_repo}"
     printf '         [dry-run] git -C %s rm --cached setup.conf.local (if tracked)\n' "${_repo}"
