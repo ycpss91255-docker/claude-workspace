@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **208 tests** (204 smoke + 4 integration) plus shellcheck (16 hook
-scripts + 9 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **215 tests** (211 smoke + 4 integration) plus shellcheck (16 hook
+scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -387,6 +387,26 @@ parser never sees is composed correctly.
 | --compose-file overrides default compose.yaml | flag override |
 | HOST_UID / HOST_GID env values come from id stub | env propagation |
 | --head N caps output to first N lines | head/tail mutual exclusion |
+
+### test/smoke/batch_template_upgrade_spec.bats (7)
+
+Covers `.claude/scripts/batch-template-upgrade.sh` — the implementation
+behind `/batch-template-upgrade`. After PR #34 the script self-prints a
+copy-pasteable `wait-pr-ci-batch.sh` + `batch-pr-merge.sh` block at the
+end of a real run, so sessions that bypass the slash command still see
+the next-step path (was the root cause of the v0.15.0 ad-hoc
+`/tmp/wait-batch-vX.Y.Z.sh` regression). Specs cover arg validation
+plus unit tests of `print_next_step_hint` via source-with-guard.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing version exits 2 | required-arg validation |
+| missing why exits 2 | required-arg validation |
+| unknown arg exits 2 | flag validation |
+| print_next_step_hint emits both wait + merge commands when pairs given | hint formatting (2+ pairs) |
+| print_next_step_hint silent when no pairs | dry-run / all-skipped guard |
+| print_next_step_hint preserves single pair | hint formatting (1 pair) |
 
 ### test/smoke/check_claude_md_tree_spec.bats (8)
 

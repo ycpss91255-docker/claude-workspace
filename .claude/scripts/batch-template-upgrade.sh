@@ -146,6 +146,11 @@ main() {
   local skipped=()
   local opened=()
 
+  local pairs_file
+  pairs_file="$(mktemp)"
+  # shellcheck disable=SC2064  # pairs_file is set, expansion at trap-set is fine
+  trap "rm -f '${pairs_file}'" EXIT
+
   local repo
   for repo in "${repos[@]}"; do
     local reponame="${repo##*/}"
@@ -163,7 +168,7 @@ main() {
       continue
     fi
 
-    if upgrade_one "${root}/${repo}" "${url}" "${branch}" "${version}" "${reponame}" "${why}" "${issue_line}"; then
+    if upgrade_one "${root}/${repo}" "${url}" "${branch}" "${version}" "${reponame}" "${why}" "${issue_line}" "${pairs_file}"; then
       opened+=("${repo}")
     else
       local rc=$?
@@ -179,6 +184,14 @@ main() {
     fi
   done
 
+  local opened_pairs=()
+  if [[ -s "${pairs_file}" ]]; then
+    local line
+    while IFS= read -r line; do
+      [[ -n "${line}" ]] && opened_pairs+=("${line}")
+    done < "${pairs_file}"
+  fi
+
   echo
   info "summary: opened=${#opened[@]} skipped=${#skipped[@]} failed=${#failed[@]}"
   if (( ${#opened[@]} )); then
@@ -187,6 +200,9 @@ main() {
   if (( ${#skipped[@]} )); then
     printf '  skipped: %s\n' "${skipped[@]}"
   fi
+
+  print_next_step_hint "${opened_pairs[@]}"
+
   if (( ${#failed[@]} )); then
     printf '  failed:  %s\n' "${failed[@]}"
     exit 1
@@ -201,6 +217,7 @@ upgrade_one() {
   local reponame="$5"
   local why="$6"
   local issue_line="$7"
+  local pairs_file="${8:-}"
 
   cd "${dir}"
 
@@ -240,6 +257,13 @@ upgrade_one() {
     --body "${body}")" || return 1
 
   info "[${reponame}] PR: ${pr_url}"
+
+  if [[ -n "${pairs_file}" ]]; then
+    local pr_num="${pr_url##*/}"
+    if [[ "${pr_num}" =~ ^[0-9]+$ ]]; then
+      printf '%s:%s\n' "${reponame}" "${pr_num}" >> "${pairs_file}"
+    fi
+  fi
 }
 
 render_pr_body() {
@@ -254,4 +278,24 @@ render_pr_body() {
     envsubst '${VERSION} ${WHY} ${ISSUE_LINE}' < "${DEFAULT_PR_BODY_TEMPLATE}"
 }
 
-main "$@"
+# print_next_step_hint <pair...>
+#
+# Pair format: <reponame>:<pr_num> (e.g. ai_agent:194). Emits a copy-pasteable
+# wait-pr-ci-batch.sh + batch-pr-merge.sh block on stdout. Silent when called
+# with zero pairs (dry-run, all-skipped, or all-failed runs).
+print_next_step_hint() {
+  local pairs=("$@")
+  if (( ${#pairs[@]} == 0 )); then
+    return 0
+  fi
+  echo
+  echo "next: wait CI then merge:"
+  printf '  .claude/scripts/wait-pr-ci-batch.sh %s \\\n' "${pairs[*]}"
+  printf "    --check-filter '.name==\"call-docker-build / docker-build\"'\n"
+  printf '  .claude/scripts/batch-pr-merge.sh %s\n' "${pairs[*]}"
+}
+
+# Allow sourcing for unit tests without auto-running main.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `.claude/scripts/batch-template-upgrade.sh` now self-prints a
+  copy-pasteable next-step block at end of every real run:
+  `wait-pr-ci-batch.sh <pairs> --check-filter ...` followed by
+  `batch-pr-merge.sh <pairs>`, with the exact `<reponame>:<pr_num>`
+  pairs captured from each successful `gh pr create`. Sessions that
+  bypass `/batch-template-upgrade.md` and call the script directly
+  now still see the productized waiter — fixes the v0.15.0 rollout
+  regression where a session fell back to the old ad-hoc
+  `/tmp/wait-batch-vX.Y.Z.sh` pattern (file didn't exist; only an
+  error log left behind). 7 new bats specs cover arg validation
+  (`--help` / missing version / missing why / unknown arg) plus
+  three unit tests of `print_next_step_hint` (multi-pair / single
+  pair / silent on empty).
 - `remind_docker_for_lint.sh` wrapper list now configurable per repo
   via sibling `.claude/lint_wrappers.txt` (one substring pattern per
   line; blank / `#`-prefixed lines skipped). When the file is present
