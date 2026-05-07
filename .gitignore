@@ -14,6 +14,7 @@
 agent/*/
 app/*/
 env/*/
+archive/*/      # archived (read-only) downstream repos kept locally for reference
 template/
 multi_run/
 org-profile/   # local checkout of ycpss91255-docker/.github (org profile)

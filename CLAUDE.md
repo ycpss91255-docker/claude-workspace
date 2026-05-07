@@ -168,12 +168,8 @@ docker/
 │   ├── gemini_cli/           # Gemini CLI 獨立版
 │   └── codex_cli/            # Codex CLI 獨立版
 ├── env/                      # ROS 開發環境容器
-│   ├── ros_noetic/
-│   ├── ros_kinetic/
-│   ├── ros2_humble/
-│   ├── osrf_ros_noetic/
-│   ├── osrf_ros_kinetic/
-│   └── osrf_ros2_humble/
+│   ├── ros_distro/           # ROS 1 multi-distro (noetic / kinetic × ros: / osrf/ros: × variants)
+│   └── ros2_distro/          # ROS 2 multi-distro (humble / jazzy × ros: / osrf/ros: × variants)
 ├── app/                      # 應用程式容器
 │   ├── ros1_bridge/
 │   ├── urg_node_humble/
@@ -182,6 +178,13 @@ docker/
 │   ├── realsense_noetic/
 │   ├── sick_humble/
 │   └── sick_noetic/
+├── archive/                  # 已 archive（read-only）下游 repo 的本地 checkout，留作參考
+│   ├── ros_noetic/           # superseded by env/ros_distro (noetic-ros-base entry)
+│   ├── ros_kinetic/          # superseded by env/ros_distro (kinetic-ros-base entry)
+│   ├── ros2_humble/          # superseded by env/ros2_distro (humble-ros-base entry)
+│   ├── osrf_ros_noetic/      # superseded by env/ros_distro (noetic-desktop-full entry)
+│   ├── osrf_ros_kinetic/     # superseded by env/ros_distro (kinetic-desktop-full entry)
+│   └── osrf_ros2_humble/     # superseded by env/ros2_distro (humble-desktop-full entry)
 ├── template/                 # 共用模板 repo
 ├── multi_run/                # 多容器啟動工具（獨立 repo）
 ├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
@@ -190,7 +193,7 @@ docker/
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md                   # /audit — 跨 repo 健康檢查
     │   ├── batch-pr.md                # /batch-pr — 批次跨 repo PR（通用）
-    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級 17 下游 template tag
+    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級 13 下游 template tag
     │   ├── doc-sync.md                # /doc-sync — 變更完成 checklist 對齊檢查
     │   ├── issue-check.md             # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
     │   ├── issue-fix.md               # /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N] — auto-fix 一個或全部 open issue（合理才修，不合理留 comment）
@@ -204,7 +207,7 @@ docker/
     │   ├── batch-gitignore-fix.sh           # 一次性 .gitignore `.claude/` -> `.claude` 17 repo fanout（PR #21）
     │   ├── batch-gitignore-add-line.sh      # 通用 .gitignore 追加任意行的 17 repo fanout（PR #23）
     │   ├── batch-pr-merge.sh                # 批次 squash-merge 多個 <repo>:<pr>（接 short / full repo 名都可）
-    │   ├── check-template-versions.sh       # HTTPS curl 17 repo `template/.version` 對齊檢查（release 後驗證）
+    │   ├── check-template-versions.sh       # HTTPS curl 13 repo `template/.version` 對齊檢查（release 後驗證）
     │   ├── fix-compose-copy-line.sh         # 一次性 compose.yaml COPY 路徑修正
     │   ├── check-claude-md-tree.sh          # CI lint：parse 此檔 .claude/ tree vs filesystem，drift 就 exit 1
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
@@ -563,7 +566,7 @@ git push origin v1.3.0-rc2
 | 規則 | 內容 |
 |---|---|
 | 工作位置 | **`<workspace>/worktree/<repo>-<N>/`**（已 gitignored 在 workspace `.gitignore`）。N 通常用 PR / issue 編號（如 `template-177` `docker_harness-22`），新工作沒編號可用 branch slug |
-| 主 checkout 狀態 | 18 個下游 repo + template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP |
+| 主 checkout 狀態 | 13 個 active 下游 repo（agent/× 4、app/× 7、env/× 2）+ template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP。`archive/` 底下 6 個 archived repo 屬只讀備份，不在批次操作範圍內 |
 | 起 branch | `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main` |
 | 收尾 | merge 後 `git worktree remove <path>`，或 `git worktree prune` 清理 stale entry |
 | 平行工作 | 同一 repo 可有多個 worktree，每個對應一個 branch / PR — 不會互相打架 |

@@ -7,13 +7,13 @@ Use this when the same change needs to be applied to multiple repos (e.g., all e
 Follow this workflow:
 
 1. **Identify target repos** from the argument or context:
-   - `env`: ros_noetic, ros_kinetic, ros2_humble, osrf_ros_noetic, osrf_ros_kinetic, osrf_ros2_humble
+   - `env`: ros_distro, ros2_distro
    - `agent`: ai_agent, claude_code, gemini_cli, codex_cli
    - `app`: ros1_bridge, urg_node2
    - `all`: all of the above
    - Or specify individual repos
 
-2. **Use a representative repo first** (default: ros_noetic for env, ai_agent for agent):
+2. **Use a representative repo first** (default: ros_distro for env, ai_agent for agent):
    - Make the change manually and verify it works
    - Then apply to remaining repos (copy if identical, or adapt per repo)
 

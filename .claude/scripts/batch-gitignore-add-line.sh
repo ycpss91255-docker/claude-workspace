@@ -44,12 +44,8 @@ readonly DEFAULT_REPOS=(
   app/sick_noetic
   app/urg_node_humble
   app/urg_node_noetic
-  env/osrf_ros2_humble
-  env/osrf_ros_kinetic
-  env/osrf_ros_noetic
-  env/ros2_humble
-  env/ros_kinetic
-  env/ros_noetic
+  env/ros2_distro
+  env/ros_distro
   template
 )
 
