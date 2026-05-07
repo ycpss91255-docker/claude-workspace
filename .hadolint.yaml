@@ -1,5 +1,5 @@
 ---
-# Hadolint config for claude-workspace's .claude/test/Dockerfile.
+# Hadolint config for docker_harness's .claude/test/Dockerfile.
 # This is a build-time test runner image (bats + shellcheck), not a
 # production image, so several rules that target hardened runtime
 # images are intentionally ignored.

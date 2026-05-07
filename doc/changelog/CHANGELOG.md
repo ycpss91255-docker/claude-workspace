@@ -1,12 +1,23 @@
 # Changelog
 
-All notable changes to claude-workspace are documented here. This file
+All notable changes to docker_harness are documented here. This file
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Changed
+- Repo renamed `claude-workspace` -> `docker_harness` to better reflect
+  scope (Docker container monorepo + cross-repo harness, not Claude
+  config-only). GitHub redirect keeps old URLs (`gh repo rename` auto
+  registers `<owner>/claude-workspace` -> `<owner>/docker_harness`), so
+  external links and existing clones continue to resolve. Active code
+  and docs scrubbed of `claude-workspace` references; historical
+  CHANGELOG entries (lines 284 / 513) kept as-is per "don't rewrite
+  history" rule. Test image renamed `claude-workspace-test:local` ->
+  `docker_harness-test:local`. Special-case keys in
+  `.claude/commands/issue-fix.md` (source-tree map, test runner map,
+  CI filter map) retargeted to the new short name.
 - `.claude/scripts/batch-pr-merge.sh` now mirrors `wait-pr-ci-batch.sh`'s
   argument contract: short `<repo>` form is auto-prefixed with the default
   owner `ycpss91255-docker`, full `<owner>/<repo>` form is accepted

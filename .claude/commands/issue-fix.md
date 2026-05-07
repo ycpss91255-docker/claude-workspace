@@ -8,7 +8,7 @@ Use this when you've already triaged via `/issue-check` and want to delegate one
 /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N]
 ```
 
-- `<repo>` (required) — short name under `ycpss91255-docker`, e.g. `template`, `claude-workspace`, `ai_agent`, `ros1_bridge`
+- `<repo>` (required) — short name under `ycpss91255-docker`, e.g. `template`, `docker_harness`, `ai_agent`, `ros1_bridge`
 - `<issue_num>` (optional) — issue number. **If omitted or set to `all`, run batch mode** over every open issue on the repo (oldest first, FIFO).
 - `--dry-run` (optional) — read + evaluate + print the plan; do NOT open a worktree, branch, comment on the issue, or open a PR. Compatible with batch mode (lists verdict per issue).
 - `--limit N` (optional, batch mode only) — process at most `N` issues after filtering. Default unlimited.
@@ -110,7 +110,7 @@ Resolve the source git tree:
 
 | `<repo>` | Source git tree |
 |---|---|
-| `claude-workspace` | `${CLAUDE_PROJECT_DIR}` itself |
+| `docker_harness` | `${CLAUDE_PROJECT_DIR}` itself |
 | any other (`template`, `ai_agent`, `app/<x>`, `env/<x>`, etc.) | `${CLAUDE_PROJECT_DIR}/<repo>` (the subtree / submodule subdir) |
 
 Then:
@@ -136,7 +136,7 @@ Strict TDD (per CLAUDE.md):
 2. Implement the minimal fix (green).
 3. Verify per the repo's standard runner (always Docker, never bare `bats` / `shellcheck`):
    - `template` → `make -f Makefile.ci test`
-   - `claude-workspace` → `make -C .claude/test test`
+   - `docker_harness` → `make -C .claude/test test`
    - container repos (`agent/*` / `app/*` / `env/*`) → `./build.sh test`
 
 If during implementation the production diff (excluding test fixtures) exceeds **200 lines**, STOP this issue:
@@ -175,7 +175,7 @@ Use the `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`). Per-repo `--c
 | `<repo>` | `--check-filter` |
 |---|---|
 | `template`, `multi_run` | (default — covers `test` + `Integration E2E (...)`) |
-| `claude-workspace` | `'.name=="bats + shellcheck + hadolint"'` |
+| `docker_harness` | `'.name=="bats + shellcheck + hadolint"'` |
 | container repos (`agent/*` / `app/*` / `env/*`) | `'.name=="call-docker-build / docker-build"'` |
 | `.github` (org profile) | `'false'` (no CI) |
 

@@ -18,7 +18,7 @@
 #   2. Resolve work dir from `git -C <dir>` / `cd <dir> &&` / cwd.
 #   3. `git rev-parse --show-toplevel` to find repo root.
 #   4. Skip if no `.version` at repo root (rule N/A — this is a downstream
-#      consumer with `template/.version`, claude-workspace itself, etc.).
+#      consumer with `template/.version`, docker_harness itself, etc.).
 #   5. Compare `.version` content vs the tag name; on mismatch → deny.
 #
 # Out of scope (silent):

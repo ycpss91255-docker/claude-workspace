@@ -8,7 +8,7 @@ All tests run inside Docker via the `.claude/test/Dockerfile` image
 (test infra lives under `.claude/test/`):
 
 ```bash
-make -C .claude/test build       # build the test image (claude-workspace-test:local)
+make -C .claude/test build       # build the test image (docker_harness-test:local)
 make -C .claude/test test        # run all bats specs
 make -C .claude/test lint        # shellcheck on all hook + helper scripts
 make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
