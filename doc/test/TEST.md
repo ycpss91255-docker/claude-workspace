@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **257 tests** (253 smoke + 4 integration) plus shellcheck (19 hook
+Total: **271 tests** (267 smoke + 4 integration) plus shellcheck (19 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -289,6 +289,31 @@ and aggregates all PRs into one stream.
 | max-iterations exits 124 when stuck pending | iteration cap |
 | no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
 | all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
+
+### test/smoke/batch_pr_merge_spec.bats (14)
+
+Covers `.claude/scripts/batch-pr-merge.sh` — squash-merge the N PRs
+opened by `batch-template-upgrade.sh` once their CI is green. Mirrors
+`wait-pr-ci-batch.sh`'s argument contract (default-owner prefix +
+`--owner` override + up-front PR validation) so the next-step block
+printed by `batch-template-upgrade.sh` works for both scripts.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| no pairs exits 2 | required-arg validation |
+| bad pair (no colon) exits 2 | format validation |
+| non-numeric PR exits 2 | PR validation up-front (before any gh call) |
+| short repo name is normalized to ycpss91255-docker/<repo> | default owner prefix |
+| full owner/repo form is accepted (no prefix added) | full form override |
+| --owner overrides default for short form | owner flag |
+| --dry-run prints planned merges and skips gh invocation | dry-run no-op |
+| successful merge invokes gh pr merge with --squash --delete-branch | argv shape |
+| gh failure produces summary and exits 1 | failure surfacing |
+| mixed success and failure continues and reports both | continue-on-error semantics |
+| unknown flag exits 2 | flag validation |
+| empty repo in pair exits 2 | empty-repo guard |
+| empty PR in pair exits 2 | empty-pr guard |
 
 ### test/smoke/wait_tag_ci_spec.bats (10)
 
