@@ -85,6 +85,14 @@
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [
+      "docker *",
+      "make *",
+      "./build.sh *",
+      "./run.sh *",
+      "./exec.sh *",
+      "./stop.sh *"
+    ],
     "filesystem": {
       "allowWrite": [
         "/tmp"
