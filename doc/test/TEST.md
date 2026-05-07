@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **215 tests** (211 smoke + 4 integration) plus shellcheck (16 hook
+Total: **238 tests** (234 smoke + 4 integration) plus shellcheck (18 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -426,6 +426,51 @@ under hooks/) so they don't false-positive.
 | extra entry in tree (missing from fs) exits 1 with - entry | drift: tree has more |
 | folded subdir (test/) is honoured — no false positive | placeholder honoured |
 | drift in two dirs reports both | multi-dir drift |
+
+### test/smoke/check_tag_version_consistency_spec.bats (15)
+
+Covers `.claude/hooks/check_tag_version_consistency.sh` — PreToolUse
+blocking hook that compares repo root `.version` against the tag name
+on `git tag` / `git push <remote> <tag>`. Closes the gap that allowed
+template v0.18.0 / v0.18.1 to ship with `.version` still on v0.17.0
+(refs issue #36 Ask 1).
+
+| Test | Scenario |
+|------|----------|
+| blocks git tag -a when .version mismatches | annotated tag path, FAIL → deny |
+| blocks lightweight git tag when .version mismatches | bare `git tag <tag>` |
+| blocks git push origin <tag> when .version mismatches | push form |
+| blocks git push origin refs/tags/<tag> when .version mismatches | refspec form |
+| silent when .version matches tag exactly | happy path |
+| silent for rc tag matching .version | rc semver in `.version` |
+| blocks rc tag when .version still on previous version | rc mismatch |
+| silent when no .version at repo root (rule N/A) | template-less repo |
+| silent for downstream consumer with template/.version (no root .version) | downstream tags independent of consumed template version |
+| silent on git tag -d (delete) | delete out of scope |
+| silent on git push delete (:tag) | colon-delete form |
+| silent on git tag listing (no positional tag) | list mode |
+| silent on non-git command | unrelated command |
+| resolves repo via cd subdir && git tag | cwd-resolution path |
+| resolves repo via git -C and blocks mismatch | `-C` resolution path |
+
+### test/smoke/remind_make_first_upgrade_spec.bats (8)
+
+Covers `.claude/hooks/remind_make_first_upgrade.sh` — non-blocking
+PreToolUse reminder that nags when the agent runs
+`./template/upgrade.sh` directly while `Makefile.ci upgrade` is
+available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
+(refs issue #36 Ask 2).
+
+| Test | Scenario |
+|------|----------|
+| fires on ./template/upgrade.sh when Makefile.ci has upgrade target | trigger path with VERSION arg |
+| fires on bare template/upgrade.sh (no leading ./) | path-prefix variant |
+| fires on absolute path template/upgrade.sh | absolute-path variant |
+| silent when Makefile.ci absent (no make wrapper available) | rule N/A |
+| silent when Makefile.ci has no upgrade target | rule N/A |
+| silent on make -f Makefile.ci upgrade (already going through wrapper) | wrapper path |
+| silent on unrelated commands | non-trigger |
+| silent on script with similar name (foo/upgrade.sh) | path-prefix discriminator |
 
 ## Integration specs
 

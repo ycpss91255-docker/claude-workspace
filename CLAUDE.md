@@ -223,6 +223,8 @@ docker/
     │   ├── remind_use_body_file.sh     # gh ... --body|--comment "$(cat ...)" 時提醒用 --body-file
     │   ├── remind_test_tools_smoke_sync.sh # Dockerfile.test-tools 改動但同層 release-test-tools.yaml 未同步時提醒
     │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
+    │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36）
+    │   ├── remind_make_first_upgrade.sh # ./template/upgrade.sh 前提醒改用 make -f Makefile.ci upgrade（refs #36）
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
@@ -690,6 +692,43 @@ subtree 內 `template/.version`（不是已移除的 root `.template_version` /
 | Docker COPY 不 follow symlinks | symlink 指向 template/，Docker COPY 複製 symlink 本身 | 不要在需要 Docker COPY 的目錄中放 symlinks |
 | `sed` apt mirror 在 `-euo pipefail` 下失敗 | glob 匹配不到檔案時 sed 回傳非零 | apt mirror sed 加 `\|\| true` |
 | `.env.example` 刪除後 IMAGE_NAME 偵測失敗 | `detect_image_name` 只認 `docker_*` 和 `*_ws` | `.env.example` 保留作為 fallback |
+
+## Process discipline — slash command / skill 優先於 ad-hoc 執行
+
+任何 `.claude/commands/`（`/release` `/pr` `/batch-template-upgrade`
+`/issue-fix` `/new-repo` `/doc-sync` `/safe-delete` 等）或 `.claude/skills/`
+（`wait-pr-ci` 等）已經涵蓋的 workflow，**優先呼叫 documented entry
+point**，不要直接跑底下的 git / gh / make / template 腳本。理由：
+
+1. **Slash command 是 contract**。command body 列的步驟容易在 ad-hoc
+   執行時跳掉（例如 `/release` 的 chore-PR 步驟負責 bump `.version` +
+   `[Unreleased]` -> `[vX.Y.Z]` promotion；template v0.18.0 / v0.18.1
+   就是漏這步，造成下游 `make upgrade-check` 永遠誤報 upgrade available
+   — refs issue #36）。Hook layer 補不齊每個漏洞,slash command 才是
+   single source of truth。
+2. **Skills 已經把 polling / monitoring / batching 包好**。例如 PR CI
+   等待用 `wait-pr-ci` skill（內部 `wait-pr-ci.sh` + Monitor + filter
+   expression）；改寫成 ad-hoc `gh pr checks` sleep loop 會繞過 filter、
+   爆炸 context、踩 parser warning。
+3. **Slash command 的 next-step hint 推著 workflow 往前走**。例如
+   `batch-template-upgrade.sh` 跑完會自印 `wait-pr-ci-batch.sh` +
+   `batch-pr-merge.sh` 的可貼指令；ad-hoc 跳過這層後續步驟容易漏。
+
+**例外**：trivial 一次性檢視（`gh pr view` / `git log -1` /
+`gh issue view` / 純讀 file）不適用，繼續 ad-hoc 即可。**多步 mutating
+flow（tag、push、merge、release、批次操作）一律走 documented entry**。
+
+若使用者明確要求 ad-hoc 執行某步,照做但要在訊息裡點名「跳過了哪個
+documented command / 為什麼」,讓 conversation log 留痕。
+
+對應的 hook 補強：
+
+- `check_tag_version_consistency.sh` — `git tag v*` / `git push v*` 前
+  比對 repo root `.version`，不一致就 deny（取代「記得走 /release」的
+  人工約束）
+- `remind_make_first_upgrade.sh` — 直接跑 `./template/upgrade.sh` 時提醒
+  改用 `make -f Makefile.ci upgrade`（make wrapper 內部呼叫同一支 .sh,
+  但會幫忙跑 init.sh resync + main.yaml @tag sed）
 
 ## 主動優化建議
 
