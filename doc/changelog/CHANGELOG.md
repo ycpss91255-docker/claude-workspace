@@ -6,6 +6,21 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `.claude/scripts/batch-pr-merge.sh` now mirrors `wait-pr-ci-batch.sh`'s
+  argument contract: short `<repo>` form is auto-prefixed with the default
+  owner `ycpss91255-docker`, full `<owner>/<repo>` form is accepted
+  unchanged, and a `--owner <OWNER>` flag overrides the default. PR
+  numbers are validated up-front (non-numeric rejects with exit 2 before
+  any `gh` invocation). Previously, the next-step copy-paste block printed
+  by `batch-template-upgrade.sh` worked for `wait-pr-ci-batch.sh` but
+  failed across all 17 pairs for `batch-pr-merge.sh` because the latter
+  required the explicit owner prefix. The next-step block now works
+  verbatim for both. 14 new bats specs in
+  `.claude/hooks/test/smoke/batch_pr_merge_spec.bats` covering arg
+  parsing, normalization, dry-run, gh failure handling, and mixed
+  success/failure batches.
+
 ### Fixed
 - `.claude/settings.json` `sandbox` block now declares
   `excludedCommands: ["docker *", "make *", "./build.sh *",
