@@ -6,7 +6,48 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `.claude/settings.json` is now the **single source of truth** for
+  Claude Code settings. Permissions (`allow` / `ask`), `sandbox`
+  config, and `prefersReducedMotion` previously lived in the
+  gitignored `.claude/settings.local.json`; they are now committed
+  in `settings.json` so a fresh clone / new machine inherits the
+  full setup without manually re-approving every command. The local
+  override file is no longer used by this repo. CLAUDE.md「Sandbox
+  baseline」section retitled accordingly.
+- `.claude/settings.json` `permissions.ask` extended with
+  state-changing docker subcommands: `docker build/run/exec/start/
+  stop/restart/compose:*`. Combined with the new
+  `check_prefer_dot_sh.sh` hook below, this enforces "use ./build.sh
+  / ./run.sh / ./exec.sh / ./stop.sh wrappers, not raw docker"
+  across the org's container repos.
+- `.claude/settings.json` allow list reduced from ~95 entries to 45
+  by removing (a) read-only commands already covered by
+  `autoAllowBashIfSandboxed`, (b) duplicate absolute-path forms of
+  `.claude/scripts/*.sh`, (c) stale `worktree/template-{199,207,210}`
+  paths, (d) redundant hook-script self-invocations, (e) one-shot
+  curl probes, (f) `Bash(bash -c *)` (moved to ask — was a permission
+  bypass for narrower destructive rules), (g) frozen
+  `APT_MIRROR_DEBIAN=...` make variants (let `.env` provide the
+  value to docker compose; `Bash(make:*)` covers the bare form).
+
 ### Added
+- New PreToolUse hook `.claude/hooks/check_prefer_dot_sh.sh` —
+  detects `docker build/run/exec/stop` and `docker compose
+  <up|down|build|run|exec>` calls. When the cwd has the matching
+  `.sh` wrapper (`./build.sh` / `./run.sh` / `./exec.sh` /
+  `./stop.sh`), DENIES with a message pointing at the wrapper
+  (going through the wrapper picks up `setup.sh` `.env` / compose
+  refresh + language env + GPU/GUI detection). When no wrapper is
+  available, forces `ask` prompt rather than letting the broader
+  `Bash(docker:*)` allow rule pass. Read-only subs (ps / images /
+  inspect / logs / pull / ...), make-internal docker compose calls
+  (subprocess; not visible to Claude), and destructive subs already
+  in `permissions.ask` (rm / rmi / push / kill / ...) stay silent.
+  19 bats specs cover the wrapper-present / wrapper-absent / silent
+  matrix plus env-prefix stripping (`BUILDKIT_PROGRESS=plain docker
+  build ...`). Codifies the user feedback: "build/run/exec/stop 一律
+  走 .sh wrapper; 沒 wrapper 要詢問 user; user 沒明確同意一律禁止".
 - New PreToolUse hook `.claude/hooks/check_tag_version_consistency.sh`
   blocks `git tag -a v*` / `git tag v*` (lightweight) /
   `git push <remote> v*` / `git push <remote> refs/tags/v*` when the
