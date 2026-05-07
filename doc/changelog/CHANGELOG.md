@@ -7,6 +7,13 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `.claude/settings.json` permission rules normalized to colon form
+  (`Bash(<prefix>:<args>)`). Four entries were still using the
+  space-arg form (`Bash(npm list *)`, `Bash(npm root *)`,
+  `Bash(npm config *)`, `Bash(bash -c *)`); now all entries use the
+  same colon-form for grep-ability and consistency with the rest of
+  the file. Behaviour is unchanged — both forms match identically at
+  the perm-parser layer. Closes the (5) follow-up from issue #7.
 - `.claude/settings.json` is now the **single source of truth** for
   Claude Code settings. Permissions (`allow` / `ask`), `sandbox`
   config, and `prefersReducedMotion` previously lived in the

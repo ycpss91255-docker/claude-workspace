@@ -36,9 +36,9 @@
       "Bash(python3:*)",
       "Bash(tee:*)",
       "Bash(xargs:*)",
-      "Bash(npm list *)",
-      "Bash(npm root *)",
-      "Bash(npm config *)",
+      "Bash(npm list:*)",
+      "Bash(npm root:*)",
+      "Bash(npm config:*)",
       "Bash(.claude/scripts/batch-template-upgrade.sh:*)",
       "Bash(.claude/scripts/batch-gitignore-fix.sh:*)",
       "Bash(.claude/scripts/batch-gitignore-add-line.sh:*)",
@@ -79,7 +79,7 @@
       "Bash(gh issue reopen:*)",
       "Bash(gh pr close:*)",
       "Bash(/tmp/*.sh)",
-      "Bash(bash -c *)"
+      "Bash(bash -c:*)"
     ]
   },
   "sandbox": {
