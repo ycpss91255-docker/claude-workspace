@@ -16,7 +16,7 @@ Parse the argument for both VERSION and TARGET:
   - User can override via context — if the argument explicitly includes `-rcN`, honour it.
 
 - **Target repo(s)**:
-  - `env` — ros_noetic, ros_kinetic, ros2_humble, osrf_ros_noetic, osrf_ros_kinetic, osrf_ros2_humble
+  - `env` — ros_distro, ros2_distro
   - `agent` — ai_agent, claude_code, gemini_cli, codex_cli
   - `app` — ros1_bridge, urg_node_humble, urg_node_noetic, realsense_humble, realsense_noetic, sick_humble, sick_noetic
   - `template` — template repo (its own `.version` line, separate from the rest)

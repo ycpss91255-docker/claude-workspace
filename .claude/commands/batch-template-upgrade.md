@@ -2,7 +2,7 @@ Batch-upgrade all downstream repos under `ycpss91255-docker` to a target templat
 
 **Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-template-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `template/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
 
-Use this **after** a new `template` tag has been pushed and the tag's CI is green. This propagates the new template version to all 17 downstream repos (agent / app / env) by opening one PR per repo.
+Use this **after** a new `template` tag has been pushed and the tag's CI is green. This propagates the new template version to all 13 downstream repos (agent / app / env) by opening one PR per repo.
 
 ## When to invoke
 
@@ -15,7 +15,7 @@ Use this **after** a new `template` tag has been pushed and the tag's CI is gree
 `/batch-pr` is generic — it doesn't know template-subtree mechanics:
 - `./template/upgrade.sh <tag>` runs subtree pull + integrity check + `init.sh` + `main.yaml` `@tag` rewrite
 - `./template/init.sh` re-runs after subtree pull to resync root symlinks
-- Default branch is `main` for all 17 repos, but origin tracking can be stale (uses HTTPS fetch to bypass)
+- Default branch is `main` for all 13 repos, but origin tracking can be stale (uses HTTPS fetch to bypass)
 
 `/release` only covers the upstream tag flow; this is the consumer-side adoption.
 
@@ -53,7 +53,7 @@ Real run, skipping pinned repos:
 .claude/scripts/batch-template-upgrade.sh v0.12.1 \
   --why-file /tmp/v0.12.1-why.md \
   --issue 151 \
-  --skip app/ros1_bridge,env/osrf_ros2_humble \
+  --skip app/ros1_bridge,env/ros2_distro \
   --continue-on-error
 ```
 
@@ -61,7 +61,7 @@ Re-run for one failed repo:
 ```bash
 .claude/scripts/batch-template-upgrade.sh v0.12.1 \
   --why-file /tmp/v0.12.1-why.md \
-  --only env/ros_kinetic
+  --only env/ros_distro
 ```
 
 ## After the script
@@ -77,7 +77,7 @@ next: wait CI then merge:
 
 Wrap the first line in a Monitor (so it doesn't block the agent on a long poll) and run the second after `ALL_DONE`. Detail below.
 
-1. Wait for all 17 (or N) PRs' CI to settle in one Monitor stream. Use `wait-pr-ci-batch.sh`:
+1. Wait for all 13 (or N) PRs' CI to settle in one Monitor stream. Use `wait-pr-ci-batch.sh`:
    ```
    Monitor(
      description: "batch v<X> CI",
@@ -96,11 +96,17 @@ Wrap the first line in a Monitor (so it doesn't block the agent on a long poll) 
 
 ## Repo list
 
-Hardcoded in the script (`DEFAULT_REPOS`). Currently 17 repos:
+Hardcoded in the script (`DEFAULT_REPOS`). Currently 13 repos:
 
 - `agent/{ai_agent,claude_code,codex_cli,gemini_cli}` (4)
 - `app/{realsense_humble,realsense_noetic,ros1_bridge,sick_humble,sick_noetic,urg_node_humble,urg_node_noetic}` (7)
-- `env/{osrf_ros2_humble,osrf_ros_kinetic,osrf_ros_noetic,ros2_humble,ros_kinetic,ros_noetic}` (6)
+- `env/{ros_distro,ros2_distro}` (2)
+
+The 6 legacy single-distro env repos (`ros_noetic`, `ros_kinetic`,
+`ros2_humble`, `osrf_ros_noetic`, `osrf_ros_kinetic`, `osrf_ros2_humble`)
+were superseded by `ros_distro` / `ros2_distro` (single Dockerfile +
+`BASE_IMAGE` ARG covers all variants) and archived on 2026-05-07. They
+live locally under `archive/` for reference.
 
 When new repos are added to the org, update the array.
 

@@ -18,6 +18,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `docker_harness-test:local`. Special-case keys in
   `.claude/commands/issue-fix.md` (source-tree map, test runner map,
   CI filter map) retargeted to the new short name.
+- **Downstream repo count: 17 -> 13.** The 6 single-distro env repos
+  (`ros_noetic`, `ros_kinetic`, `ros2_humble`, `osrf_ros_noetic`,
+  `osrf_ros_kinetic`, `osrf_ros2_humble`) were superseded by the new
+  `ros_distro` / `ros2_distro` (single Dockerfile + `BASE_IMAGE` ARG +
+  4-entry CI matrix per repo) and archived on 2026-05-07. Local
+  checkouts moved from `env/` to `archive/`. Workspace .gitignore now
+  ignores `archive/*/`. `.claude/scripts/batch-template-upgrade.sh`,
+  `.claude/scripts/check-template-versions.sh`,
+  `.claude/scripts/batch-gitignore-add-line.sh`, CLAUDE.md tree section,
+  and four slash-command docs (`pr.md`, `batch-pr.md`, `release.md`,
+  `batch-template-upgrade.md`) updated to reflect the new 13-repo
+  set + new env entries.
 - `.claude/scripts/batch-pr-merge.sh` now mirrors `wait-pr-ci-batch.sh`'s
   argument contract: short `<repo>` form is auto-prefixed with the default
   owner `ycpss91255-docker`, full `<owner>/<repo>` form is accepted
