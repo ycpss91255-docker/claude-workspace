@@ -22,9 +22,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **不使用覆蓋率忽略註解**：禁止使用 `# LCOV_EXCL_LINE`、`# LCOV_EXCL_START/STOP` 等註解隱藏未覆蓋程式碼。要呈現真實覆蓋率，未覆蓋的部分用測試補上,不要靠註解掩蓋
 - **Google Style**：所有新程式碼一律遵循 Google Style Guide（Shell: Google Shell Style Guide；Python: Google Python Style Guide；其他語言依此類推）
 
-## Sandbox baseline（settings.local.json）
+## Sandbox baseline（settings.json）
 
-`.claude/settings.local.json` 的 sandbox section 是這個 repo 簡化 allow
+`.claude/settings.json` 的 sandbox section 是這個 repo 簡化 allow
 list 的關鍵組合，新進來的人請理解這 3 行做什麼：
 
 ```json
@@ -225,14 +225,14 @@ docker/
     │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
     │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36）
     │   ├── remind_make_first_upgrade.sh # ./template/upgrade.sh 前提醒改用 make -f Makefile.ci upgrade（refs #36）
+    │   ├── check_prefer_dot_sh.sh       # docker build/run/exec/stop/compose 前：cwd 有對應 .sh wrapper 則 deny,沒有則 ask
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
     ├── test/                           # claude-workspace 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
-    ├── settings.json                   # hooks 註冊
-    └── settings.local.json             # 本地 permissions allowlist (gitignored)
+    └── settings.json                   # hooks 註冊 + permissions + sandbox（**唯一一份,無 settings.local.json**）
 ```
 
 ## 常用指令
@@ -729,6 +729,13 @@ documented command / 為什麼」,讓 conversation log 留痕。
 - `remind_make_first_upgrade.sh` — 直接跑 `./template/upgrade.sh` 時提醒
   改用 `make -f Makefile.ci upgrade`（make wrapper 內部呼叫同一支 .sh,
   但會幫忙跑 init.sh resync + main.yaml @tag sed）
+- `check_prefer_dot_sh.sh` — `docker build/run/exec/stop` 與
+  `docker compose <up|down|build|run|exec>` 前：cwd 有對應 `.sh` wrapper
+  就 deny + 提示改用 wrapper(會帶 setup.sh 自動更新 .env / compose.yaml
+  + 語言環境 + GPU/GUI 偵測);沒對應 wrapper 則強制 ask 跳 prompt,
+  user 沒明確同意不放行(取代「直接跑 docker 繞過 wrapper 邏輯」的
+  人工約束)。read-only 子命令(ps/images/inspect/...)、make 內部觸發的
+  docker compose、已在 ask 列表的破壞性 docker subs 都不受影響。
 
 ## 主動優化建議
 

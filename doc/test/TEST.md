@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **238 tests** (234 smoke + 4 integration) plus shellcheck (18 hook
+Total: **257 tests** (253 smoke + 4 integration) plus shellcheck (19 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -452,6 +452,37 @@ template v0.18.0 / v0.18.1 to ship with `.version` still on v0.17.0
 | silent on non-git command | unrelated command |
 | resolves repo via cd subdir && git tag | cwd-resolution path |
 | resolves repo via git -C and blocks mismatch | `-C` resolution path |
+
+### test/smoke/check_prefer_dot_sh_spec.bats (19)
+
+Covers `.claude/hooks/check_prefer_dot_sh.sh` — PreToolUse hook that
+detects `docker build/run/exec/stop` and `docker compose <up|down|build|
+run|exec>` calls. Denies + points at the matching `.sh` wrapper when
+one exists in cwd; forces `ask` prompt when no wrapper is available.
+Read-only subs / make-internal calls / already-asked subs (rm/push/...)
+stay silent.
+
+| Test | Scenario |
+|------|----------|
+| deny docker build when build.sh exists | wrapper-present, build path |
+| deny docker run when run.sh exists | wrapper-present, run path |
+| deny docker exec when exec.sh exists | wrapper-present, exec path |
+| deny docker stop when stop.sh exists | wrapper-present, stop path |
+| deny docker compose up → run.sh | compose up → run.sh map |
+| deny docker compose down → stop.sh | compose down → stop.sh map |
+| deny docker compose build → build.sh | compose build map |
+| deny docker compose exec → exec.sh | compose exec map |
+| deny docker compose run → run.sh | compose run map |
+| ask when docker build but no build.sh wrapper | no-wrapper fallback |
+| ask when docker compose up but no run.sh wrapper | no-wrapper fallback (compose) |
+| silent on read-only docker subcommand (ps) | non-target sub |
+| silent on read-only docker subcommand (images) | non-target sub |
+| silent on docker pull (download is harmless) | pull is harmless |
+| silent on docker rm (already in permissions.ask) | leave to perm rule |
+| silent on non-docker command | unrelated cmd |
+| silent on make (subprocess docker is not visible to Claude) | wrapper composition |
+| strips single env-prefix and matches docker build | env-prefix tolerance |
+| strips multiple env-prefixes and matches docker build | multi env-prefix |
 
 ### test/smoke/remind_make_first_upgrade_spec.bats (8)
 

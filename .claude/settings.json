@@ -1,5 +1,97 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:cafe.github.com)",
+      "WebFetch(domain:productionresultssa1.blob.core.windows.net)",
+      "WebFetch(domain:results-receiver.actions.githubusercontent.com)",
+      "WebSearch",
+      "Read",
+      "Edit",
+      "Write",
+      "Skill(update-config)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(docker:*)",
+      "Bash(make:*)",
+      "Bash(./build.sh:*)",
+      "Bash(./run.sh:*)",
+      "Bash(./exec.sh:*)",
+      "Bash(./stop.sh:*)",
+      "Bash(./template/upgrade.sh:*)",
+      "Bash(./template/init.sh:*)",
+      "Bash(./script/ci.sh:*)",
+      "Bash(./script/ci/ci.sh:*)",
+      "Bash(./multi_run.sh:*)",
+      "Bash(chmod:*)",
+      "Bash(cp:*)",
+      "Bash(trash-put:*)",
+      "Bash(rsync:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(ssh-add:*)",
+      "Bash(python3:*)",
+      "Bash(tee:*)",
+      "Bash(xargs:*)",
+      "Bash(npm list *)",
+      "Bash(npm root *)",
+      "Bash(npm config *)",
+      "Bash(.claude/scripts/batch-template-upgrade.sh:*)",
+      "Bash(.claude/scripts/batch-gitignore-fix.sh:*)",
+      "Bash(.claude/scripts/batch-gitignore-add-line.sh:*)",
+      "Bash(.claude/scripts/batch-pr-merge.sh:*)",
+      "Bash(.claude/scripts/wait-pr-ci.sh:*)",
+      "Bash(.claude/scripts/wait-tag-ci.sh:*)",
+      "Bash(.claude/scripts/check-template-versions.sh:*)",
+      "Bash(.claude/scripts/run-bats-in-compose.sh:*)",
+      "Bash(.claude/scripts/fix-compose-copy-line.sh:*)"
+    ],
+    "ask": [
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker start:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker rm:*)",
+      "Bash(docker rmi:*)",
+      "Bash(docker kill:*)",
+      "Bash(docker push:*)",
+      "Bash(docker login:*)",
+      "Bash(docker logout:*)",
+      "Bash(docker volume rm:*)",
+      "Bash(docker network rm:*)",
+      "Bash(rm:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git clean:*)",
+      "Bash(git checkout --:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(truncate:*)",
+      "Bash(dd:*)",
+      "Bash(gh issue close:*)",
+      "Bash(gh issue reopen:*)",
+      "Bash(gh pr close:*)",
+      "Bash(/tmp/*.sh)",
+      "Bash(bash -c *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "filesystem": {
+      "allowWrite": [
+        "/tmp"
+      ]
+    }
+  },
+  "prefersReducedMotion": true,
   "hooks": {
     "PreToolUse": [
       {
@@ -63,6 +155,11 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/remind_make_first_upgrade.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check_prefer_dot_sh.sh",
             "timeout": 10
           }
         ]
