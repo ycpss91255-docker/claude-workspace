@@ -185,7 +185,7 @@ docker/
 ├── template/                 # 共用模板 repo
 ├── multi_run/                # 多容器啟動工具（獨立 repo）
 ├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
-├── .github/workflows/        # claude-workspace 自身 CI（test.yaml）
+├── .github/workflows/        # docker_harness 自身 CI（test.yaml）
 └── .claude/                  # Claude Code 設定
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md                   # /audit — 跨 repo 健康檢查
@@ -235,7 +235,7 @@ docker/
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
-    ├── test/                           # claude-workspace 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
+    ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
     └── settings.json                   # hooks 註冊 + permissions + sandbox（**唯一一份,無 settings.local.json**）
@@ -562,7 +562,7 @@ git push origin v1.3.0-rc2
 
 | 規則 | 內容 |
 |---|---|
-| 工作位置 | **`<workspace>/worktree/<repo>-<N>/`**（已 gitignored 在 workspace `.gitignore`）。N 通常用 PR / issue 編號（如 `template-177` `claude-workspace-22`），新工作沒編號可用 branch slug |
+| 工作位置 | **`<workspace>/worktree/<repo>-<N>/`**（已 gitignored 在 workspace `.gitignore`）。N 通常用 PR / issue 編號（如 `template-177` `docker_harness-22`），新工作沒編號可用 branch slug |
 | 主 checkout 狀態 | 18 個下游 repo + template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP |
 | 起 branch | `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main` |
 | 收尾 | merge 後 `git worktree remove <path>`，或 `git worktree prune` 清理 stale entry |

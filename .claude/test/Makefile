@@ -1,4 +1,4 @@
-# claude-workspace test infra — local + CI entry point.
+# docker_harness test infra — local + CI entry point.
 #
 # All targets run inside the .claude/test/Dockerfile image so behaviour matches
 # CI exactly (CLAUDE.md "驗證一律走 Docker"). Direct host bats / shellcheck /
@@ -7,7 +7,7 @@
 # Run from this directory (.claude/test/), or via `make -C .claude/test <target>`
 # from the repo root.
 
-IMAGE := claude-workspace-test:local
+IMAGE := docker_harness-test:local
 HADOLINT_IMAGE := hadolint/hadolint:latest-alpine
 
 # Build context = repo root (two levels up); COPY paths inside the Dockerfile

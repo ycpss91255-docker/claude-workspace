@@ -1,4 +1,4 @@
-# claude-workspace
+# docker_harness
 
 Workspace-level Claude Code configuration that applies across the
 sub-repos checked out under this directory (template, agent/*, env/*,
@@ -36,7 +36,7 @@ All validation runs inside Docker so behaviour matches CI exactly
 — invoke via `make -C .claude/test <target>`:
 
 ```bash
-make -C .claude/test build       # build the test image (claude-workspace-test:local)
+make -C .claude/test build       # build the test image (docker_harness-test:local)
 make -C .claude/test test        # run all bats specs
 make -C .claude/test lint        # shellcheck on all hook + helper scripts
 make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
@@ -53,7 +53,7 @@ notes.
 docker/                       # workspace root
 ├── CLAUDE.md                 # workspace rules
 ├── README.md                 # this file
-├── .github/workflows/        # claude-workspace CI
+├── .github/workflows/        # docker_harness CI
 ├── .claude/
 │   ├── settings.json         # hook + tool registration
 │   ├── hooks/                # *.sh hook scripts + test/ specs
