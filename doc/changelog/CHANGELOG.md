@@ -6,7 +6,28 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `.claude/settings.json` `sandbox` block now declares
+  `excludedCommands: ["docker *", "make *", "./build.sh *",
+  "./run.sh *", "./exec.sh *", "./stop.sh *"]`. Closes #39 — the
+  long-standing conflict where the project's "all verification via
+  Docker" rule was incompatible with sandbox's blocking of
+  `connect(AF_UNIX, /var/run/docker.sock)`. Anthropic's official
+  sandboxing docs explicitly recommend listing docker in
+  `excludedCommands`; the wildcard pattern (`docker *`) follows the
+  same prefix-match syntax used by `permissions.allow`. With this
+  fix, `make -C .claude/test check` / `docker version` /
+  `docker ps` / `./build.sh test` etc. all run unsandboxed without
+  needing per-call `dangerouslyDisableSandbox: true`. Verified
+  locally: 257-test hook suite passes plain `make -C .claude/test
+  check` (no disable flag).
+
 ### Changed
+- CLAUDE.md「Sandbox baseline」section updated to document the new
+  4th key (`excludedCommands`) alongside `enabled` /
+  `autoAllowBashIfSandboxed` / `filesystem.allowWrite`. Previous
+  text claimed "3 lines"; now "4 keys" with the rationale and link
+  to issue #39 for posterity.
 - `.claude/settings.json` permission rules normalized to colon form
   (`Bash(<prefix>:<args>)`). Four entries were still using the
   space-arg form (`Bash(npm list *)`, `Bash(npm root *)`,

@@ -25,12 +25,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Sandbox baseline（settings.json）
 
 `.claude/settings.json` 的 sandbox section 是這個 repo 簡化 allow
-list 的關鍵組合，新進來的人請理解這 3 行做什麼：
+list 的關鍵組合，新進來的人請理解這 4 個 key 做什麼：
 
 ```json
 "sandbox": {
   "enabled": true,
   "autoAllowBashIfSandboxed": true,
+  "excludedCommands": [
+    "docker *", "make *",
+    "./build.sh *", "./run.sh *", "./exec.sh *", "./stop.sh *"
+  ],
   "filesystem": { "allowWrite": ["/tmp"] }
 }
 ```
@@ -39,16 +43,18 @@ list 的關鍵組合，新進來的人請理解這 3 行做什麼：
 |---|---|
 | `enabled: true` | 對 Claude 跑的 Bash 加 sandbox（read-only fs + 限制 write/network），失敗會在錯誤訊息出現 "Operation not permitted" |
 | `autoAllowBashIfSandboxed: true` | 若 Bash 命令在 sandbox 內跑得起來（沒撞 read-only / network 限制），**直接 allow 不問 user**，等於把所有 read-only Bash（`grep`、`awk`、`cat`、`ls`、`find` 等）自動放行 |
+| `excludedCommands: ["docker *", ...]` | 列在這的 command **完全跳過 sandbox**（OS-level 不套 seatbelt/bubblewrap）。Anthropic 官方 [sandboxing 文件](https://code.claude.com/docs/en/sandboxing) 明確建議 docker 一定要列進來,因為 sandbox 會擋 `connect(AF_UNIX, /var/run/docker.sock)` syscall(refs issue #39)。`make *` 與 4 支 wrapper 一起列,因為它們內部也會 spawn docker。pattern 是 prefix wildcard 同 `permissions.allow` |
 | `filesystem.allowWrite: ["/tmp"]` | sandbox 預設禁寫入；這條讓 `/tmp` 可寫，配合「把長 body 寫成 `/tmp/<name>.md` 再給 `gh --body-file`」的 cheatsheet pattern |
 
 **實際影響**：
 - `permissions.allow` 不需要寫 `Bash(grep:*)` / `Bash(awk:*)` / `Bash(cat:*)` 等 read-only command — sandbox autoAllow 已 cover
 - 只需要寫 **state-changing** commands：`Bash(git:*)`、`Bash(gh:*)`、`Bash(docker:*)`、`Bash(make:*)` 等（這些 sandbox 不 autoAllow，因為會改 state / network）
 - `permissions.ask` 用來把高風險的 state-change（`Bash(rm:*)`、`Bash(git reset --hard:*)`、`Bash(docker push:*)` 等）**從 allow 拉出來**強制問 user，即使父規則 allow 也會被 ask 蓋過
+- `excludedCommands` 的 docker / make / wrapper 不再需要 `dangerouslyDisableSandbox: true` per call — 解掉「驗證一律走 Docker」與 sandbox 的衝突(refs #39)
 
 **什麼時候 sandbox 不夠**：parser fallback 不是 sandbox 問題（見下節「Bash 命令寫法的 parser 限制」），即使 sandbox autoAllow 也救不了 — 因為 fallback 發生在 sandbox 評估**之前**。
 
-新 repo / 新 fork 想 port 這套 setup 時，先把 sandbox 那 3 行貼進去，再從這個 repo 的 `permissions.allow` 揀必要的 state-changing entries 過去就好；不要把 read-only entries 整批複製。
+新 repo / 新 fork 想 port 這套 setup 時，先把 sandbox 那 4 個 key 貼進去（特別是 `excludedCommands` 一定要含 `docker *`,否則撞 #39 的 docker socket 問題）,再從這個 repo 的 `permissions.allow` 揀必要的 state-changing entries 過去就好；不要把 read-only entries 整批複製。
 
 ## Bash 命令寫法的 parser 限制
 
