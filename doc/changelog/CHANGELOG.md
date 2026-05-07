@@ -6,6 +6,41 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- New PreToolUse hook `.claude/hooks/check_tag_version_consistency.sh`
+  blocks `git tag -a v*` / `git tag v*` (lightweight) /
+  `git push <remote> v*` / `git push <remote> refs/tags/v*` when the
+  repo root has a `.version` file whose content does not match the
+  tag name. Closes the gap that allowed template v0.18.0 / v0.18.1
+  to ship with `.version` still on `v0.17.0` — `make upgrade-check`
+  in downstream repos kept reporting upgrade-available because the
+  metadata was wrong. Skips deletes (`-d` / `:tag`), tag listing,
+  `git push --tags` (bulk; out of scope), and downstream consumer
+  repos that only have `template/.version` (their tags are
+  independent of the consumed template version). 15 bats specs cover
+  the full matrix. Refs issue #36 (Ask 1).
+- New PreToolUse hook `.claude/hooks/remind_make_first_upgrade.sh`
+  emits a non-blocking reminder when the agent runs
+  `./template/upgrade.sh` directly while `Makefile.ci` declares an
+  `upgrade:` target. Make wrapper internally calls the same .sh but
+  also runs `init.sh` symlink resync + `main.yaml @tag` rewrite, so
+  going through it lowers the chance of half-upgrades. Hook silent
+  when no Makefile.ci, no `upgrade:` target, or the wrapper is
+  already in use. 8 bats specs cover trigger paths + silence cases.
+  Codifies CLAUDE.md「升級一律 make 優先」at the hook layer. Refs
+  issue #36 (Ask 2).
+
+### Documentation
+- `CLAUDE.md` new section "Process discipline — slash command / skill
+  優先於 ad-hoc 執行" — explicit rule that documented entry points
+  (`.claude/commands/` + `.claude/skills/`) are the contract for
+  multi-step mutating flows; ad-hoc execution is allowed only for
+  trivial read-only checks. Lists the v0.18.0 / v0.18.1 release
+  incident as the motivating case (`/release` was bypassed, the
+  chore-PR step that bumps `.version` got skipped, hook layer had no
+  fallback). Cross-links to the two new hooks above. Refs issue #36
+  (Ask 2).
+
 ### Changed
 - `.claude/scripts/batch-template-upgrade.sh` now self-prints a
   copy-pasteable next-step block at end of every real run:
