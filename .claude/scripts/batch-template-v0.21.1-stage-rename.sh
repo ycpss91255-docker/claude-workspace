@@ -34,8 +34,6 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-readonly SCRIPT_DIR
 readonly ORG="ycpss91255-docker"
 readonly TARGET_VERSION="v0.21.1"
 
