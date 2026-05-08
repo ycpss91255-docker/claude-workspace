@@ -7,6 +7,10 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `LICENSE` (Apache 2.0) and CI / License badges in `README.md`
+  (#52). Fresh add — repo previously had no LICENSE and no badges.
+  Aligns with the org-wide Apache 2.0 migration tracked across 17
+  sister repos.
 - New PostToolUse hook `.claude/hooks/check_readme_framework.sh` that
   warns when a downstream repo's `README.md` (or one of its three
   `doc/README.<lang>.md` translations) drifts from the canonical
