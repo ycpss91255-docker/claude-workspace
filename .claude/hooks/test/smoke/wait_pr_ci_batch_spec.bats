@@ -120,3 +120,106 @@ stub_gh() {
   assert_failure 124
   assert_output --partial "checks=all-pass mergeable=UNKNOWN"
 }
+
+# stub_gh_per_repo — install a `gh` shim that returns repo-specific JSON.
+# Reads `--repo <owner>/<repo>` from gh args and looks up an env var
+# named STUB_<short_repo>, where <short_repo> is the basename uppercased
+# with hyphens replaced by underscores. Falls back to STUB_DEFAULT.
+stub_gh_per_repo() {
+  cat > "${GH_STUB_DIR}/gh" <<'STUB_EOF'
+#!/usr/bin/env bash
+repo=""
+while (( $# > 0 )); do
+  case "$1" in
+    --repo) repo="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+short="${repo##*/}"
+key="STUB_$(printf '%s' "${short}" | tr 'a-z-' 'A-Z_')"
+val="${!key:-}"
+if [[ -n "${val}" ]]; then
+  printf '%s' "${val}"
+else
+  printf '%s' "${STUB_DEFAULT:-{\}}"
+fi
+STUB_EOF
+  chmod +x "${GH_STUB_DIR}/gh"
+}
+
+@test "per-repo --check-filter <repo>=<expr> applies only to that repo" {
+  stub_gh_per_repo
+  export STUB_AI_AGENT='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"call-docker-build / docker-build","conclusion":"SUCCESS"}]}'
+  export STUB_ROS_DISTRO='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"ci-passed","conclusion":"SUCCESS"},{"name":"call-docker-build / docker-build","conclusion":"FAILURE"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter '.name=="call-docker-build / docker-build"' \
+        --check-filter 'ros_distro=.name=="ci-passed"' \
+        ai_agent:1 ros_distro:3 \
+        --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ai_agent#1: checks=all-pass"
+  assert_output --partial "ros_distro#3: checks=all-pass"
+  assert_output --partial "ALL_DONE"
+}
+
+@test "per-repo filter overrides default for one repo, others fall back" {
+  stub_gh_per_repo
+  export STUB_DEFAULT='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  export STUB_ROS2_DISTRO='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"ci-passed","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter 'ros2_distro=.name=="ci-passed"' \
+        ai_agent:1 ros2_distro:3 \
+        --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ai_agent#1: checks=all-pass"
+  assert_output --partial "ros2_distro#3: checks=all-pass"
+  assert_output --partial "ALL_DONE"
+}
+
+@test "per-repo filter accepts full owner/repo key form" {
+  stub_gh_per_repo
+  export STUB_REPO_X='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"ci-summary","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter 'other-org/repo-x=.name=="ci-summary"' \
+        other-org/repo-x:9 \
+        --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "other-org/repo-x#9: checks=all-pass"
+  assert_output --partial "ALL_DONE"
+}
+
+@test "global --check-filter (no repo prefix) still works as before" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"call-docker-build / docker-build","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter '.name=="call-docker-build / docker-build"' \
+        ai_agent:1 claude_code:2 \
+        --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ai_agent#1: checks=all-pass"
+  assert_output --partial "claude_code#2: checks=all-pass"
+  assert_output --partial "ALL_DONE"
+}
+
+@test "per-repo filter with no matching check counts as no-checks" {
+  stub_gh_per_repo
+  export STUB_ROS_DISTRO='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"call-docker-build / docker-build","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter 'ros_distro=.name=="ci-passed"' \
+        ros_distro:3 \
+        --interval 0 --max-iterations 2
+  assert_failure 124
+  assert_output --partial "ros_distro#3: checks=no-checks"
+}
+
+@test "duplicate --check-filter for same repo: last one wins" {
+  stub_gh_per_repo
+  export STUB_ROS_DISTRO='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"ci-passed","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter 'ros_distro=.name=="WRONG"' \
+        --check-filter 'ros_distro=.name=="ci-passed"' \
+        ros_distro:3 \
+        --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ros_distro#3: checks=all-pass"
+  assert_output --partial "ALL_DONE"
+}

@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `wait-pr-ci-batch.sh` `--check-filter` now accepts a per-repo override
+  form `<repo>=<expr>` (repeatable) in addition to the existing global
+  jq expression. Pairs that match no per-repo entry fall back to the
+  global filter; `<repo>` may be short (`ros_distro`) or full
+  (`owner/repo`). Mixed-category batches (single-target containers
+  using `call-docker-build / docker-build` plus multi-distro repos
+  using `ci-passed` / `ci-summary` aggregators) can now be handled in
+  one Monitor pass without three of them silently hanging on
+  `no-checks`. `wait-pr-ci/SKILL.md` per-repo filter table extended to
+  cover `env/ros_distro`, `env/ros2_distro` (`ci-passed`) and
+  `app/ros1_bridge` post-#54 (`ci-summary`); `CLAUDE.md` branch
+  protection table + CI monitoring section updated to match. Closes
+  #46.
 - Repo renamed `claude-workspace` -> `docker_harness` to better reflect
   scope (Docker container monorepo + cross-repo harness, not Claude
   config-only). GitHub redirect keeps old URLs (`gh repo rename` auto

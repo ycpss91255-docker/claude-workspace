@@ -19,12 +19,29 @@
 # Options:
 #   --owner <OWNER>           Default owner for short `<repo>` form
 #                             (default: ycpss91255-docker)
-#   --check-filter <jq-expr>  jq inner expression filtering
+#   --check-filter <jq-expr>  Global jq inner expression filtering
 #                             .statusCheckRollup[]?. Default:
 #                             '.name=="test" or (.name|startswith("Integration"))'
 #                             For container repos (the typical
 #                             batch-template-upgrade case) pass
 #                             '.name=="call-docker-build / docker-build"'.
+#   --check-filter <repo>=<jq-expr>
+#                             Per-repo override applied only when the
+#                             pair's repo matches <repo>. <repo> may be
+#                             short (`ros_distro`) or full
+#                             (`owner/repo`); short matches against the
+#                             pair's short repo basename, full matches
+#                             the normalized `<owner>/<repo>`. Repeat
+#                             the flag for multiple repos; pairs that
+#                             do not match any per-repo entry fall back
+#                             to the global filter. Detection rule:
+#                             LHS of the first `=` must be a pure
+#                             identifier (`[A-Za-z0-9_/-]+`) and RHS
+#                             must not start with `=`; anything else is
+#                             treated as a global jq expression (e.g.
+#                             `.name=="..."` — starts with `.`). If the
+#                             same repo key is given twice, the last
+#                             occurrence wins.
 #   --interval <seconds>      Poll interval (default 45; 0 for tests)
 #   --max-iterations <N>      Iteration cap (default 0 = unlimited; for tests)
 #   -h, --help                Show this help
@@ -60,12 +77,26 @@ main() {
   local interval=45
   local max_iter=0
   local -a pairs=()
+  local -A filter_by_repo=()
 
   while (( $# > 0 )); do
     case "$1" in
       -h|--help) usage; exit 0 ;;
       --owner) owner="$2"; shift 2 ;;
-      --check-filter) check_filter="$2"; shift 2 ;;
+      --check-filter)
+        local raw_filter="$2"
+        local lhs rhs
+        lhs="${raw_filter%%=*}"
+        rhs="${raw_filter#*=}"
+        if [[ "${raw_filter}" == *=* \
+              && "${lhs}" =~ ^[A-Za-z0-9_/-]+$ \
+              && "${rhs}" != =* ]]; then
+          filter_by_repo["${lhs}"]="${rhs}"
+        else
+          check_filter="${raw_filter}"
+        fi
+        shift 2
+        ;;
       --interval) interval="$2"; shift 2 ;;
       --max-iterations) max_iter="$2"; shift 2 ;;
       --) shift; pairs+=("$@"); break ;;
@@ -124,8 +155,16 @@ main() {
             --json mergeable,statusCheckRollup 2>/dev/null \
           || echo '{}')
 
+      local short="${repo##*/}"
+      local pair_filter="${check_filter}"
+      if [[ -n "${filter_by_repo[${repo}]:-}" ]]; then
+        pair_filter="${filter_by_repo[${repo}]}"
+      elif [[ -n "${filter_by_repo[${short}]:-}" ]]; then
+        pair_filter="${filter_by_repo[${short}]}"
+      fi
+
       local state
-      state=$(jq -r "[.statusCheckRollup[]? | select(${check_filter})] | \
+      state=$(jq -r "[.statusCheckRollup[]? | select(${pair_filter})] | \
         if length == 0 then \"no-checks\" \
         elif all(.conclusion == \"SUCCESS\") then \"all-pass\" \
         elif any(.conclusion == \"FAILURE\") then \"FAIL\" \

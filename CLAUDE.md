@@ -607,7 +607,9 @@ Status check 名稱依 repo 類型不同：
 | Repo 類型 | Status Check Context |
 |-----------|---------------------|
 | `template`、`multi_run` | `test` |
-| Container repos（agent/app/env） | `call-docker-build / docker-build` |
+| 單 distro 容器 repo（多數 `agent/*`、`app/*`） | `call-docker-build / docker-build` |
+| Multi-distro env repo（`env/ros_distro`、`env/ros2_distro`） | `ci-passed`（matrix aggregator） |
+| Multi-distro app repo（`app/ros1_bridge` post-#54） | `ci-summary`（in-repo aggregator） |
 | `.github`（組織首頁） | 無 CI，僅要求 PR |
 
 新建 repo 時必須同步設定 branch protection，`/new-repo` slash command 應自動處理。
@@ -623,7 +625,7 @@ Status check 名稱依 repo 類型不同：
 
 不適用 tag-triggered workflow（release-test-tools / release-worker）— 那是 tag-scoped 不是 PR-scoped，套同樣 Monitor pattern 但改查 `gh run list --branch <tag>`。
 
-skill 內含 status check filter 對應表（template / container repos / .github），詳見 SKILL.md。
+skill 內含 status check filter 對應表（template / 單 distro 容器 / multi-distro env / multi-distro app / .github），詳見 SKILL.md。Multi-distro repo（`env/ros_distro`、`env/ros2_distro`、`app/ros1_bridge`）的 PR rollup 沒有 `call-docker-build / docker-build`，必須改傳 `--check-filter '.name=="ci-passed"'`（env multi-distro）或 `--check-filter '.name=="ci-summary"'`（`ros1_bridge` post-#54）。`wait-pr-ci-batch.sh` 在混合 repo 類型 batch 時用 `--check-filter <repo>=<expr>` per-repo override（`ros_distro=...` / `ros2_distro=...` / `ros1_bridge=...`）配 global default 即可一次涵蓋全 13 下游。
 
 ### Bug fix 必須附帶 regression test
 
