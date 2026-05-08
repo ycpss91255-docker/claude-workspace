@@ -35,10 +35,11 @@ The script prints one snapshot block (`PR<n>: checks=... mergeable=...` + `---`)
 | Repo | Required checks | `--check-filter` |
 |---|---|---|
 | `template`, `multi_run` | `test` + `Integration E2E (...)` | (default) |
+| `docker_harness` (this repo) | `bats + shellcheck + hadolint` (single-job test workflow) | `'.name=="bats + shellcheck + hadolint"'` |
 | Single-target container repos (`agent/*`, most `app/*`) | `call-docker-build / docker-build` | `'.name=="call-docker-build / docker-build"'` |
 | Multi-distro env repos (`env/ros_distro`, `env/ros2_distro`) | `ci-passed` (matrix aggregator) | `'.name=="ci-passed"'` |
 | Multi-distro app repo (`app/ros1_bridge` post-#54) | `ci-summary` (in-repo aggregator) | `'.name=="ci-summary"'` |
-| `.github` (org profile) | none — PR review only | `'false'` (forces `no-checks` immediately) |
+| `.github` (org profile, post-topics-taxonomy) | `lint` (yaml structure + shellcheck) | `'.name=="lint"'` |
 
 Multi-distro repos use a build matrix that produces `build (<distro>) / docker-build` shards plus a top-level aggregator job (`ci-passed` or `ci-summary`); the literal `call-docker-build / docker-build` filter never matches their PRs and they hang on `no-checks` forever. Use the aggregator filter instead.
 

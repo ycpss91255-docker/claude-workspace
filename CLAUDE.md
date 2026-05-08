@@ -608,10 +608,11 @@ Status check 名稱依 repo 類型不同：
 | Repo 類型 | Status Check Context |
 |-----------|---------------------|
 | `template`、`multi_run` | `test` |
+| `docker_harness`（本 repo） | `bats + shellcheck + hadolint`（單 job test workflow） |
 | 單 distro 容器 repo（多數 `agent/*`、`app/*`） | `call-docker-build / docker-build` |
 | Multi-distro env repo（`env/ros_distro`、`env/ros2_distro`） | `ci-passed`（matrix aggregator） |
 | Multi-distro app repo（`app/ros1_bridge` post-#54） | `ci-summary`（in-repo aggregator） |
-| `.github`（組織首頁） | 無 CI，僅要求 PR |
+| `.github`（組織首頁，post-topics-taxonomy） | `lint`（yaml 結構驗證 + shellcheck） |
 
 新建 repo 時必須同步設定 branch protection，`/new-repo` slash command 應自動處理。
 
@@ -626,7 +627,7 @@ Status check 名稱依 repo 類型不同：
 
 不適用 tag-triggered workflow（release-test-tools / release-worker）— 那是 tag-scoped 不是 PR-scoped，套同樣 Monitor pattern 但改查 `gh run list --branch <tag>`。
 
-skill 內含 status check filter 對應表（template / 單 distro 容器 / multi-distro env / multi-distro app / .github），詳見 SKILL.md。Multi-distro repo（`env/ros_distro`、`env/ros2_distro`、`app/ros1_bridge`）的 PR rollup 沒有 `call-docker-build / docker-build`，必須改傳 `--check-filter '.name=="ci-passed"'`（env multi-distro）或 `--check-filter '.name=="ci-summary"'`（`ros1_bridge` post-#54）。`wait-pr-ci-batch.sh` 在混合 repo 類型 batch 時用 `--check-filter <repo>=<expr>` per-repo override（`ros_distro=...` / `ros2_distro=...` / `ros1_bridge=...`）配 global default 即可一次涵蓋全 13 下游。
+skill 內含 status check filter 對應表（template / docker_harness / 單 distro 容器 / multi-distro env / multi-distro app / .github），詳見 SKILL.md。`docker_harness` 跟 `.github` 不走 default filter — 前者 check 名稱是 `bats + shellcheck + hadolint`（單 job test workflow），後者是 `lint`（topics-taxonomy lint workflow）；兩個都不在 default 的 `test` / `Integration ...` 裡，跑 `wait-pr-ci.sh` 必須帶 `--check-filter '.name=="bats + shellcheck + hadolint"'` 或 `--check-filter '.name=="lint"'`，否則第一次 poll 噴 `no-checks` 後就一直空轉。Multi-distro repo（`env/ros_distro`、`env/ros2_distro`、`app/ros1_bridge`）的 PR rollup 沒有 `call-docker-build / docker-build`，必須改傳 `--check-filter '.name=="ci-passed"'`（env multi-distro）或 `--check-filter '.name=="ci-summary"'`（`ros1_bridge` post-#54）。`wait-pr-ci-batch.sh` 在混合 repo 類型 batch 時用 `--check-filter <repo>=<expr>` per-repo override（`ros_distro=...` / `ros2_distro=...` / `ros1_bridge=...`）配 global default 即可一次涵蓋全 13 下游。
 
 ### Bug fix 必須附帶 regression test
 

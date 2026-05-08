@@ -6,6 +6,17 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `wait-pr-ci/SKILL.md` filter table extended with `docker_harness`
+  (`bats + shellcheck + hadolint`) and the post-topics-taxonomy
+  `.github` row (`lint`). The previous `.github` row claimed "no CI"
+  / `'false'` filter, which became wrong after the topics taxonomy
+  PR (ycpss91255-docker/.github#13) added a lint job. CLAUDE.md
+  branch protection table + CI monitoring section updated to match,
+  plus an explicit note that both repos require an explicit
+  `--check-filter` (default matches `test` / `Integration ...` and
+  hangs on `no-checks` for these two).
+
 ### Added
 - `remind_topics_yaml_on_new_repo.sh` PreToolUse hook fires before
   `gh repo create ycpss91255-docker/<name>` and reminds to add the new
