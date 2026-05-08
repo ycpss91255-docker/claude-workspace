@@ -6,6 +6,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `remind_topics_yaml_on_new_repo.sh` PreToolUse hook fires before
+  `gh repo create ycpss91255-docker/<name>` and reminds to add the new
+  repo to `ycpss91255-docker/.github` topics.yaml so the weekly drift
+  cron does not fail. Pairs with the universal CI-side roster check
+  (sync-topics.sh roster_drift) for repos created out-of-band.
+  `/new-repo` slash command step 8 rewritten: open a `.github` PR
+  adding the repo to topics.yaml instead of calling `gh repo edit
+  --add-topic` directly (which would drift from the canonical yaml).
+
 ### Changed
 - `wait-pr-ci-batch.sh` `--check-filter` now accepts a per-repo override
   form `<repo>=<expr>` (repeatable) in addition to the existing global
