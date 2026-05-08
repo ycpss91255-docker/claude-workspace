@@ -1,5 +1,7 @@
 # docker_harness
 
+[![CI](https://github.com/ycpss91255-docker/docker_harness/actions/workflows/test.yaml/badge.svg)](https://github.com/ycpss91255-docker/docker_harness/actions/workflows/test.yaml) [![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square)](./LICENSE)
+
 Workspace-level Claude Code configuration that applies across the
 sub-repos checked out under this directory (template, agent/*, env/*,
 app/*, multi_run, etc.). Tracks:
