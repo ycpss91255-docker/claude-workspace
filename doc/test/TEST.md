@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **277 tests** (273 smoke + 4 integration) plus shellcheck (19 hook
+Total: **291 tests** (287 smoke + 4 integration) plus shellcheck (20 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -129,6 +129,24 @@ stdin and asserts one of three behaviours:
 | silent when counts match | counts equal → SILENT |
 | fires when TEST.md lists missing bats file | bats file missing → FIRE |
 | silent when edited file is not .bats or TEST.md | not a tracked file type → SILENT |
+
+### test/smoke/check_readme_framework_spec.bats (14)
+| Test | Scenario |
+|------|----------|
+| silent on a fully aligned English README | all 6 checks pass + 3 translations also aligned → SILENT |
+| [1] fires on missing CI badge | English README without `actions/workflows/main.yaml/badge.svg` → FIRE |
+| [2] fires on missing 4-language link | no `**[English](README.md)**` → FIRE |
+| [3] fires when TL;DR is a blockquote | `> **TL;DR**` legacy quote → FIRE (must be `## TL;DR` H2) |
+| [4] fires on stale template/build.sh symlink target | `build.sh -> template/build.sh` row → FIRE (canonical: `template/script/docker/build.sh`) |
+| [5] fires on .template_version reference | obsolete root version-pin file mentioned → FIRE (canonical: `template/.version` since v0.16.0) |
+| [6] fires on missing TEST.md link | no `(doc/test/TEST.md)` anywhere → FIRE |
+| [drift] fires when a translation has no CI badge while English does | zh-TW empty while English has badge → FIRE |
+| [drift] fires when a translation file is missing entirely | doc/README.ja.md missing → FIRE |
+| checks a translation file directly with [zh-TW] label | edit doc/README.zh-TW.md, drift → message prefixed `[zh-TW]` |
+| silent when editing template/README.md (the framework reference itself) | path under `template/` → SILENT (skipped) |
+| silent when editing archive/<repo>/README.md (read-only archive) | path under `archive/` → SILENT (skipped) |
+| silent when editing a non-README file | unrelated path → SILENT |
+| silent on multi_run/README.md when fully aligned | multi_run path with all 4 languages aligned → SILENT |
 
 ### test/smoke/remind_docker_for_lint_spec.bats (12)
 | Test | Scenario |

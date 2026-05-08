@@ -236,6 +236,7 @@ docker/
     │   ├── remind_make_first_upgrade.sh # ./template/upgrade.sh 前提醒改用 make -f Makefile.ci upgrade（refs #36）
     │   ├── check_prefer_dot_sh.sh       # docker build/run/exec/stop/compose 前：cwd 有對應 .sh wrapper 則 deny,沒有則 ask
     │   ├── remind_topics_yaml_on_new_repo.sh # gh repo create ycpss91255-docker/* 前提醒去 .github topics.yaml 加 repos.* 條目
+    │   ├── check_readme_framework.sh    # Edit/Write 後掃下游 repo README.md (+ 3 翻譯) 是否符合 template/README.md 框架(badge / 4 語言 link / TL;DR H2 / Smoke Tests link / 無 stale 路徑) — non-blocking warning
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
