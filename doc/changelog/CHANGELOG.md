@@ -7,6 +7,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- New `.claude/scripts/batch-license-apache.sh` — one-shot fanout
+  helper that adds Apache 2.0 `LICENSE` + CI / License badges + a
+  CHANGELOG entry to each of the 13 active downstream container
+  repos. Drives the org-wide license alignment (refs sister issues
+  ai_agent#41, claude_code#40, codex_cli#39, gemini_cli#39,
+  ros_distro#6, ros2_distro#6, ros1_bridge#66, urg_node_humble#37,
+  urg_node_noetic#40, sick_humble#41, sick_noetic#40,
+  realsense_humble#41, realsense_noetic#40). Per-repo body /
+  changelog generation is templated; main checkout is untouched
+  (worktree per repo). One-off but kept under `.claude/scripts/`
+  rather than `/tmp/` so the next similar batch (if any) can crib
+  from the structure.
 - `LICENSE` (Apache 2.0) and CI / License badges in `README.md`
   (#52). Fresh add — repo previously had no LICENSE and no badges.
   Aligns with the org-wide Apache 2.0 migration tracked across 17
