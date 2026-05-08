@@ -6,6 +6,37 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- New PostToolUse hook `.claude/hooks/check_readme_framework.sh` that
+  warns when a downstream repo's `README.md` (or one of its three
+  `doc/README.<lang>.md` translations) drifts from the canonical
+  framework derived from `template/README.md`. The framework was
+  applied for the first time on `ros1_bridge` in PR #63 (commit
+  148c411); the hook now lets every subsequent fanout edit get
+  immediate feedback instead of relying on memory of what the
+  framework requires. Fires on Edit / Write / MultiEdit; non-blocking
+  (emits `{systemMessage, hookSpecificOutput.additionalContext}` JSON
+  the same way `check_test_md_drift.sh` and `check_no_emoji.sh` do).
+  Six per-file checks: CI status badge present (matches
+  `actions/workflows/main.yaml/badge.svg`), 4-language switch link
+  present (`**[English](README.md)**`), no legacy `> **TL;DR**`
+  blockquote (must be `## TL;DR` H2), no stale
+  `template/build.sh` symlink target (canonical:
+  `template/script/docker/build.sh`), no obsolete
+  `.template_version` reference (replaced by `template/.version` in
+  template v0.16.0), and a Smoke Tests section linking to
+  `(doc/test/TEST.md)`. Plus a cross-language drift signal: when the
+  English README is the file being edited, the hook also walks the
+  three translations and flags any that have not yet adopted the
+  framework markers (or are missing entirely). Scope is restricted to
+  `agent/<repo>/`, `app/<repo>/`, `env/<repo>/`, and `multi_run/`;
+  `template/`, `archive/<repo>/`, and `org-profile/` are skipped (the
+  template README is the framework reference itself, the archive is
+  read-only, and org-profile is a different artifact). Covered by 14
+  new bats specs in `.claude/hooks/test/smoke/check_readme_framework_spec.bats`
+  (one per check + drift cases + scope-skip cases + a multi_run smoke
+  case); total `make -C .claude/test test` count rises 277 -> 291.
+
 ### Changed
 - `wait-pr-ci/SKILL.md` filter table extended with `docker_harness`
   (`bats + shellcheck + hadolint`) and the post-topics-taxonomy
