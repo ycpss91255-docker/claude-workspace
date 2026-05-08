@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **271 tests** (267 smoke + 4 integration) plus shellcheck (19 hook
+Total: **277 tests** (273 smoke + 4 integration) plus shellcheck (19 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -266,7 +266,7 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
 | all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
 
-### test/smoke/wait_pr_ci_batch_spec.bats (14)
+### test/smoke/wait_pr_ci_batch_spec.bats (20)
 
 Covers `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo flavour for
 `/batch-template-upgrade` follow-up. Same Monitor pattern + output
@@ -289,6 +289,12 @@ and aggregates all PRs into one stream.
 | max-iterations exits 124 when stuck pending | iteration cap |
 | no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
 | all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
+| per-repo --check-filter <repo>=<expr> applies only to that repo | per-repo filter map (issue #46) |
+| per-repo filter overrides default for one repo, others fall back | mixed per-repo + global default |
+| per-repo filter accepts full owner/repo key form | full owner/repo as filter key |
+| global --check-filter (no repo prefix) still works as before | backwards-compat global filter |
+| per-repo filter with no matching check counts as no-checks | per-repo filter narrowing semantics |
+| duplicate --check-filter for same repo: last one wins | last-write-wins map semantic |
 
 ### test/smoke/batch_pr_merge_spec.bats (14)
 

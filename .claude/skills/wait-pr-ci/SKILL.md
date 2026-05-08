@@ -35,10 +35,14 @@ The script prints one snapshot block (`PR<n>: checks=... mergeable=...` + `---`)
 | Repo | Required checks | `--check-filter` |
 |---|---|---|
 | `template`, `multi_run` | `test` + `Integration E2E (...)` | (default) |
-| Container repos (`agent/*`, `app/*`, `env/*`) | `call-docker-build / docker-build` | `'.name=="call-docker-build / docker-build"'` |
+| Single-target container repos (`agent/*`, most `app/*`) | `call-docker-build / docker-build` | `'.name=="call-docker-build / docker-build"'` |
+| Multi-distro env repos (`env/ros_distro`, `env/ros2_distro`) | `ci-passed` (matrix aggregator) | `'.name=="ci-passed"'` |
+| Multi-distro app repo (`app/ros1_bridge` post-#54) | `ci-summary` (in-repo aggregator) | `'.name=="ci-summary"'` |
 | `.github` (org profile) | none — PR review only | `'false'` (forces `no-checks` immediately) |
 
-Cross-repo batches: see `wait-pr-ci-batch.sh` below. For N=2-3 spawning N parallel single-repo Monitors is fine; from N=4+ the notification streams get noisy and `wait-pr-ci-batch.sh` aggregates them into one.
+Multi-distro repos use a build matrix that produces `build (<distro>) / docker-build` shards plus a top-level aggregator job (`ci-passed` or `ci-summary`); the literal `call-docker-build / docker-build` filter never matches their PRs and they hang on `no-checks` forever. Use the aggregator filter instead.
+
+Cross-repo batches: see `wait-pr-ci-batch.sh` below. For N=2-3 spawning N parallel single-repo Monitors is fine; from N=4+ the notification streams get noisy and `wait-pr-ci-batch.sh` aggregates them into one. Mixed repo categories in one batch (e.g. single-target containers + multi-distro env repos) need per-repo `--check-filter <repo>=<expr>` overrides — see below.
 
 ## Multi-repo PR-scoped — `wait-pr-ci-batch.sh`
 
@@ -60,7 +64,19 @@ ycpss91255-docker/claude_code#27: checks=pending mergeable=MERGEABLE
 ---
 ```
 
-`ALL_DONE` / `FAIL <owner>/<repo>#<pr>` final lines, same as the single-repo flavour. `--check-filter` is global across all pairs (applies the same jq filter to every PR's `statusCheckRollup`) — for `/batch-template-upgrade` rollouts that's fine because the 17 downstream repos all use `call-docker-build / docker-build`. Pass `--check-filter '.name=="call-docker-build / docker-build"'` for that case.
+`ALL_DONE` / `FAIL <owner>/<repo>#<pr>` final lines, same as the single-repo flavour. `--check-filter` accepts two forms — a bare jq expression (global, applies to every pair) or `<repo>=<expr>` (per-repo override applied only when the pair's repo matches `<repo>`). The detection rule is: LHS of the first `=` must be a pure identifier (`[A-Za-z0-9_/-]+`) and RHS must not start with `=`; anything else is global. `<repo>` may be short (`ros_distro`) or full (`owner/repo`); short matches against the pair's basename, full matches the normalized `<owner>/<repo>`. Pairs that match no per-repo entry fall back to the global filter. The flag is repeatable; if the same repo key is given twice, the last occurrence wins.
+
+Mixed-category batch example (single-target containers default to `call-docker-build / docker-build`, multi-distro env repos override to `ci-passed`, `ros1_bridge` to `ci-summary`):
+
+```
+.claude/scripts/wait-pr-ci-batch.sh \
+  ai_agent:39 claude_code:38 codex_cli:37 gemini_cli:36 \
+  ros_distro:3 ros2_distro:3 ros1_bridge:56 \
+  --check-filter '.name=="call-docker-build / docker-build"' \
+  --check-filter 'ros_distro=.name=="ci-passed"' \
+  --check-filter 'ros2_distro=.name=="ci-passed"' \
+  --check-filter 'ros1_bridge=.name=="ci-summary"'
+```
 
 Pairs with `wait-pr-ci.sh` for single-repo cases — same skill, same patterns, just batched.
 
