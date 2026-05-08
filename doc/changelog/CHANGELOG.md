@@ -89,6 +89,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   case); total `make -C .claude/test test` count rises 277 -> 291.
 
 ### Changed
+- `wait-pr-ci/SKILL.md` notes that `.github` doc-only PRs (most often
+  `profile/*.md` README updates) intentionally bypass the `lint` job —
+  the workflow's `paths:` filter restricts triggers to `topics.yaml`,
+  `script/sync-topics.sh`, and the workflow file itself, so unrelated
+  paths produce no check runs and the rollup sits at `no-checks`
+  indefinitely (the `.name=="lint"` filter polls forever in that
+  state). Skip `wait-pr-ci` and merge directly after review; the
+  `.github` repo's branch protection requires a PR but no status
+  check. Surfaced after PR ycpss91255-docker/.github#16 hit this
+  exact hang.
 - `wait-pr-ci/SKILL.md` filter table extended with `docker_harness`
   (`bats + shellcheck + hadolint`) and the post-topics-taxonomy
   `.github` row (`lint`). The previous `.github` row claimed "no CI"

@@ -43,6 +43,8 @@ The script prints one snapshot block (`PR<n>: checks=... mergeable=...` + `---`)
 
 Multi-distro repos use a build matrix that produces `build (<distro>) / docker-build` shards plus a top-level aggregator job (`ci-passed` or `ci-summary`); the literal `call-docker-build / docker-build` filter never matches their PRs and they hang on `no-checks` forever. Use the aggregator filter instead.
 
+`.github` doc-only PRs (most commonly `profile/*.md` updates — README and translations) bypass the `lint` job entirely. The workflow's `paths:` filter restricts triggers to `topics.yaml`, `script/sync-topics.sh`, and the workflow file itself, so unrelated paths produce zero check runs and the rollup sits at `no-checks` indefinitely (the `.name=="lint"` filter does not short-circuit `no-checks` — it polls forever). Skip `wait-pr-ci` for those PRs and merge directly after review; the `.github` repo's branch protection requires a PR but no status check, so doc-only PRs can land without CI.
+
 Cross-repo batches: see `wait-pr-ci-batch.sh` below. For N=2-3 spawning N parallel single-repo Monitors is fine; from N=4+ the notification streams get noisy and `wait-pr-ci-batch.sh` aggregates them into one. Mixed repo categories in one batch (e.g. single-target containers + multi-distro env repos) need per-repo `--check-filter <repo>=<expr>` overrides — see below.
 
 ## Multi-repo PR-scoped — `wait-pr-ci-batch.sh`
