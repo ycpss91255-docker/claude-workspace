@@ -65,7 +65,7 @@ Workflow:
    git push -u origin main
    ```
 
-8. **Set topics**: `gh repo edit ycpss91255-docker/<repo_name> --add-topic docker,<category>,<extras>`
+8. **Add to org topic taxonomy**: open a PR in `ycpss91255-docker/.github` that adds the new repo to `topics.yaml` under `repos:`. Pick tags from `allowed.*` only (the lint job will reject unknown tags). Do NOT call `gh repo edit --add-topic` directly — `topics.yaml` is the single source of truth, and after the PR merges run `script/sync-topics.sh --apply` from a `.github` checkout to push the topics live. The weekly drift cron will fail on Monday if this step is skipped.
 
 9. **Enable branch protection**
 
