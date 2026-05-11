@@ -19,6 +19,34 @@ stub_gh() {
   chmod +x "${GH_STUB_DIR}/gh"
 }
 
+# stub_gh_seq <json1> [<json2> ...] — install a `gh` shim that returns
+# JSON1 on the first call, JSON2 on the second, etc. After the last
+# JSON the stub keeps returning the final element. Each JSON is stored
+# in resp_N.json under GH_STUB_DIR; the stub increments a call counter
+# in call_count and reads the corresponding file. Used to feign state
+# transitions across poll iterations (e.g. force-push between polls).
+stub_gh_seq() {
+  local i=0
+  local json
+  for json in "$@"; do
+    i=$((i + 1))
+    printf '%s' "${json}" > "${GH_STUB_DIR}/resp_${i}.json"
+  done
+  local last="${i}"
+  cat > "${GH_STUB_DIR}/gh" <<STUB_EOF
+#!/usr/bin/env bash
+cf="${GH_STUB_DIR}/call_count"
+[[ -f "\${cf}" ]] || echo 0 > "\${cf}"
+n=\$(<"\${cf}")
+n=\$((n + 1))
+echo "\${n}" > "\${cf}"
+last=${last}
+(( n > last )) && n=\${last}
+cat "${GH_STUB_DIR}/resp_\${n}.json"
+STUB_EOF
+  chmod +x "${GH_STUB_DIR}/gh"
+}
+
 @test "--help prints usage and exits 0" {
   run "$(script wait-pr-ci.sh)" --help
   assert_success
@@ -165,4 +193,62 @@ stub_gh() {
   run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --min-checks 0
   assert_failure 2
   assert_output --partial "--min-checks"
+}
+
+# Stale-rollup guards (refs ycpss91255-docker/docker_harness#60).
+
+@test "all-pass with all completedAt predating watch start → pending" {
+  # Force-push scenario: every matching check is from a prior run.
+  # 1970 epoch guarantees < watch_start regardless of test wall clock.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"1970-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  assert_output --partial "PR1: checks=pending"
+  refute_output --partial "checks=all-pass"
+  refute_output --partial "ALL_DONE"
+}
+
+@test "all-pass with completedAt newer than watch start → ALL_DONE" {
+  # Positive control: year 2099 guarantees > watch_start.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+}
+
+@test "headRefOid change between polls emits [head-moved] and forces pending" {
+  # Force-push during active watch:
+  # iter 1: SHA A, still IN_PROGRESS (pending, watch continues).
+  # iter 2: SHA B, statusCheckRollup might show stale all-pass — but
+  # head_moved detection forces pending so ALL_DONE is not reached.
+  stub_gh_seq \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"IN_PROGRESS","conclusion":""}],"headRefOid":"a000000aaaaaaaa"}' \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"b111111bbbbbbbb"}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  assert_output --partial "[head-moved] PR1 a000000..b111111"
+  assert_output --partial "PR1: checks=pending"
+  refute_output --partial "ALL_DONE"
+}
+
+@test "stable headRefOid across polls preserves ALL_DONE path" {
+  # Negative control: same SHA on consecutive polls + future completedAt
+  # → no head-moved, no staleness demotion → ALL_DONE.
+  stub_gh_seq \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}' \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "[head-moved]"
+}
+
+@test "JSON without headRefOid preserves backwards-compatible behaviour" {
+  # No headRefOid field → current_oid empty → no head-moved detection.
+  # Existing test stubs that omit headRefOid keep working.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "[head-moved]"
 }

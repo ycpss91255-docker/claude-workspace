@@ -27,6 +27,21 @@
 #                             length < N the state is "pending", not
 #                             "all-pass".
 #   --interval <seconds>      Poll interval (default 45; 0 = no sleep, for tests)
+#
+# Stale-rollup guards (refs ycpss91255-docker/docker_harness#60):
+#   * Watch-start completedAt guard — if every filter-matched check has
+#     completedAt < <watch start>, the rollup is showing carry-over
+#     results from a previous head (typically because the agent ran this
+#     script immediately after a `git push --force-with-lease` and GitHub
+#     has not yet re-triggered CI). Demoted to "pending" rather than
+#     declared "all-pass". Backwards-compatible: only fires when every
+#     matching check has completedAt set (real GitHub API always sets
+#     it; existing test stubs that omit it keep working).
+#   * headRefOid change guard — on each poll, compare current
+#     headRefOid against the value seen on the previous poll. When it
+#     changes, emit one `[head-moved] PR<n> <old7>..<new7>` log line and
+#     force the per-PR state to "pending" for this poll iteration. The
+#     next poll re-evaluates against the new head normally.
 #   --max-iterations <N>      Iteration cap (default 0 = unlimited; for tests)
 #   -h, --help                Show this help
 #
@@ -92,6 +107,11 @@ main() {
   local -a prs
   IFS=',' read -ra prs <<< "${prs_csv}"
 
+  local watch_start
+  watch_start=$(date -u +%s)
+
+  local -A head_oid_by_pr=()
+
   local prev=""
   local iter=0
   while true; do
@@ -105,8 +125,25 @@ main() {
     for pr in "${prs[@]}"; do
       local s
       s=$(gh pr view "${pr}" --repo "${repo}" \
-            --json mergeable,statusCheckRollup 2>/dev/null \
+            --json mergeable,statusCheckRollup,headRefOid 2>/dev/null \
           || echo '{}')
+
+      # headRefOid stale-rollup guard. Compare PR head against the
+      # value seen on the previous poll; on change, emit one
+      # `[head-moved] PR<n> <old7>..<new7>` log line so the operator
+      # knows the CI signal needs to be re-evaluated against the new
+      # head. head_moved is checked below so the all-pass demotion
+      # cannot fire on the same iteration as a head move.
+      local current_oid prev_oid head_moved=0
+      current_oid=$(jq -r '.headRefOid // ""' <<< "${s}")
+      prev_oid="${head_oid_by_pr[${pr}]:-}"
+      if [[ -n "${prev_oid}" && -n "${current_oid}" \
+            && "${current_oid}" != "${prev_oid}" ]]; then
+        head_moved=1
+        printf '[head-moved] PR%s %s..%s\n' \
+          "${pr}" "${prev_oid:0:7}" "${current_oid:0:7}"
+      fi
+      head_oid_by_pr["${pr}"]="${current_oid}"
 
       # Two guards above the original `all(.conclusion == "SUCCESS")` to fix
       # premature ALL_DONE seen in practice (refs ycpss91255-docker/docker_harness#XX):
@@ -123,15 +160,30 @@ main() {
       #      meaningful "pending" label. The `.status != null` precondition
       #      preserves backward compatibility with mocks that only set
       #      .conclusion (real GitHub API always populates .status).
+      # The watch-start completedAt guard is appended inside the
+      # all(.conclusion == "SUCCESS") branch: if every matching check
+      # has completedAt set AND every one of those completedAt values
+      # is older than the watch start time, the rollup is carry-over
+      # from a prior head; demote to "pending". The
+      # `all(.completedAt != null)` precondition keeps mocks that omit
+      # completedAt working unchanged.
       local state
       state=$(jq -r --argjson min "${min_checks}" \
+        --argjson watch_start "${watch_start}" \
         "[.statusCheckRollup[]? | select(${check_filter})] as \$c | \
         if (\$c | length) == 0 then \"no-checks\" \
         elif (\$c | length) < \$min then \"pending\" \
         elif (\$c | any(.status != null and .status != \"COMPLETED\")) then \"pending\" \
-        elif (\$c | all(.conclusion == \"SUCCESS\")) then \"all-pass\" \
+        elif (\$c | all(.conclusion == \"SUCCESS\")) then \
+          (if (\$c | all(.completedAt != null)) \
+              and (\$c | all((.completedAt | fromdateiso8601) < \$watch_start)) \
+           then \"pending\" else \"all-pass\" end) \
         elif (\$c | any(.conclusion == \"FAILURE\")) then \"FAIL\" \
         else \"pending\" end" <<< "${s}")
+
+      if (( head_moved )) && [[ "${state}" == "all-pass" ]]; then
+        state="pending"
+      fi
 
       local m
       m=$(jq -r '.mergeable // "?"' <<< "${s}")

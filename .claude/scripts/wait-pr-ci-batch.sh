@@ -55,6 +55,13 @@
 #   --max-iterations <N>      Iteration cap (default 0 = unlimited; for tests)
 #   -h, --help                Show this help
 #
+# Stale-rollup guards (refs ycpss91255-docker/docker_harness#60). Same
+# semantics as wait-pr-ci.sh: a watch-start completedAt comparison
+# demotes carry-over rollup results to "pending" instead of "all-pass",
+# and a per-pair `headRefOid` change check emits one
+# `[head-moved] <owner>/<repo>#<pr> <old7>..<new7>` line on detection
+# while forcing that pair's state to "pending" for the same iteration.
+#
 # Exit:
 #   0   = ALL_DONE — every PR is all-pass + MERGEABLE
 #   1   = FAIL     — any required check went FAILURE
@@ -169,6 +176,11 @@ main() {
     norm_pairs+=("${repo}:${pr}")
   done
 
+  local watch_start
+  watch_start=$(date -u +%s)
+
+  local -A head_oid_by_pair=()
+
   local prev=""
   local iter=0
   while true; do
@@ -184,8 +196,20 @@ main() {
 
       local s
       s=$(gh pr view "${pr}" --repo "${repo}" \
-            --json mergeable,statusCheckRollup 2>/dev/null \
+            --json mergeable,statusCheckRollup,headRefOid 2>/dev/null \
           || echo '{}')
+
+      # headRefOid stale-rollup guard, same as wait-pr-ci.sh.
+      local current_oid prev_oid head_moved=0
+      current_oid=$(jq -r '.headRefOid // ""' <<< "${s}")
+      prev_oid="${head_oid_by_pair[${p}]:-}"
+      if [[ -n "${prev_oid}" && -n "${current_oid}" \
+            && "${current_oid}" != "${prev_oid}" ]]; then
+        head_moved=1
+        printf '[head-moved] %s#%s %s..%s\n' \
+          "${repo}" "${pr}" "${prev_oid:0:7}" "${current_oid:0:7}"
+      fi
+      head_oid_by_pair["${p}"]="${current_oid}"
 
       local short="${repo##*/}"
       local pair_filter="${check_filter}"
@@ -202,19 +226,30 @@ main() {
         pair_min="${min_checks_by_repo[${short}]}"
       fi
 
-      # See wait-pr-ci.sh for the rationale of the two guards above
-      # `all(.conclusion == "SUCCESS")` — `length < min_checks` catches
-      # GitHub's subset-rollup race, `any(.status != "COMPLETED")` catches
-      # the IN_PROGRESS-with-empty-conclusion case.
+      # See wait-pr-ci.sh for the rationale of all four guards above
+      # `all(.conclusion == "SUCCESS")` — length < min_checks catches
+      # GitHub's subset-rollup race, any(.status != "COMPLETED") catches
+      # the IN_PROGRESS-with-empty-conclusion case, the nested
+      # completedAt < watch_start branch catches stale-rollup carry-over
+      # right after a force-push, and head_moved demotes if the head
+      # changed on this iteration.
       local state
       state=$(jq -r --argjson min "${pair_min}" \
+        --argjson watch_start "${watch_start}" \
         "[.statusCheckRollup[]? | select(${pair_filter})] as \$c | \
         if (\$c | length) == 0 then \"no-checks\" \
         elif (\$c | length) < \$min then \"pending\" \
         elif (\$c | any(.status != null and .status != \"COMPLETED\")) then \"pending\" \
-        elif (\$c | all(.conclusion == \"SUCCESS\")) then \"all-pass\" \
+        elif (\$c | all(.conclusion == \"SUCCESS\")) then \
+          (if (\$c | all(.completedAt != null)) \
+              and (\$c | all((.completedAt | fromdateiso8601) < \$watch_start)) \
+           then \"pending\" else \"all-pass\" end) \
         elif (\$c | any(.conclusion == \"FAILURE\")) then \"FAIL\" \
         else \"pending\" end" <<< "${s}")
+
+      if (( head_moved )) && [[ "${state}" == "all-pass" ]]; then
+        state="pending"
+      fi
 
       local m
       m=$(jq -r '.mergeable // "?"' <<< "${s}")
