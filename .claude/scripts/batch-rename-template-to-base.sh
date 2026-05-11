@@ -209,9 +209,14 @@ main() {
   fi
 }
 
-# Bumps `uses:` refs in main.yaml: switches org/repo template -> base
-# AND updates the @vX.Y.Z pin to the target version. Matches optional
-# pre-release suffixes (e.g. -rc1).
+# Rewrites `uses:` refs in main.yaml after the template -> base rename.
+# Two passes:
+#   1. Bump build-worker / release-worker @vX.Y.Z to the target ${version}
+#      and switch org/repo to base. Matches optional pre-release suffix.
+#   2. Generic catch-all: any remaining ${ORG}/template/ -> ${ORG}/base/.
+#      Covers other reusable workflows (publish-worker, etc) that are
+#      pinned to their own historical version and should NOT be rebumped
+#      here -- only the org/repo segment changes.
 sed_main_yaml_uses() {
   local file="$1"
   local version="$2"
@@ -219,6 +224,7 @@ sed_main_yaml_uses() {
   sed -i -E \
     "s|${ORG}/template/\\.github/workflows/(build-worker\\|release-worker)\\.yaml@v[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?|${ORG}/base/.github/workflows/\\1.yaml@${version}|g" \
     "${file}"
+  sed -i "s|${ORG}/template/|${ORG}/base/|g" "${file}"
 }
 
 # Sed downstream Dockerfile + main.yaml + 4-language READMEs.
