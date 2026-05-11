@@ -58,3 +58,55 @@ teardown() {
   run "$(hook remind_tdd_categories.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/.claude/hooks/foo.sh\"}}"
   assert_silent
 }
+
+# Repo-detection / TDD-capability adaptation (refs #75). Reminder
+# should list ONLY the test categories the repo actually has infra for,
+# rather than the legacy generic 4-category claim. When the repo has
+# no test/<cat>/ at all, fall back to the 4-category baseline so the
+# pre-#75 behaviour (and existing tests above) keep working.
+
+@test "[#75] .sh in downstream repo with only test/smoke/ drops Unit + Integration" {
+  mkdir -p "${TMPDIR}/repo/test/smoke"
+  echo "FROM x" > "${TMPDIR}/repo/Dockerfile"
+  mkdir -p "${TMPDIR}/repo/script"
+  echo "echo a" > "${TMPDIR}/repo/script/foo.sh"
+  run "$(hook remind_tdd_categories.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/repo/script/foo.sh\"}}"
+  assert_message_contains "shell 函式"
+  assert_message_contains "Smoke"
+  assert_message_contains "Lint"
+  refute_output --partial "Unit 必須"
+  refute_output --partial "Integration 必須"
+}
+
+@test "[#75] .sh in repo with full test infra keeps all 4 categories" {
+  mkdir -p "${TMPDIR}/repo/test/smoke" \
+           "${TMPDIR}/repo/test/unit" \
+           "${TMPDIR}/repo/test/integration"
+  echo "FROM x" > "${TMPDIR}/repo/Dockerfile"
+  mkdir -p "${TMPDIR}/repo/script"
+  echo "echo a" > "${TMPDIR}/repo/script/foo.sh"
+  run "$(hook remind_tdd_categories.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/repo/script/foo.sh\"}}"
+  assert_message_contains "Unit 必須"
+  assert_message_contains "Smoke"
+  assert_message_contains "Integration"
+  assert_message_contains "Lint"
+}
+
+@test "[#75] Dockerfile in repo with only test/smoke/ keeps Smoke + Lint" {
+  mkdir -p "${TMPDIR}/repo/test/smoke"
+  echo "FROM x" > "${TMPDIR}/repo/Dockerfile"
+  run "$(hook remind_tdd_categories.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/repo/Dockerfile\"}}"
+  assert_message_contains "Dockerfile"
+  assert_message_contains "Smoke"
+  assert_message_contains "Lint"
+  refute_output --partial "Integration 必須"
+}
+
+@test "[#75] repo without any test/ subdir falls back to all 4 categories" {
+  mkdir -p "${TMPDIR}/repo/script"
+  echo "FROM x" > "${TMPDIR}/repo/Dockerfile"
+  echo "echo a" > "${TMPDIR}/repo/script/foo.sh"
+  run "$(hook remind_tdd_categories.sh)" <<< "{\"tool_input\":{\"file_path\":\"${TMPDIR}/repo/script/foo.sh\"}}"
+  assert_message_contains "Unit 必須"
+  assert_message_contains "Integration"
+}

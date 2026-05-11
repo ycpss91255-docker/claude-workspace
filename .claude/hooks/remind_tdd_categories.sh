@@ -23,8 +23,92 @@
 
 set -uo pipefail
 
+# Walk up from a directory looking for a repo-root marker (Dockerfile,
+# Makefile.ci, .base/, template/, init.sh). Returns the first matching
+# ancestor or empty. Scopes TDD-capability detection to the relevant
+# downstream repo even when the file lives inside a docker_harness
+# subtree (refs #75).
+detect_repo_root() {
+  local dir="$1"
+  while [[ "${dir}" != "/" && "${dir}" != "." && -n "${dir}" ]]; do
+    if [[ -e "${dir}/Dockerfile" || -e "${dir}/Makefile.ci" \
+          || -d "${dir}/.base" || -d "${dir}/template" \
+          || -e "${dir}/init.sh" ]]; then
+      printf '%s' "${dir}"
+      return 0
+    fi
+    dir="$(dirname "${dir}")"
+  done
+  return 1
+}
+
+# Build a `;`-joined reminder string with one clause per applicable
+# TDD test category for the repo. Lint always applies; the other
+# three (smoke / unit / integration) apply iff the matching
+# `test/<cat>/` dir exists under repo_root. Fallback: if repo_root
+# is empty OR none of the three test subdirs exist, claim all three
+# applicable so the generic guidance still fires (matches the
+# pre-#75 behaviour for fresh / unstructured repos).
+build_reminder() {
+  local key="$1"
+  local repo_root="$2"
+  local has_smoke=0 has_unit=0 has_integration=0
+  if [[ -n "${repo_root}" ]]; then
+    [[ -d "${repo_root}/test/smoke" ]] && has_smoke=1
+    [[ -d "${repo_root}/test/unit" ]] && has_unit=1
+    [[ -d "${repo_root}/test/integration" ]] && has_integration=1
+  fi
+  if (( has_smoke == 0 && has_unit == 0 && has_integration == 0 )); then
+    has_smoke=1; has_unit=1; has_integration=1
+  fi
+
+  local smoke="" unit="" integration="" lint=""
+  case "${key}" in
+    entrypoint)
+      smoke="Smoke 必須（容器起來後核心 path 跑得過）"
+      lint="Lint 必須（ShellCheck）"
+      unit="視函式拆分補 Unit"
+      integration="視 multi-container 補 Integration"
+      ;;
+    hadolint)
+      lint="Lint 必須：跑一次全套（./build.sh test 或 make -f Makefile.ci lint）確認既有檔案沒有新 violation"
+      smoke="Smoke 通常 N/A"
+      unit="Unit 通常 N/A"
+      integration="Integration 通常 N/A"
+      ;;
+    workflow)
+      integration="Integration 必須（PR 跑一次驗證新 workflow 真的觸發）"
+      smoke="視觸發點補 Smoke"
+      lint="Lint（actionlint 若有）"
+      ;;
+    compose)
+      integration="Integration 必須（multi-container 協同行為）"
+      smoke="視單容器影響補 Smoke"
+      lint="視 compose lint 工具"
+      ;;
+    dockerfile)
+      smoke="Smoke 必須（container 起得來、核心指令可用）"
+      lint="Lint 必須（Hadolint）"
+      integration="視 build flow 補 Integration"
+      ;;
+    shell)
+      unit="Unit 必須（隔離函式邏輯，bats-mock）"
+      lint="Lint 必須（ShellCheck）"
+      smoke="視 path 影響補 Smoke"
+      integration="視流程影響補 Integration"
+      ;;
+  esac
+
+  local parts=""
+  (( has_smoke )) && [[ -n "${smoke}" ]] && parts+="${smoke}；"
+  (( has_unit )) && [[ -n "${unit}" ]] && parts+="${unit}；"
+  (( has_integration )) && [[ -n "${integration}" ]] && parts+="${integration}；"
+  [[ -n "${lint}" ]] && parts+="${lint}；"
+  printf '%s' "${parts%；}"
+}
+
 main() {
-  local input file_path category reminder
+  local input file_path category key reminder repo_root
   input="$(cat)"
   file_path="$(printf '%s' "${input}" | jq -r '
     .tool_input.file_path
@@ -41,36 +125,40 @@ main() {
   esac
 
   category=""
-  reminder=""
+  key=""
 
   case "${file_path}" in
     */entrypoint.sh)
       category="entrypoint / 容器啟動行為"
-      reminder="Smoke test 必須（容器起來後核心 path 跑得過）+ Lint 必須（ShellCheck）；視函式拆分補 Unit、視 multi-container 補 Integration"
+      key="entrypoint"
       ;;
     *.hadolint.yaml|*/.shellcheckrc|*.shellcheckrc)
       category="lint 規則調整"
-      reminder="Lint 必須：跑一次全套（./build.sh test 或 make -f Makefile.ci lint）確認既有檔案沒有新 violation；Smoke / Unit / Integration 通常 N/A"
+      key="hadolint"
       ;;
     */.github/workflows/*.yaml|*/.github/workflows/*.yml)
       category="CI workflow / reusable workflow"
-      reminder="Integration 必須（PR 跑一次驗證新 workflow 真的觸發）；視觸發點補 Smoke、Lint（actionlint 若有）"
+      key="workflow"
       ;;
     */compose.yaml)
       category="compose / multi-container 行為"
-      reminder="Integration 必須（multi-container 協同行為）；視單容器影響補 Smoke；Unit N/A"
+      key="compose"
       ;;
     */Dockerfile|*/Dockerfile.*|*Dockerfile)
       category="Dockerfile（stage / COPY / ENV / ARG 等）"
-      reminder="Smoke test 必須（container 起得來、核心指令可用）+ Lint 必須（Hadolint）；Unit 通常 N/A；視 build flow 補 Integration"
+      key="dockerfile"
       ;;
     *.sh)
       category="shell 函式 / 腳本邏輯"
-      reminder="Unit test 必須（隔離函式邏輯，bats-mock）+ Lint 必須（ShellCheck）；視 path 影響補 Smoke、視流程影響補 Integration"
+      key="shell"
       ;;
   esac
 
   [[ -z "${category}" ]] && return 0
+
+  repo_root="$(detect_repo_root "$(dirname "${file_path}")")" || repo_root=""
+
+  reminder="$(build_reminder "${key}" "${repo_root}")"
 
   local msg
   msg="$(printf 'TDD reminder — 剛動到 %s（類別：%s）\n%s\n對照表：CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」' \
