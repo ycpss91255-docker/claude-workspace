@@ -103,6 +103,36 @@ If the tag was just pushed, the first iteration may see no runs yet (`total == 0
 - On any `FAIL`, the script prints `FAIL <name>` and exits 1. Investigate before retrying.
 - `--max-iterations <N>` caps iterations for tests; production callers leave it unset and rely on `Monitor` `timeout_ms`.
 
+## False-positive ALL_DONE guard — `--min-checks <N>`
+
+Two race conditions used to produce premature `ALL_DONE` and have been fixed by guards added in front of the original `all(.conclusion == "SUCCESS")` jq check:
+
+1. **Subset-rollup race** — right after a PR is opened, GitHub's PR rollup may briefly return only a SUBSET of the expected checks (e.g. `Integration E2E` already `COMPLETED/SUCCESS` while `test` has not registered yet). The original `all(.conclusion == "SUCCESS")` over `[{SUCCESS}]` evaluates to `true` (jq's `all` is vacuously true on a single-success list), reporting false all-pass. Fixed by the `length < min_checks` guard.
+
+2. **In-progress visible check** — a check that is registered but still running has `status: "IN_PROGRESS"` with empty `conclusion`. The original pipeline correctly reported `pending` here (because `"" != "SUCCESS"`), but the new explicit `any(.status != null and .status != "COMPLETED")` guard catches the case earlier and produces an actionable label.
+
+The status guard is unconditional and applies on every poll. The `--min-checks <N>` guard is **opt-in** (default 1, preserving backwards-compatible behaviour). Caller decides how many checks the workflow ought to register:
+
+| Repo / filter | Suggested `--min-checks` |
+|---|---|
+| `template`, `multi_run` (default filter `test + Integration ...`) | `2` |
+| `docker_harness` (single `bats + shellcheck + hadolint`) | `1` (default; can omit) |
+| Single-target container repos (single `call-docker-build / docker-build`) | `1` (default) |
+| Multi-distro env / app repos (single aggregator: `ci-passed` / `ci-summary`) | `1` (default) |
+| `.github` (single `lint`) | `1` (default) |
+
+For `wait-pr-ci-batch.sh`, `--min-checks` accepts the same two forms as `--check-filter`: a bare integer (global default for every pair) or `<repo>=<N>` per-repo override. Detection rule mirrors `--check-filter` exactly. Mixed-category batch example combining filter + min-checks overrides:
+
+```
+.claude/scripts/wait-pr-ci-batch.sh \
+  template:42 ai_agent:39 ros_distro:3 ros1_bridge:56 \
+  --check-filter 'template=.name=="test" or (.name|startswith("Integration"))' \
+  --check-filter '.name=="call-docker-build / docker-build"' \
+  --check-filter 'ros_distro=.name=="ci-passed"' \
+  --check-filter 'ros1_bridge=.name=="ci-summary"' \
+  --min-checks 'template=2'
+```
+
 ## Anti-patterns
 
 - **`sleep 60` between manual `gh pr checks` / `gh run list`** — burns a cache-miss with nothing to show; the agent's context fills with noisy poll output.
