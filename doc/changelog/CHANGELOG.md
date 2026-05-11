@@ -7,6 +7,17 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `doc/test/TEST.md` test-row descriptions migrated `template/...` ->
+  `.base/...` to match the actual bats specs (which already use
+  `.base/` paths since the post-#67 template -> base rename and the
+  PR #72 fanout). Affected sections:
+  `remind_readme_on_core_script_spec.bats`,
+  `check_readme_framework_spec.bats`,
+  `check_template_versions_spec.bats`,
+  `check_tag_version_consistency_spec.bats`,
+  `remind_make_first_upgrade_spec.bats`. Pure doc-sync — no spec or
+  hook change. The local docker_harness `template/` folder is left
+  in place per CLAUDE.md note (folder rename is deferred).
 - `remind_tdd_categories.sh` PostToolUse hook now detects per-repo
   TDD capability by checking which of `test/smoke`, `test/unit`,
   `test/integration` exist under the repo root, and lists only the
