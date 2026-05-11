@@ -6,11 +6,11 @@ ${WHY}
 
 ## What
 
-Bumps `template/` subtree to **${VERSION}** via:
+Bumps `.base/` subtree to **${VERSION}** via:
 
 ```
-./template/upgrade.sh ${VERSION}
-./template/init.sh
+./.base/upgrade.sh ${VERSION}
+./.base/init.sh
 ```
 
 `upgrade.sh` handles all four steps automatically:
@@ -25,7 +25,7 @@ Bumps `template/` subtree to **${VERSION}** via:
 ## Verification
 
 ```
-$ cat template/.version
+$ cat .base/.version
 ${VERSION}
 ```
 

@@ -18,7 +18,7 @@
 #   2. Resolve work dir from `git -C <dir>` / `cd <dir> &&` / cwd.
 #   3. `git rev-parse --show-toplevel` to find repo root.
 #   4. Skip if no `.version` at repo root (rule N/A — this is a downstream
-#      consumer with `template/.version`, docker_harness itself, etc.).
+#      consumer with `.base/.version`, docker_harness itself, etc.).
 #   5. Compare `.version` content vs the tag name; on mismatch → deny.
 #
 # Out of scope (silent):
@@ -26,7 +26,7 @@
 #   - `git push --tags` (bulk; rare and intentional)
 #   - `git tag` with no args (list)
 #   - Tags not matching `vX.Y.Z[-rcN]`
-#   - Repos without root `.version` (downstream `template/.version` is the
+#   - Repos without root `.version` (downstream `.base/.version` is the
 #     CONSUMED template version, not the repo's own version)
 
 set -uo pipefail

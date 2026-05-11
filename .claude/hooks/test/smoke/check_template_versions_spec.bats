@@ -12,7 +12,7 @@ teardown() {
 }
 
 # stub_curl_map <reponame=ver> [reponame=ver ...] — install a `curl` shim
-# that, given a raw.githubusercontent.com/<org>/<repo>/main/template/.version
+# that, given a raw.githubusercontent.com/<org>/<repo>/main/.base/.version
 # URL, prints the mapped version (and exits 0). Repos absent from the map
 # cause curl to exit 22 (HTTP error), simulating a missing tag.
 stub_curl_map() {
@@ -28,7 +28,7 @@ stub_curl_map() {
 url="${@: -1}"
 # Extract reponame between /<org>/ and /main/
 repo="${url#https://raw.githubusercontent.com/}"
-repo="${repo%%/main/template/.version}"
+repo="${repo%%/main/.base/.version}"
 repo="${repo#*/}"
 mapfile="$(dirname "$0")/.versions"
 while IFS='=' read -r name ver; do

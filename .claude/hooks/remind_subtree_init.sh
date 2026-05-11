@@ -3,7 +3,7 @@
 #
 # Fires before any Bash command. When the command pulls the template
 # git subtree (`git subtree pull ... template ...`), remind to run
-# `./template/init.sh` afterwards to resync root symlinks. Non-blocking.
+# `./.base/init.sh` afterwards to resync root symlinks. Non-blocking.
 #
 # Why: memory `feedback_template_subtree_upgrade.md` 記載過去踩坑 —
 # subtree pull 不會自動更新 root symlinks（build.sh / run.sh / exec.sh
@@ -25,7 +25,7 @@ main() {
   [[ "${cmd}" =~ git[[:space:]]+subtree[[:space:]]+pull ]] || return 0
   [[ "${cmd}" == *template* ]] || return 0
 
-  msg="Subtree pull 提醒：拉完一定要跑 ./template/init.sh 重整 root symlinks（build.sh / run.sh / exec.sh / stop.sh / Makefile / .hadolint.yaml）。或直接改用 make -f Makefile.ci upgrade [VERSION=vX.Y.Z]（內部已含 init.sh resync + main.yaml @tag sed，較不易漏）。"
+  msg="Subtree pull 提醒：拉完一定要跑 ./.base/init.sh 重整 root symlinks（build.sh / run.sh / exec.sh / stop.sh / Makefile / .hadolint.yaml）。或直接改用 make -f Makefile.ci upgrade [VERSION=vX.Y.Z]（內部已含 init.sh resync + main.yaml @tag sed，較不易漏）。"
 
   jq -n --arg m "${msg}" '{
     systemMessage: $m,

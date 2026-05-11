@@ -57,7 +57,7 @@ Follow this workflow:
    ```
    for repo in env/ros_distro env/ros2_distro agent/ai_agent agent/claude_code agent/codex_cli agent/gemini_cli app/realsense_humble app/realsense_noetic app/sick_humble app/sick_noetic app/urg_node_noetic app/ros1_bridge app/urg_node_humble; do
      git -C "${CLAUDE_PROJECT_DIR}/$repo" pull
-     (cd "${CLAUDE_PROJECT_DIR}/$repo" && ./template/upgrade.sh && git push)
+     (cd "${CLAUDE_PROJECT_DIR}/$repo" && ./.base/upgrade.sh && git push)
    done
    ```
    For non-template PRs (fix / feat / refactor on a single repo), step 7

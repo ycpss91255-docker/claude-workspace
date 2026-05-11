@@ -70,7 +70,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
 | `(cd <repo>/worktree path && ./build.sh test)` 或 `bash -c "cd <dir> && ./build.sh ..."` | parser 只看 top-level token,subshell 是 `(`、`bash -c` 是 `bash`、都不命中 `excludedCommands: "./build.sh *"`,sandbox 套上去後 docker.sock 連不上 → `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` | **用 `./build.sh -C <dir> ...`**（同樣支援 `run.sh` / `exec.sh` / `stop.sh`,從 template v0.22.0 起,refs #53）。長形式 `--chdir`,行為對齊 `git -C` / `make -C`。Top-level token 留在 `./build.sh ...`,sandbox bypass 正常運作 |
-| `gh pr merge N --repo X` 從非該 repo cwd | 內建 state-changing safety 提示（不可 bypass，與 parser、allowlist 都無關） | **接受 1-click 提示即可** — 這是合理的安全檢查，且 `docker` monorepo 裡沒有 `ycpss91255-docker/template` 的獨立 checkout（只是 git subtree），無法 cd 進去規避；`-R X` 短形式 / `(cd path && ...)` 子 shell 都不能繞 |
+| `gh pr merge N --repo X` 從非該 repo cwd | 內建 state-changing safety 提示（不可 bypass，與 parser、allowlist 都無關） | **接受 1-click 提示即可** — 這是合理的安全檢查，且 `docker` monorepo 裡沒有 `ycpss91255-docker/base` 的獨立 checkout（只是 git subtree），無法 cd 進去規避；`-R X` 短形式 / `(cd path && ...)` 子 shell 都不能繞 |
 | `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
 | `docker run ... bash -c '<長 inline 字串>'` 或 `docker compose ... bash -c '...'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **抽成 script** — 用 Write 寫成 `/tmp/<name>.sh`，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`；或抽 permanent `.claude/scripts/<name>.sh` 接 atomic flags（如 `run-bats-in-compose.sh --suite all --grep '^not ok'`），Claude parser 只看到 atomic args 不 hit string node。長 quoted body 永遠抽成檔案，不要 inline |
@@ -135,9 +135,9 @@ warning 影響，視頻率決定要不要 skill 化）。
 
 | # | 類型 | 用途 | 本專案位置 / 工具 |
 |---|------|------|------------------|
-| 1 | Smoke test | 確認最基本 path 可運作（腳本能啟動、`-h` 可印出、容器能起來） | `test/smoke/*.bats`、`template/test/smoke/`（共用：`script_help.bats` / `display_env.bats` / `test_helper.bash`），透過 Dockerfile `test` stage 在 build 時跑 |
-| 2 | Unit test | 隔離單一 shell 函式 / 模組邏輯 | `template/test/unit/`（如 `setup_spec.bats`），`bats-mock` 隔離外部呼叫；下游 container repo 通常無自己的 unit，重用 template 的 |
-| 3 | System / Integration test | 驗證多元件協同行為（完整流程、跨腳本互動） | `template/test/integration/`（如 `upgrade_spec.bats`、`init.sh` 流程驗證） |
+| 1 | Smoke test | 確認最基本 path 可運作（腳本能啟動、`-h` 可印出、容器能起來） | `test/smoke/*.bats`、`.base/test/smoke/`（共用：`script_help.bats` / `display_env.bats` / `test_helper.bash`），透過 Dockerfile `test` stage 在 build 時跑 |
+| 2 | Unit test | 隔離單一 shell 函式 / 模組邏輯 | `.base/test/unit/`（如 `setup_spec.bats`），`bats-mock` 隔離外部呼叫；下游 container repo 通常無自己的 unit，重用 template 的 |
+| 3 | System / Integration test | 驗證多元件協同行為（完整流程、跨腳本互動） | `.base/test/integration/`（如 `upgrade_spec.bats`、`init.sh` 流程驗證） |
 | 4 | Lint / static analysis | 編譯期 / commit 期靜態檢查 | ShellCheck（所有 `.sh`）、Hadolint（Dockerfile）、`.hadolint.yaml` 規則；CI 強制，本地透過 `./build.sh test` 或 `make -f Makefile.ci lint` 觸發 |
 
 ### 變更類型 → 應該寫哪幾類測試
@@ -186,7 +186,7 @@ docker/
 │   ├── osrf_ros_noetic/      # superseded by env/ros_distro (noetic-desktop-full entry)
 │   ├── osrf_ros_kinetic/     # superseded by env/ros_distro (kinetic-desktop-full entry)
 │   └── osrf_ros2_humble/     # superseded by env/ros2_distro (humble-desktop-full entry)
-├── template/                 # 共用模板 repo
+├── template/                 # 本地 checkout of ycpss91255-docker/base（資料夾名沿用 GitHub rename 前的舊名 `template`；可選擇性重命名為 `base`）
 ├── multi_run/                # 多容器啟動工具（獨立 repo）
 ├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
 ├── .github/workflows/        # docker_harness 自身 CI（test.yaml）
@@ -204,11 +204,12 @@ docker/
     │   └── safe-delete.md             # /safe-delete — 用 trash 取代 rm
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
+    │   ├── batch-rename-template-to-base.sh # 一次性 #263 Phase 6 fanout：13 下游 git rm template/ + git subtree add --prefix=.base ycpss91255-docker/base.git vX.Y.Z + Dockerfile/main.yaml/README sed
     │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
     │   ├── batch-gitignore-fix.sh           # 一次性 .gitignore `.claude/` -> `.claude` 17 repo fanout（PR #21）
     │   ├── batch-gitignore-add-line.sh      # 通用 .gitignore 追加任意行的 17 repo fanout（PR #23）
     │   ├── batch-pr-merge.sh                # 批次 squash-merge 多個 <repo>:<pr>（接 short / full repo 名都可）
-    │   ├── check-template-versions.sh       # HTTPS curl 13 repo `template/.version` 對齊檢查（release 後驗證）
+    │   ├── check-template-versions.sh       # HTTPS curl 13 repo `.base/.version` 對齊檢查（release 後驗證）
     │   ├── fix-compose-copy-line.sh         # 一次性 compose.yaml COPY 路徑修正
     │   ├── check-claude-md-tree.sh          # CI lint：parse 此檔 .claude/ tree vs filesystem，drift 就 exit 1
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
@@ -235,10 +236,10 @@ docker/
     │   ├── remind_test_tools_smoke_sync.sh # Dockerfile.test-tools 改動但同層 release-test-tools.yaml 未同步時提醒
     │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
     │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36）
-    │   ├── remind_make_first_upgrade.sh # ./template/upgrade.sh 前提醒改用 make -f Makefile.ci upgrade（refs #36）
+    │   ├── remind_make_first_upgrade.sh # ./.base/upgrade.sh 前提醒改用 make -f Makefile.ci upgrade（refs #36）
     │   ├── check_prefer_dot_sh.sh       # docker build/run/exec/stop/compose 前：cwd 有對應 .sh wrapper 則 deny,沒有則 ask
     │   ├── remind_topics_yaml_on_new_repo.sh # gh repo create ycpss91255-docker/* 前提醒去 .github topics.yaml 加 repos.* 條目
-    │   ├── check_readme_framework.sh    # Edit/Write 後掃下游 repo README.md (+ 3 翻譯) 是否符合 template/README.md 框架(badge / 4 語言 link / TL;DR H2 / Smoke Tests link / 無 stale 路徑) — non-blocking warning
+    │   ├── check_readme_framework.sh    # Edit/Write 後掃下游 repo README.md (+ 3 翻譯) 是否符合 .base/README.md 框架(badge / 4 語言 link / TL;DR H2 / Smoke Tests link / 無 stale 路徑) — non-blocking warning
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
@@ -286,7 +287,7 @@ make -f Makefile.ci upgrade-check             # 檢查是否有新版
 make -f Makefile.ci help                      # 顯示所有 CI 指令
 ```
 
-> **升級一律 make 優先**。`./template/upgrade.sh [vX.Y.Z]` 留作 fallback，
+> **升級一律 make 優先**。`./.base/upgrade.sh [vX.Y.Z]` 留作 fallback，
 > 只在 make 不可用或 target 出問題時才用。
 
 
@@ -311,12 +312,12 @@ make -f Makefile.ci help                      # 顯示所有 CI 指令
 <repo>/
 ├── Dockerfile                   # 多階段建置
 ├── compose.yaml                 # Docker Compose 服務定義
-├── build.sh -> template/script/docker/build.sh   # symlink
-├── run.sh -> template/script/docker/run.sh       # symlink
-├── exec.sh -> template/script/docker/exec.sh     # symlink
-├── stop.sh -> template/script/docker/stop.sh     # symlink
-├── Makefile -> template/script/docker/Makefile    # symlink
-├── .hadolint.yaml -> template/.hadolint.yaml      # symlink（或自訂版本）
+├── build.sh -> .base/script/docker/build.sh   # symlink
+├── run.sh -> .base/script/docker/run.sh       # symlink
+├── exec.sh -> .base/script/docker/exec.sh     # symlink
+├── stop.sh -> .base/script/docker/stop.sh     # symlink
+├── Makefile -> .base/script/docker/Makefile    # symlink
+├── .hadolint.yaml -> .base/.hadolint.yaml      # symlink（或自訂版本）
 ├── script/
 │   └── entrypoint.sh            # 容器進入點
 ├── doc/
@@ -328,8 +329,8 @@ make -f Makefile.ci help                      # 顯示所有 CI 指令
 ├── test/
 │   └── smoke/
 │       └── <name>_env.bats      # Bats 環境測試（repo-specific）
-├── template/                    # git subtree（共用腳本、測試、設定；版本追蹤檔 template/.version）
-├── setup.conf                   # （選用）repo override；section-replace template/setup.conf
+├── .base/                    # git subtree（共用腳本、測試、設定；版本追蹤檔 .base/.version）
+├── config/docker/setup.conf     # （選用）repo override；section-replace .base/config/docker/setup.conf（路徑自 #262 / v0.25.0 起）
 ├── .env.example                 # IMAGE_NAME fallback
 ├── .gitignore
 ├── .github/workflows/
@@ -338,10 +339,10 @@ make -f Makefile.ci help                      # 顯示所有 CI 指令
 ```
 
 > **注意**：共用的 smoke tests（script_help.bats、display_env.bats、test_helper.bash）
-> 位於 `template/test/smoke/`，不放在 `test/smoke/`。
+> 位於 `.base/test/smoke/`，不放在 `test/smoke/`。
 > Dockerfile 用兩行 COPY 合併：
 > ```dockerfile
-> COPY template/test/smoke/ /smoke_test/
+> COPY .base/test/smoke/ /smoke_test/
 > COPY test/smoke/ /smoke_test/
 > ```
 > `display_env.bats` 會自動偵測 compose.yaml 是否有 GUI 設定，headless repo 自動 skip。
@@ -349,7 +350,7 @@ make -f Makefile.ci help                      # 顯示所有 CI 指令
 ### template 結構
 
 ```
-template/
+.base/
 ├── init.sh                       # 初始化 repo（新建或既有）
 ├── upgrade.sh                    # 升級 template subtree 版本
 ├── setup.conf                    # 預設設定（image_name/gpu/gui/network/volumes）
@@ -391,8 +392,8 @@ template/
 
 #### setup.conf 位置與 override 策略
 
-- `template/setup.conf` — 模板預設值（4 個 section）
-- `<repo>/setup.conf` — 選用 repo override。**Section-replace**：
+- `.base/config/docker/setup.conf` — 模板預設值（4 個 section；路徑自 #262 / v0.25.0 起）
+- `<repo>/config/docker/setup.conf` — 選用 repo override。**Section-replace**：
   repo 檔有的 section 完整取代模板該 section；repo 沒列的 section
   繼續用模板預設
 
@@ -438,9 +439,9 @@ SHA256 over 模板 + repo setup.conf）。build/run 會比對 hash，若 setup.c
 
 ```
 main.yaml
-├── call-docker-build → template/.github/workflows/build-worker.yaml@<version>
+├── call-docker-build → .base/.github/workflows/build-worker.yaml@<version>
 │   inputs: image_name, build_args, build_runtime
-└── call-release → template/.github/workflows/release-worker.yaml@<version>
+└── call-release → .base/.github/workflows/release-worker.yaml@<version>
     inputs: archive_name_prefix, extra_files
 ```
 
@@ -648,16 +649,16 @@ git push origin vX.Y.Z
 cd <repo>
 make -f Makefile.ci upgrade VERSION=vX.Y.Z   # 指定版本（推薦）
 # 或 make -f Makefile.ci upgrade            # 升到最新 tag
-# Fallback（make 不可用時）: ./template/upgrade.sh vX.Y.Z
+# Fallback（make 不可用時）: ./.base/upgrade.sh vX.Y.Z
 
 # 3. 走 PR merge（branch protection 禁止直接 push main）
 git push origin <branch> && gh pr create
 ```
 
-**升級一律 make 優先，`./template/upgrade.sh` 留作 fallback**（沒有 make、
+**升級一律 make 優先，`./.base/upgrade.sh` 留作 fallback**（沒有 make、
 或 make target 出問題時才用）。**不要手動 `git subtree pull`** —
 `upgrade.sh` 的 init.sh resync 與 `main.yaml` sed 很容易漏；版本追蹤用
-subtree 內 `template/.version`（不是已移除的 root `.template_version` /
+subtree 內 `.base/.version`（不是已移除的 root `.template_version` /
 `VERSION`）。下游 repo 若要自動升 PR 可加 `.github/dependabot.yml` 監
 `github-actions` ecosystem（snippet 見 template README「Updating」章節）。
 
@@ -696,7 +697,7 @@ subtree 內 `template/.version`（不是已移除的 root `.template_version` /
 | 新增/刪除測試 | **TEST.md 必須同步**（總數 + 表格）、CHANGELOG.md（如為使用者可見變更） |
 | 新功能/Bug 修正 | CHANGELOG.md `[Unreleased]` section |
 | 修改 template 共用腳本 | 先改 template → PR → merge → tag → 各 repo `git subtree pull` |
-| template 打 tag | 各 repo 跑 `make -f Makefile.ci upgrade VERSION=vX.Y.Z`（會自動 subtree pull、更新 `template/.version`、sed `main.yaml` 的 `@tag`；fallback：`./template/upgrade.sh vX.Y.Z`） |
+| template 打 tag | 各 repo 跑 `make -f Makefile.ci upgrade VERSION=vX.Y.Z`（會自動 subtree pull、更新 `.base/.version`、sed `main.yaml` 的 `@tag`；fallback：`./.base/upgrade.sh vX.Y.Z`） |
 | 修改 CI workflow | 修改 template 的 reusable workflow，各 repo 透過 `@tag` 自動同步 |
 
 ### 已知踩過的坑
@@ -705,7 +706,7 @@ subtree 內 `template/.version`（不是已移除的 root `.template_version` /
 |------|------|------|
 | `setup.sh` 直接執行時 IMAGE_NAME 偵測錯誤 | `_base_path` 預設用 `BASH_SOURCE` 目錄，不是 repo root | 涉及路徑的預設值要考慮所有呼叫方式 |
 | Hadolint CI 太嚴導致全 fail | DL3008 等規則不適用 dev 環境 | 新增 lint 工具時先本地測試 |
-| Docker COPY 不 follow symlinks | symlink 指向 template/，Docker COPY 複製 symlink 本身 | 不要在需要 Docker COPY 的目錄中放 symlinks |
+| Docker COPY 不 follow symlinks | symlink 指向 .base/，Docker COPY 複製 symlink 本身 | 不要在需要 Docker COPY 的目錄中放 symlinks |
 | `sed` apt mirror 在 `-euo pipefail` 下失敗 | glob 匹配不到檔案時 sed 回傳非零 | apt mirror sed 加 `\|\| true` |
 | `.env.example` 刪除後 IMAGE_NAME 偵測失敗 | `detect_image_name` 只認 `docker_*` 和 `*_ws` | `.env.example` 保留作為 fallback |
 
@@ -742,7 +743,7 @@ documented command / 為什麼」,讓 conversation log 留痕。
 - `check_tag_version_consistency.sh` — `git tag v*` / `git push v*` 前
   比對 repo root `.version`，不一致就 deny（取代「記得走 /release」的
   人工約束）
-- `remind_make_first_upgrade.sh` — 直接跑 `./template/upgrade.sh` 時提醒
+- `remind_make_first_upgrade.sh` — 直接跑 `./.base/upgrade.sh` 時提醒
   改用 `make -f Makefile.ci upgrade`（make wrapper 內部呼叫同一支 .sh,
   但會幫忙跑 init.sh resync + main.yaml @tag sed）
 - `check_prefer_dot_sh.sh` — `docker build/run/exec/stop` 與
@@ -791,12 +792,12 @@ documented command / 為什麼」,讓 conversation log 留痕。
 
 使用 `/new-repo` slash command。所有新 repo 必須使用與 template repo 相同的架構：
 
-- 加入 `template` subtree：`git subtree add --prefix=template git@github.com:ycpss91255-docker/template.git <version> --squash`
-- 執行 `./template/init.sh`（自動偵測：有 Dockerfile → 既有 repo 初始化；無 Dockerfile → 產生完整結構）
-- 共用腳本用 symlink：`build.sh`、`run.sh`、`exec.sh`、`stop.sh`、`Makefile` → `template/script/docker/`
+- 加入 `template` subtree：`git subtree add --prefix=template git@github.com:ycpss91255-docker/base.git <version> --squash`
+- 執行 `./.base/init.sh`（自動偵測：有 Dockerfile → 既有 repo 初始化；無 Dockerfile → 產生完整結構）
+- 共用腳本用 symlink：`build.sh`、`run.sh`、`exec.sh`、`stop.sh`、`Makefile` → `.base/script/docker/`
 - Dockerfile 遵循 template 分層慣例（bats-src / lint-tools / sys / base / devel / test）
 - CI 使用 template 的 reusable workflows（`build-worker.yaml`、`release-worker.yaml`）
-- 版本追蹤用 subtree 內 `template/.version`（`git subtree pull` / `upgrade.sh` 會自動更新；不再需要 root 層 `.template_version`）
+- 版本追蹤用 subtree 內 `.base/.version`（`git subtree pull` / `upgrade.sh` 會自動更新；不再需要 root 層 `.template_version`）
 - Smoke test 放 `test/smoke/`，共用測試從 template 的 `test/smoke/` COPY
 
 ## Git 設定

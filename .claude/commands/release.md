@@ -43,7 +43,7 @@ git checkout -b release/vX.Y.Z
   PR-time, not deferred to release.
 
 **For container repos** (env / agent / app), there is no top-level `.version`;
-the version is propagated through `template/.version` via the subtree upgrade.
+the version is propagated through `.base/.version` via the subtree upgrade.
 A release commit on those repos is typically just a CHANGELOG bump (if the
 repo has its own CHANGELOG) and possibly a `main.yaml` `@tag` adjustment.
 
@@ -135,7 +135,7 @@ If RC CI (step 4) or tag workflows (step 7) fail:
 
 After tagging `template@vX.Y.Z`:
 
-- Each downstream repo (the 17 in env / agent / app) needs its `template/`
+- Each downstream repo (the 17 in env / agent / app) needs its `.base/`
   subtree pulled to the new tag.
 - Use `/batch-template-upgrade vX.Y.Z` to mass-upgrade all 17 in one batch
   (one PR per downstream repo, parallel CI).
@@ -148,7 +148,7 @@ After tagging `template@vX.Y.Z`:
 - Tags are **annotated**: always `-a` + `-m`. Lightweight tags don't carry the message and `release-worker.yaml`'s release-notes extraction breaks on them.
 - The CHANGELOG `[Unreleased]` heading must remain above the new release section for the next cycle. Don't delete it.
 - Do not `--no-verify` or skip hooks during the chore PR commit. The hook gates (CHANGELOG drift, TEST.md drift, emoji, AI attribution) catch real issues at the worst possible time of the cycle.
-- `release-worker.yaml` is not part of the `template` repo's own self-test — it lives in template and is consumed by container repos via `uses: ycpss91255-docker/template/.github/workflows/release-worker.yaml@<tag>`. Verify it ran cleanly via step 7.
+- `release-worker.yaml` is not part of the `template` repo's own self-test — it lives in template and is consumed by container repos via `uses: ycpss91255-docker/base/.github/workflows/release-worker.yaml@<tag>`. Verify it ran cleanly via step 7.
 
 ## Context
 

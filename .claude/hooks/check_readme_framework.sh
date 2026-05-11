@@ -4,7 +4,7 @@
 # Fires on Edit / Write / MultiEdit. When the touched file is a
 # downstream repo's English README.md or a doc/README.<lang>.md
 # translation, verify it conforms to the canonical framework spec
-# derived from template/README.md (the framework reference).
+# derived from .base/README.md (the framework reference).
 #
 # Checks (per file):
 #   [1] CI status badge present
@@ -12,10 +12,10 @@
 #   [2] 4-language switch link present
 #       (literal: **[English](README.md)**)
 #   [3] No `> **TL;?DR**` blockquote (must be `## TL;DR` H2)
-#   [4] No stale `template/build.sh` symlink target
-#       (must be `template/script/docker/build.sh` since v0.1.0)
+#   [4] No stale `.base/build.sh` symlink target
+#       (must be `.base/script/docker/build.sh` since v0.1.0)
 #   [5] No `.template_version` reference
-#       (version pin moved to `template/.version` since v0.16.0)
+#       (version pin moved to `.base/.version` since v0.16.0)
 #   [6] Smoke Tests section links to TEST.md
 #       (regex: \(doc/test/TEST.md\) somewhere in file)
 #
@@ -26,7 +26,7 @@
 #   second branch nudges fanout-pending state into view.
 #
 # Scope: only acts on agent/<repo>/, app/<repo>/, env/<repo>/,
-# multi_run/. Skips template/ (the framework reference itself),
+# multi_run/. Skips .base/ (the framework reference itself),
 # archive/, org-profile/.
 #
 # Non-blocking - always exit 0. Findings emitted as
@@ -92,12 +92,12 @@ check_one() {
     findings+="  ${prefix}[3] TL;DR is a blockquote; framework expects '## TL;DR' H2"$'\n'
   fi
 
-  if grep -qE 'template/build\.sh[[:space:]]+#' <<< "${contents}"; then
-    findings+="  ${prefix}[4] stale path 'template/build.sh' - should be 'template/script/docker/build.sh'"$'\n'
+  if grep -qE '.base/build\.sh[[:space:]]+#' <<< "${contents}"; then
+    findings+="  ${prefix}[4] stale path '.base/build.sh' - should be '.base/script/docker/build.sh'"$'\n'
   fi
 
   if grep -q '\.template_version' <<< "${contents}"; then
-    findings+="  ${prefix}[5] obsolete '.template_version' reference - version pin lives in 'template/.version' since template v0.16.0"$'\n'
+    findings+="  ${prefix}[5] obsolete '.template_version' reference - version pin lives in '.base/.version' since template v0.16.0"$'\n'
   fi
 
   if ! grep -q '(doc/test/TEST.md)' <<< "${contents}"; then
