@@ -6,7 +6,42 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `wait-pr-ci.sh` and `wait-pr-ci-batch.sh` no longer declare false
+  `ALL_DONE` when called immediately after a `git push --force-with-lease`
+  while GitHub has not yet retriggered CI on the new head (refs #60). Two
+  new guards above the existing `all(.conclusion == "SUCCESS")` jq check:
+  (1) a watch-start `completedAt` comparison demotes the rollup to
+  `pending` when every matching check's `completedAt` predates the watch
+  start time (carry-over results from a prior head); (2) a per-PR /
+  per-pair `headRefOid` change check emits one `[head-moved] PR<n>
+  <old7>..<new7>` (or `[head-moved] <owner>/<repo>#<pr> ...` for the
+  batch script) log line on detection and forces that pair's state to
+  `pending` for the same iteration. Both guards apply automatically; no
+  new flag required. Backwards-compatible: only fires when every
+  matching check has `completedAt` set (real GitHub API always
+  populates it; existing test stubs without the field keep working).
+  +9 bats tests (5 in `wait_pr_ci_spec.bats`, 4 in
+  `wait_pr_ci_batch_spec.bats`); total `make -C .claude/test test`
+  rises 309 -> 318.
+
 ### Added
+- `check_readme_framework.sh` PostToolUse hook now also walks the
+  `## Directory Structure` code-fence (English + zh-TW / zh-CN / ja
+  headings) and warns when any reconstructed leaf path is not present
+  in the repo on disk. Catches the failure mode where a `git mv`
+  relocation updated all narrative sections of the README but left
+  the inline tree pointing at the old flat layout (the ros1_bridge
+  PR #75 yaml rename surfaced the gap that #65 tracks). Each warning
+  prints the README line number plus the stale rel-path; symlink
+  notation `foo -> target` checks the link (`foo`) not the target,
+  so a worktree without `.base/` materialized does not generate
+  false positives. Implemented in Python (alpine's awk does not
+  handle the multi-byte tree characters reliably). +6 bats tests in
+  `check_readme_framework_spec.bats` covering positive control, the
+  #65 drift case, ellipsis / pure tree-art tolerance, symlink
+  semantics, the zh-TW heading variant, and the no-section degraded
+  path.
 - New `.claude/scripts/batch-license-apache.sh` — one-shot fanout
   helper that adds Apache 2.0 `LICENSE` + CI / License badges + a
   CHANGELOG entry to each of the 13 active downstream container

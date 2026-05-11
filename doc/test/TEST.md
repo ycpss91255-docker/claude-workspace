@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **291 tests** (287 smoke + 4 integration) plus shellcheck (20 hook
+Total: **324 tests** (320 smoke + 4 integration) plus shellcheck (20 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -130,7 +130,7 @@ stdin and asserts one of three behaviours:
 | fires when TEST.md lists missing bats file | bats file missing → FIRE |
 | silent when edited file is not .bats or TEST.md | not a tracked file type → SILENT |
 
-### test/smoke/check_readme_framework_spec.bats (14)
+### test/smoke/check_readme_framework_spec.bats (20)
 | Test | Scenario |
 |------|----------|
 | silent on a fully aligned English README | all 6 checks pass + 3 translations also aligned → SILENT |
@@ -147,6 +147,12 @@ stdin and asserts one of three behaviours:
 | silent when editing archive/<repo>/README.md (read-only archive) | path under `archive/` → SILENT (skipped) |
 | silent when editing a non-README file | unrelated path → SILENT |
 | silent on multi_run/README.md when fully aligned | multi_run path with all 4 languages aligned → SILENT |
+| [7] silent when every tree path exists on disk (positive control) | Directory Structure tree where every leaf file/dir is materialized → SILENT (refs #65) |
+| [7] fires when tree path does not exist on disk (the #65 drift) | flat-layout README after files were moved into a nested subdir → FIRE per stale path |
+| [7] ignores ellipsis and pure tree-art lines | tree lines `│`, `├── ...`, `└── ...` → SILENT (no false positives) |
+| [7] symlink notation 'build.sh -> .base/...' checks the link not the target | broken-symlink shape: README mentions `build.sh -> ...`; on-disk symlink present (target absent) → SILENT |
+| [7] zh-TW heading '## 目錄結構' is recognized | translated heading also enters the tree-walker → FIRE on stale path |
+| [7] silent when README has no Directory Structure section | no tree section at all → SILENT (walker no-op) |
 
 ### test/smoke/remind_docker_for_lint_spec.bats (12)
 | Test | Scenario |
@@ -263,7 +269,7 @@ exempt from `--body-file` scanning.
 | fires on gh issue create --body-file - alone (stdin variant) | `--body-file -` followed by EOL → FIRE |
 | silent on --body-file with non-dash path that happens to start with dash-like name | path containing `-` but not literal `-` → SILENT |
 
-### test/smoke/wait_pr_ci_spec.bats (11)
+### test/smoke/wait_pr_ci_spec.bats (22)
 
 Covers `.claude/scripts/wait-pr-ci.sh` (the PR-scoped polling loop extracted
 out of the wait-pr-ci skill so the Monitor body becomes a single command, no
@@ -283,8 +289,19 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | max-iterations exits 124 when stuck pending | iteration cap |
 | no matching checks counts as no-checks (not all-pass) and loops | empty filter result ≠ green |
 | all-pass but UNKNOWN mergeable does not exit ALL_DONE | mergeable gate |
+| --min-checks 2 with only 1 matching SUCCESS stays pending | subset-rollup race (issue #66) |
+| --min-checks default 1 preserves backwards-compatible behaviour | positive control |
+| status IN_PROGRESS blocks all-pass even when conclusion field absent | status-guard demotion |
+| status COMPLETED + conclusion SUCCESS reaches ALL_DONE | positive control |
+| --min-checks non-integer exits 2 | arg validation |
+| --min-checks 0 exits 2 (must be positive) | arg validation |
+| all-pass with all completedAt predating watch start → pending | stale-rollup completedAt guard (issue #60) |
+| all-pass with completedAt newer than watch start → ALL_DONE | positive control for completedAt guard |
+| headRefOid change between polls emits [head-moved] and forces pending | headRefOid guard (issue #60) |
+| stable headRefOid across polls preserves ALL_DONE path | negative control for headRefOid guard |
+| JSON without headRefOid preserves backwards-compatible behaviour | mocks without headRefOid keep working |
 
-### test/smoke/wait_pr_ci_batch_spec.bats (20)
+### test/smoke/wait_pr_ci_batch_spec.bats (30)
 
 Covers `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo flavour for
 `/batch-template-upgrade` follow-up. Same Monitor pattern + output
@@ -313,6 +330,16 @@ and aggregates all PRs into one stream.
 | global --check-filter (no repo prefix) still works as before | backwards-compat global filter |
 | per-repo filter with no matching check counts as no-checks | per-repo filter narrowing semantics |
 | duplicate --check-filter for same repo: last one wins | last-write-wins map semantic |
+| --min-checks 2 with only 1 matching SUCCESS stays pending | subset-rollup race per-pair (issue #66) |
+| status IN_PROGRESS blocks all-pass (status guard) | status-guard demotion per-pair |
+| per-repo --min-checks <repo>=<N> applies only to that repo | per-repo min-checks map |
+| --min-checks default 1 preserves backwards-compatible behaviour | positive control |
+| --min-checks non-integer exits 2 | arg validation |
+| --min-checks <repo>=<non-int> exits 2 | per-repo arg validation |
+| all-pass with completedAt predating watch start → pending (batch) | stale-rollup completedAt guard per-pair (issue #60) |
+| headRefOid change between polls emits [head-moved] (batch) | headRefOid guard per-pair (issue #60) |
+| stable headRefOid across polls preserves ALL_DONE path (batch) | negative control for headRefOid guard |
+| JSON without headRefOid preserves backwards-compatible behaviour (batch) | mocks without headRefOid keep working |
 
 ### test/smoke/batch_pr_merge_spec.bats (14)
 

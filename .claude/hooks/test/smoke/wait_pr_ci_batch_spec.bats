@@ -279,3 +279,68 @@ STUB_EOF
   assert_failure 2
   assert_output --partial "--min-checks"
 }
+
+# Stale-rollup guards (refs ycpss91255-docker/docker_harness#60). Mirror
+# the wait-pr-ci.sh tests; the batch script must apply the same demotion
+# rules per-pair so one stale PR doesn't abort the batch.
+
+# stub_gh_seq <json1> [<json2> ...] — sequential per-call response.
+# Same as in wait_pr_ci_spec.bats but local copy so the batch suite
+# stays self-contained.
+stub_gh_seq() {
+  local i=0
+  local json
+  for json in "$@"; do
+    i=$((i + 1))
+    printf '%s' "${json}" > "${GH_STUB_DIR}/resp_${i}.json"
+  done
+  local last="${i}"
+  cat > "${GH_STUB_DIR}/gh" <<STUB_EOF
+#!/usr/bin/env bash
+cf="${GH_STUB_DIR}/call_count"
+[[ -f "\${cf}" ]] || echo 0 > "\${cf}"
+n=\$(<"\${cf}")
+n=\$((n + 1))
+echo "\${n}" > "\${cf}"
+last=${last}
+(( n > last )) && n=\${last}
+cat "${GH_STUB_DIR}/resp_\${n}.json"
+STUB_EOF
+  chmod +x "${GH_STUB_DIR}/gh"
+}
+
+@test "all-pass with completedAt predating watch start → pending (batch)" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"1970-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 2
+  assert_failure 124
+  assert_output --partial "ai_agent#1: checks=pending"
+  refute_output --partial "ALL_DONE"
+}
+
+@test "headRefOid change between polls emits [head-moved] (batch)" {
+  stub_gh_seq \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"IN_PROGRESS","conclusion":""}],"headRefOid":"a000000aaaaaaaa"}' \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"b111111bbbbbbbb"}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 2
+  assert_failure 124
+  assert_output --partial "[head-moved] ycpss91255-docker/ai_agent#1 a000000..b111111"
+  refute_output --partial "ALL_DONE"
+}
+
+@test "stable headRefOid across polls preserves ALL_DONE path (batch)" {
+  stub_gh_seq \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}' \
+    '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS","completedAt":"2099-01-01T00:00:00Z"}],"headRefOid":"a000000aaaaaaaa"}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "[head-moved]"
+}
+
+@test "JSON without headRefOid preserves backwards-compatible behaviour (batch)" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "[head-moved]"
+}

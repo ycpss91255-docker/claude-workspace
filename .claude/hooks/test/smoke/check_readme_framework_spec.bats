@@ -192,3 +192,90 @@ EOF
   assert_silent
   rm -rf "${root}"
 }
+
+# [7] Directory Structure tree walker (refs issue #65). Each test sets
+# up a minimal downstream repo, appends a "## Directory Structure" code
+# fence to the aligned README, optionally materializes / omits matching
+# files on disk, and asserts the [7] line is emitted (or not).
+
+# write_all_aligned <repo> — populate English README + 3 translation
+# files with framework-compliant minimal content so [drift] checks do
+# not fire. Used by [7] tests that focus only on the tree-walker.
+write_all_aligned() {
+  local repo="$1"
+  write_aligned "${repo}/README.md"
+  write_aligned "${repo}/doc/README.zh-TW.md"
+  write_aligned "${repo}/doc/README.zh-CN.md"
+  write_aligned "${repo}/doc/README.ja.md"
+}
+
+@test "[7] silent when every tree path exists on disk (positive control)" {
+  local repo
+  repo="$(mktemp_downstream_repo app bridge)"
+  write_all_aligned "${repo}"
+  mkdir -p "${repo}/config/ros1_bridge"
+  : > "${repo}/config/ros1_bridge/scan_bridge.yaml"
+  : > "${repo}/Dockerfile"
+  printf '\n## Directory Structure\n\n```text\nbridge/\n├── Dockerfile                # multi-stage\n├── config/\n│   └── ros1_bridge/             # bridge configs\n│       └── scan_bridge.yaml     # LaserScan bridge\n```\n' >> "${repo}/README.md"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/README.md\"}}"
+  assert_silent
+  rm -rf "${repo%/*/*}"
+}
+
+@test "[7] fires when tree path does not exist on disk (the #65 drift)" {
+  local repo
+  repo="$(mktemp_downstream_repo app bridge)"
+  write_all_aligned "${repo}"
+  # config/ros1_bridge/scan_bridge.yaml exists on disk
+  mkdir -p "${repo}/config/ros1_bridge"
+  : > "${repo}/config/ros1_bridge/scan_bridge.yaml"
+  # README still references the pre-rename flat path config/scan_bridge.yaml
+  printf '\n## Directory Structure\n\n```text\nbridge/\n├── config/\n│   ├── scan_bridge.yaml      # LaserScan bridge\n│   └── release_bridge.yaml   # Camera bridge\n```\n' >> "${repo}/README.md"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/README.md\"}}"
+  assert_message_contains "stale path 'config/scan_bridge.yaml'"
+  assert_message_contains "stale path 'config/release_bridge.yaml'"
+  rm -rf "${repo%/*/*}"
+}
+
+@test "[7] ignores ellipsis and pure tree-art lines" {
+  local repo
+  repo="$(mktemp_downstream_repo agent foo)"
+  write_all_aligned "${repo}"
+  : > "${repo}/Dockerfile"
+  printf '\n## Directory Structure\n\n```text\nfoo/\n├── Dockerfile\n│\n├── ...\n└── ...\n```\n' >> "${repo}/README.md"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/README.md\"}}"
+  assert_silent
+  rm -rf "${repo%/*/*}"
+}
+
+@test "[7] symlink notation 'build.sh -> .base/...' checks the link not the target" {
+  local repo
+  repo="$(mktemp_downstream_repo app sym)"
+  write_all_aligned "${repo}"
+  # build.sh on disk as a broken symlink (target intentionally missing)
+  ln -s ".base/script/docker/build.sh" "${repo}/build.sh"
+  printf '\n## Directory Structure\n\n```text\nsym/\n├── build.sh -> .base/script/docker/build.sh   # Symlink\n```\n' >> "${repo}/README.md"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/README.md\"}}"
+  refute_output --partial "stale path 'build.sh'"
+  refute_output --partial "stale path '.base"
+  rm -rf "${repo%/*/*}"
+}
+
+@test "[7] zh-TW heading '## 目錄結構' is recognized" {
+  local repo
+  repo="$(mktemp_downstream_repo agent zhfoo)"
+  write_all_aligned "${repo}"
+  printf '\n## 目錄結構\n\n```text\nzhfoo/\n├── nonexistent.yaml      # missing\n```\n' >> "${repo}/doc/README.zh-TW.md"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/doc/README.zh-TW.md\"}}"
+  assert_message_contains "stale path 'nonexistent.yaml'"
+  rm -rf "${repo%/*/*}"
+}
+
+@test "[7] silent when README has no Directory Structure section" {
+  local repo
+  repo="$(mktemp_downstream_repo agent nodir)"
+  write_all_aligned "${repo}"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/README.md\"}}"
+  assert_silent
+  rm -rf "${repo%/*/*}"
+}
