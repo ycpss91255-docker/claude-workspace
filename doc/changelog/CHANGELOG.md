@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `remind_tdd_categories.sh` PostToolUse hook now detects per-repo
+  TDD capability by checking which of `test/smoke`, `test/unit`,
+  `test/integration` exist under the repo root, and lists only the
+  applicable categories in the reminder (refs #75). Repo root is
+  resolved by walking up from the touched file looking for a
+  `Dockerfile`, `Makefile.ci`, `.base/`, `template/`, or `init.sh`
+  marker. For ros1_bridge-style downstream repos (only `test/smoke/`
+  on disk), the reminder lists `Smoke + Lint` instead of the legacy
+  `Unit + Smoke + Integration + Lint` claim. For template-style
+  repos (all three test subdirs present), the legacy 4-category
+  reminder is preserved. Fallback: when none of the three test
+  subdirs exist (fresh repo, no infra), claim all three applicable
+  so the broad guidance does not regress for new code. +4 bats tests
+  in `remind_tdd_categories_spec.bats` (file 8 -> 12); total
+  `make -C .claude/test test` rises 324 -> 328.
 - `wait-pr-ci/SKILL.md` documents the cwd assumption that the Monitor
   examples carry (refs #63). Monitor inherits the agent's cwd at
   invocation, the relative `.claude/scripts/...` path resolves under

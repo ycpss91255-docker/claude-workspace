@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **324 tests** (320 smoke + 4 integration) plus shellcheck (20 hook
+Total: **328 tests** (324 smoke + 4 integration) plus shellcheck (20 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -196,7 +196,7 @@ stdin and asserts one of three behaviours:
 | silent on git pull (not subtree) | non-subtree git pull → SILENT |
 | silent on make upgrade (recommended path) | `make ... upgrade` → SILENT |
 
-### test/smoke/remind_tdd_categories_spec.bats (8)
+### test/smoke/remind_tdd_categories_spec.bats (12)
 | Test | Scenario |
 |------|----------|
 | fires on .sh file edit | shell logic → FIRE |
@@ -207,6 +207,10 @@ stdin and asserts one of three behaviours:
 | silent on .md edit | docs → SILENT |
 | silent on .bats edit | test file → SILENT |
 | silent on .claude/ internals | hook self-edits → SILENT |
+| [#75] .sh in downstream repo with only test/smoke/ drops Unit + Integration | repo-detect: ros1_bridge layout → only Smoke + Lint clauses |
+| [#75] .sh in repo with full test infra keeps all 4 categories | repo-detect: template layout → all 4 clauses |
+| [#75] Dockerfile in repo with only test/smoke/ keeps Smoke + Lint | repo-detect on Dockerfile path |
+| [#75] repo without any test/ subdir falls back to all 4 categories | fallback preserves pre-#75 behaviour |
 
 ### test/smoke/remind_no_heredoc_redirect_spec.bats (10)
 | Test | Scenario |
