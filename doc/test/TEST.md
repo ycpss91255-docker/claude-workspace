@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **318 tests** (314 smoke + 4 integration) plus shellcheck (20 hook
+Total: **324 tests** (320 smoke + 4 integration) plus shellcheck (20 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -130,7 +130,7 @@ stdin and asserts one of three behaviours:
 | fires when TEST.md lists missing bats file | bats file missing → FIRE |
 | silent when edited file is not .bats or TEST.md | not a tracked file type → SILENT |
 
-### test/smoke/check_readme_framework_spec.bats (14)
+### test/smoke/check_readme_framework_spec.bats (20)
 | Test | Scenario |
 |------|----------|
 | silent on a fully aligned English README | all 6 checks pass + 3 translations also aligned → SILENT |
@@ -147,6 +147,12 @@ stdin and asserts one of three behaviours:
 | silent when editing archive/<repo>/README.md (read-only archive) | path under `archive/` → SILENT (skipped) |
 | silent when editing a non-README file | unrelated path → SILENT |
 | silent on multi_run/README.md when fully aligned | multi_run path with all 4 languages aligned → SILENT |
+| [7] silent when every tree path exists on disk (positive control) | Directory Structure tree where every leaf file/dir is materialized → SILENT (refs #65) |
+| [7] fires when tree path does not exist on disk (the #65 drift) | flat-layout README after files were moved into a nested subdir → FIRE per stale path |
+| [7] ignores ellipsis and pure tree-art lines | tree lines `│`, `├── ...`, `└── ...` → SILENT (no false positives) |
+| [7] symlink notation 'build.sh -> .base/...' checks the link not the target | broken-symlink shape: README mentions `build.sh -> ...`; on-disk symlink present (target absent) → SILENT |
+| [7] zh-TW heading '## 目錄結構' is recognized | translated heading also enters the tree-walker → FIRE on stale path |
+| [7] silent when README has no Directory Structure section | no tree section at all → SILENT (walker no-op) |
 
 ### test/smoke/remind_docker_for_lint_spec.bats (12)
 | Test | Scenario |

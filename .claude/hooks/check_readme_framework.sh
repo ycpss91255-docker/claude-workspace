@@ -18,6 +18,13 @@
 #       (version pin moved to `.base/.version` since v0.16.0)
 #   [6] Smoke Tests section links to TEST.md
 #       (regex: \(doc/test/TEST.md\) somewhere in file)
+#   [7] No stale paths in the Directory Structure tree
+#       (walks the code-fence following `## Directory Structure`
+#       or its zh-TW / zh-CN / ja heading, reconstructs each leaf
+#       path by accumulating parent directories from indent depth,
+#       and verifies the path exists in repo_root. Symlinks count
+#       as existing as long as the link itself is present, even if
+#       the target is broken — uses `-e || -L`.)
 #
 # Drift check (only when editing the English README.md, not a
 # translation):
@@ -34,6 +41,95 @@
 # hook in this repo.
 
 set -uo pipefail
+
+# walk_tree_paths <readme-file>
+# Parses the Directory Structure code-fence and emits one TAB-separated
+# `<line_num>\t<rel_path>` per leaf path. Tree art lines without an
+# identifiable leaf and ellipsis lines are skipped. The leading repo
+# header line (e.g. `ros1_bridge/`) is NOT emitted; rel_path is always
+# relative to the repo root. Symlink notation `foo -> target` reports
+# only `foo` (the symlink name). Trailing `/` on directories is stripped.
+#
+# Implemented in Python rather than awk because the unicode tree
+# characters (├ └ ─ │) are multi-byte UTF-8 and Alpine's awk does not
+# handle multi-byte slicing reliably. Python's str.startswith works on
+# code points and produces stable behaviour across image variants.
+walk_tree_paths() {
+  local file="$1"
+  python3 - "${file}" <<'PY'
+import re
+import sys
+
+HEAD_RE = re.compile(
+    r"^## *(Directory Structure|目錄結構|目錄架構|"
+    r"目录结构|ディレクトリ構成|ディレクトリ構造) *$"
+)
+# Each indent unit is exactly 4 columns: "│   " or "    ".
+INDENT_UNIT_RE = re.compile(r"^(│   |    )")
+LEAF_RE = re.compile(r"^(├── |└── )(.*)$")
+
+def main(path):
+    in_section = False
+    in_fence = False
+    parents = []  # parents[i] = directory name at indent level i
+
+    with open(path, encoding="utf-8") as fp:
+        for lineno, raw in enumerate(fp, 1):
+            line = raw.rstrip("\n")
+
+            if HEAD_RE.match(line):
+                in_section = True
+                in_fence = False
+                continue
+            if in_section and line.startswith("## "):
+                in_section = False
+                in_fence = False
+                continue
+            if not in_section:
+                continue
+            if line.startswith("```"):
+                in_fence = not in_fence
+                continue
+            if not in_fence:
+                continue
+
+            # Count indent levels.
+            rest = line
+            level = 0
+            while True:
+                m = INDENT_UNIT_RE.match(rest)
+                if not m:
+                    break
+                level += 1
+                rest = rest[len(m.group(0)):]
+
+            leaf_match = LEAF_RE.match(rest)
+            if not leaf_match:
+                continue
+            rest = leaf_match.group(2)
+
+            # Strip symlink target / comment / whitespace.
+            if " -> " in rest:
+                rest = rest.split(" -> ", 1)[0]
+            rest = re.sub(r"\s+#.*$", "", rest)
+            rest = rest.strip()
+
+            if not rest or rest in ("...", ".."):
+                continue
+            rest = rest.rstrip("/")
+
+            # Build full path from parents[0:level] + this leaf.
+            full = "/".join(parents[:level] + [rest])
+
+            # Update parents stack to depth `level + 1` ending with rest.
+            parents = parents[:level] + [rest]
+
+            sys.stdout.write(f"{lineno}\t{full}\n")
+
+if __name__ == "__main__":
+    main(sys.argv[1])
+PY
+}
 
 is_downstream_readme() {
   local path="$1"
@@ -103,6 +199,20 @@ check_one() {
   if ! grep -q '(doc/test/TEST.md)' <<< "${contents}"; then
     findings+="  ${prefix}[6] missing 'See [TEST.md](doc/test/TEST.md) for details.' under '## Smoke Tests'"$'\n'
   fi
+
+  # [7] Directory Structure tree must not list paths that do not exist
+  # in repo_root. Each leaf path is reconstructed from indent depth and
+  # verified via `-e` (file/dir exists) or `-L` (broken symlink). The
+  # `-L` fallback keeps `build.sh -> .base/script/docker/build.sh`
+  # green when the target dir is absent (e.g. when checking a fresh
+  # clone before init.sh has materialized .base/).
+  local line_num rel_path
+  while IFS=$'\t' read -r line_num rel_path; do
+    [[ -z "${rel_path}" ]] && continue
+    if [[ ! -e "${repo_root}/${rel_path}" && ! -L "${repo_root}/${rel_path}" ]]; then
+      findings+="  ${prefix}[7] line ${line_num}: stale path '${rel_path}' (not found in repo)"$'\n'
+    fi
+  done < <(walk_tree_paths "${file}")
 
   printf '%s' "${findings}"
 }
