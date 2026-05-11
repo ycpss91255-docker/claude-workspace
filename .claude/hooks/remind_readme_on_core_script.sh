@@ -15,9 +15,9 @@
 #
 # Trigger:
 #   - `git commit` (not amend / allow-empty)
-#   - staged paths match core scripts (template/upgrade.sh, template/init.sh,
-#     template/script/docker/setup.sh, or the same paths from a
-#     template-internal session without the `template/` prefix)
+#   - staged paths match core scripts (.base/upgrade.sh, .base/init.sh,
+#     .base/script/docker/setup.sh, or the same paths from a
+#     template-internal session without the `.base/` prefix)
 #   - no README*.md staged in the same commit
 
 set -uo pipefail
@@ -25,7 +25,7 @@ set -uo pipefail
 main() {
   local input cmd cwd work_dir repo_root staged
   local has_core=0 has_readme=0
-  local core_re='^(template/)?(upgrade|init|upgrade-check)\.sh$|^(template/)?script/docker/setup\.sh$'
+  local core_re='^(.base/)?(upgrade|init|upgrade-check)\.sh$|^(.base/)?script/docker/setup\.sh$'
   local readme_re='(^|/)README(\.[A-Za-z]{2,3}(-[A-Z]{2,3})?)?\.md$'
 
   input="$(cat)"

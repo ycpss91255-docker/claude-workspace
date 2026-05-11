@@ -87,13 +87,13 @@ EOF
   rm -rf "${repo%/*/*}"
 }
 
-@test "[4] fires on stale template/build.sh symlink target" {
+@test "[4] fires on stale .base/build.sh symlink target" {
   local repo
   repo="$(mktemp_downstream_repo app bar)"
   write_aligned "${repo}/README.md"
-  printf '\nbuild.sh -> template/build.sh    # Symlink\n' >> "${repo}/README.md"
+  printf '\nbuild.sh -> .base/build.sh    # Symlink\n' >> "${repo}/README.md"
   run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/README.md\"}}"
-  assert_message_contains "stale path 'template/build.sh'"
+  assert_message_contains "stale path '.base/build.sh'"
   rm -rf "${repo%/*/*}"
 }
 
@@ -152,15 +152,15 @@ EOF
   rm -rf "${repo%/*/*}"
 }
 
-@test "silent when editing template/README.md (the framework reference itself)" {
+@test "silent when editing .base/README.md (the framework reference itself)" {
   local root
   root="$(mktemp -d)"
-  mkdir -p "${root}/template"
-  cat > "${root}/template/README.md" <<'EOF'
+  mkdir -p "${root}/.base"
+  cat > "${root}/.base/README.md" <<'EOF'
 # template
 no badge no nothing
 EOF
-  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${root}/template/README.md\"}}"
+  run "$(hook check_readme_framework.sh)" <<< "{\"tool_input\":{\"file_path\":\"${root}/.base/README.md\"}}"
   assert_silent
   rm -rf "${root}"
 }

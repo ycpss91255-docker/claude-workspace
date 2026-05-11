@@ -1,6 +1,6 @@
 Batch-upgrade all downstream repos under `ycpss91255-docker` to a target template tag.
 
-**Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-template-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `template/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
+**Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-template-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `.base/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
 
 Use this **after** a new `template` tag has been pushed and the tag's CI is green. This propagates the new template version to all 13 downstream repos (agent / app / env) by opening one PR per repo.
 
@@ -13,8 +13,8 @@ Use this **after** a new `template` tag has been pushed and the tag's CI is gree
 ## Why a dedicated command (vs `/batch-pr`)
 
 `/batch-pr` is generic — it doesn't know template-subtree mechanics:
-- `./template/upgrade.sh <tag>` runs subtree pull + integrity check + `init.sh` + `main.yaml` `@tag` rewrite
-- `./template/init.sh` re-runs after subtree pull to resync root symlinks
+- `./.base/upgrade.sh <tag>` runs subtree pull + integrity check + `init.sh` + `main.yaml` `@tag` rewrite
+- `./.base/init.sh` re-runs after subtree pull to resync root symlinks
 - Default branch is `main` for all 13 repos, but origin tracking can be stale (uses HTTPS fetch to bypass)
 
 `/release` only covers the upstream tag flow; this is the consumer-side adoption.
@@ -32,7 +32,7 @@ The command delegates to `.claude/scripts/batch-template-upgrade.sh`. Designed t
 
 ### Optional flags
 
-- `--issue <num>` — adds `Closes part of ycpss91255-docker/template#<num>.` to PR body
+- `--issue <num>` — adds `Closes part of ycpss91255-docker/base#<num>.` to PR body
 - `--dry-run` — print plan, no mutation
 - `--only <r1,r2,...>` — limit to listed repos (relative paths, e.g. `agent/ai_agent`)
 - `--skip <r1,r2,...>` — exclude listed repos (e.g. ones pinned to older tags)

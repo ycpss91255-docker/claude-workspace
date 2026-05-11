@@ -12,7 +12,7 @@
 #   1. If setup.conf.local exists, mv to setup.conf (overwriting any
 #      old gitignored snapshot). The .local content is the source of
 #      truth; the old setup.conf snapshot is reproducible from
-#      template/setup.conf + .local merge.
+#      .base/setup.conf + .local merge.
 #   2. Drop the obsolete `setup.conf` line from .gitignore. Pre-v0.16.0
 #      template's lib/gitignore.sh listed it as canonical; #201 removes
 #      it. Without this step, `git add setup.conf` would be silently

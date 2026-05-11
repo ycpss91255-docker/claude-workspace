@@ -8,18 +8,18 @@ setup() {
   git init -q -b main
   git config user.email t@t
   git config user.name t
-  mkdir -p template
+  mkdir -p .base
   cat > Makefile.ci <<'EOF'
 .PHONY: upgrade
 
 upgrade:
-	./template/upgrade.sh $(VERSION)
+	./.base/upgrade.sh $(VERSION)
 EOF
-  cat > template/upgrade.sh <<'EOF'
+  cat > .base/upgrade.sh <<'EOF'
 #!/usr/bin/env bash
 echo "stub upgrade.sh"
 EOF
-  chmod +x template/upgrade.sh
+  chmod +x .base/upgrade.sh
   git add -A >/dev/null
   git commit -q -m init >/dev/null
   cd - >/dev/null
@@ -29,22 +29,22 @@ teardown() {
   rm -rf "${REPO}"
 }
 
-@test "fires on ./template/upgrade.sh when Makefile.ci has upgrade target" {
+@test "fires on ./.base/upgrade.sh when Makefile.ci has upgrade target" {
   run "$(hook remind_make_first_upgrade.sh)" \
-    <<< "{\"tool_input\":{\"command\":\"./template/upgrade.sh v0.18.2\"},\"cwd\":\"${REPO}\"}"
+    <<< "{\"tool_input\":{\"command\":\"./.base/upgrade.sh v0.18.2\"},\"cwd\":\"${REPO}\"}"
   assert_message_contains "make -f Makefile.ci upgrade"
   assert_message_contains "VERSION=v0.18.2"
 }
 
-@test "fires on bare template/upgrade.sh (no leading ./)" {
+@test "fires on bare .base/upgrade.sh (no leading ./)" {
   run "$(hook remind_make_first_upgrade.sh)" \
-    <<< "{\"tool_input\":{\"command\":\"template/upgrade.sh\"},\"cwd\":\"${REPO}\"}"
+    <<< "{\"tool_input\":{\"command\":\".base/upgrade.sh\"},\"cwd\":\"${REPO}\"}"
   assert_message_contains "make -f Makefile.ci upgrade"
 }
 
-@test "fires on absolute path template/upgrade.sh" {
+@test "fires on absolute path .base/upgrade.sh" {
   run "$(hook remind_make_first_upgrade.sh)" \
-    <<< "{\"tool_input\":{\"command\":\"${REPO}/template/upgrade.sh v0.18.3\"},\"cwd\":\"${REPO}\"}"
+    <<< "{\"tool_input\":{\"command\":\"${REPO}/.base/upgrade.sh v0.18.3\"},\"cwd\":\"${REPO}\"}"
   assert_message_contains "make -f Makefile.ci upgrade"
   assert_message_contains "VERSION=v0.18.3"
 }
@@ -56,14 +56,14 @@ teardown() {
   git init -q -b main
   git config user.email t@t
   git config user.name t
-  mkdir -p template
-  echo "#!/bin/sh" > template/upgrade.sh
-  chmod +x template/upgrade.sh
+  mkdir -p .base
+  echo "#!/bin/sh" > .base/upgrade.sh
+  chmod +x .base/upgrade.sh
   git add -A >/dev/null
   git commit -q -m init >/dev/null
   cd - >/dev/null
   run "$(hook remind_make_first_upgrade.sh)" \
-    <<< "{\"tool_input\":{\"command\":\"./template/upgrade.sh v0.18.2\"},\"cwd\":\"${repo}\"}"
+    <<< "{\"tool_input\":{\"command\":\"./.base/upgrade.sh v0.18.2\"},\"cwd\":\"${repo}\"}"
   assert_silent
   rm -rf "${repo}"
 }
@@ -76,7 +76,7 @@ test:
 	echo test
 EOF
   run "$(hook remind_make_first_upgrade.sh)" \
-    <<< "{\"tool_input\":{\"command\":\"./template/upgrade.sh v0.18.2\"},\"cwd\":\"${REPO}\"}"
+    <<< "{\"tool_input\":{\"command\":\"./.base/upgrade.sh v0.18.2\"},\"cwd\":\"${REPO}\"}"
   assert_silent
 }
 

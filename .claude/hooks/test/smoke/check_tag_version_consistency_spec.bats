@@ -69,11 +69,11 @@ teardown() {
   rm -rf "${repo}"
 }
 
-@test "silent for downstream consumer with template/.version (no root .version)" {
+@test "silent for downstream consumer with .base/.version (no root .version)" {
   local repo
   repo="$(mktemp -d)"
   ( cd "${repo}" && git init -q -b main && git config user.email t@t && git config user.name t \
-    && mkdir -p template && echo v0.18.0 > template/.version \
+    && mkdir -p .base && echo v0.18.0 > .base/.version \
     && git add -A >/dev/null && git commit -q -m init ) >/dev/null
   run "$(hook check_tag_version_consistency.sh)" \
     <<< "{\"tool_input\":{\"command\":\"git tag -a v1.2.3 -m foo\"},\"cwd\":\"${repo}\"}"

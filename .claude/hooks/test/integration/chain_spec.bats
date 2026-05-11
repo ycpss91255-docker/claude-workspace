@@ -56,7 +56,7 @@ teardown() {
 }
 
 @test "subtree pull command does not trigger PR-wait or attribution hooks" {
-  local input='{"tool_input":{"command":"git subtree pull --prefix=template https://github.com/ycpss91255-docker/template.git v1.0.0 --squash"}}'
+  local input='{"tool_input":{"command":"git subtree pull --prefix=template https://github.com/ycpss91255-docker/base.git v1.0.0 --squash"}}'
 
   run "$(hook remind_subtree_init.sh)" <<< "${input}"
   assert_message_contains "init.sh"

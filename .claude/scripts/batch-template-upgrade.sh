@@ -3,7 +3,7 @@
 # Batch-upgrade all downstream repos under ycpss91255-docker to a target
 # template tag. Iterates a fixed repo list, fetches main via HTTPS (works
 # around stale SSH origin tracking), creates chore/template-<tag> branch,
-# runs ./template/upgrade.sh + ./template/init.sh, opens a PR per repo.
+# runs ./.base/upgrade.sh + ./.base/init.sh, opens a PR per repo.
 #
 # Usage:
 #   batch-template-upgrade.sh <version> --why-file <path> [options]
@@ -233,8 +233,8 @@ upgrade_one() {
       || return 1
   fi
 
-  ./template/upgrade.sh "${version}" || return 1
-  ./template/init.sh || return 1
+  ./.base/upgrade.sh "${version}" || return 1
+  ./.base/init.sh || return 1
 
   # Skip only if the branch is fully equivalent to main: no commits ahead
   # AND no uncommitted edits AND no untracked files. `git diff --quiet HEAD`

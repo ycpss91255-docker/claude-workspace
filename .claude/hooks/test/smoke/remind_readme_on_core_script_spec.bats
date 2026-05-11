@@ -43,7 +43,7 @@ run_hook() {
 @test "git commit --amend is silent" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/upgrade.sh"
+  stage_files "${repo}" ".base/upgrade.sh"
   run_hook "git commit --amend -m fix" "${repo}"
   assert_silent
 }
@@ -71,27 +71,27 @@ run_hook() {
   assert_silent
 }
 
-@test "git commit with template/upgrade.sh and no README fires" {
+@test "git commit with .base/upgrade.sh and no README fires" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/upgrade.sh"
+  stage_files "${repo}" ".base/upgrade.sh"
   run_hook "git commit -m feat" "${repo}"
   assert_message_contains "README drift"
-  assert_message_contains "template/upgrade.sh"
+  assert_message_contains ".base/upgrade.sh"
 }
 
-@test "git commit with template/init.sh and no README fires" {
+@test "git commit with .base/init.sh and no README fires" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/init.sh"
+  stage_files "${repo}" ".base/init.sh"
   run_hook "git commit -m feat" "${repo}"
   assert_message_contains "README drift"
 }
 
-@test "git commit with template/script/docker/setup.sh and no README fires" {
+@test "git commit with .base/script/docker/setup.sh and no README fires" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/script/docker/setup.sh"
+  stage_files "${repo}" ".base/script/docker/setup.sh"
   run_hook "git commit -m feat" "${repo}"
   assert_message_contains "README drift"
 }
@@ -107,7 +107,7 @@ run_hook() {
 @test "git commit with core script + README is silent" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/upgrade.sh" "README.md"
+  stage_files "${repo}" ".base/upgrade.sh" "README.md"
   run_hook "git commit -m feat" "${repo}"
   assert_silent
 }
@@ -115,7 +115,7 @@ run_hook() {
 @test "git commit with core script + translated README is silent" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/upgrade.sh" "README.zh-TW.md"
+  stage_files "${repo}" ".base/upgrade.sh" "README.zh-TW.md"
   run_hook "git commit -m feat" "${repo}"
   assert_silent
 }
@@ -123,7 +123,7 @@ run_hook() {
 @test "git -C <path> commit resolves work dir from -C" {
   local repo
   repo="$(mktemp_repo)"
-  stage_files "${repo}" "template/upgrade.sh"
+  stage_files "${repo}" ".base/upgrade.sh"
   run_hook "git -C ${repo} commit -m feat" "/tmp"
   assert_message_contains "README drift"
 }

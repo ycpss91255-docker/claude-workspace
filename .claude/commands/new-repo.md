@@ -18,7 +18,7 @@ Workflow:
 2. **Add template subtree**:
    ```
    git subtree add --prefix=template \
-       git@github.com:ycpss91255-docker/template.git <latest_tag> --squash
+       git@github.com:ycpss91255-docker/base.git <latest_tag> --squash
    ```
 
 3. **Create all required files** using existing repos as templates:
@@ -26,7 +26,7 @@ Workflow:
    - compose.yaml (services: devel, test; optionally devel-gpu, runtime)
    - script/entrypoint.sh (container-internal script)
    - .env.example (IMAGE_NAME=<repo_name>)
-   - .hadolint.yaml (custom rules if needed, otherwise symlink to template/)
+   - .hadolint.yaml (custom rules if needed, otherwise symlink to .base/)
    - .template_version (current template version)
    - .gitignore (.env, coverage/)
    - test/smoke/<name>_env.bats (repo-specific smoke tests)
@@ -36,23 +36,23 @@ Workflow:
 
 4. **Create symlinks**:
    ```
-   ln -sf template/build.sh build.sh
-   ln -sf template/run.sh run.sh
-   ln -sf template/exec.sh exec.sh
-   ln -sf template/stop.sh stop.sh
-   ln -sf template/Makefile Makefile
+   ln -sf .base/build.sh build.sh
+   ln -sf .base/run.sh run.sh
+   ln -sf .base/exec.sh exec.sh
+   ln -sf .base/stop.sh stop.sh
+   ln -sf .base/Makefile Makefile
    ```
 
 5. **Dockerfile smoke test COPY pattern**:
    ```dockerfile
-   COPY template/test/smoke/ /smoke_test/
+   COPY .base/test/smoke/ /smoke_test/
    COPY test/smoke/ /smoke_test/
    ```
    Note: For headless apps (no GUI), selectively COPY only script_help.bats + test_helper.bash from template (skip display_env.bats).
 
-   Note: Docker COPY does not follow symlinks. Lint COPY must reference template/ directly:
+   Note: Docker COPY does not follow symlinks. Lint COPY must reference .base/ directly:
    ```dockerfile
-   COPY template/build.sh template/run.sh template/exec.sh template/stop.sh /lint/
+   COPY .base/build.sh .base/run.sh .base/exec.sh .base/stop.sh /lint/
    COPY script/entrypoint.sh /lint/
    ```
 

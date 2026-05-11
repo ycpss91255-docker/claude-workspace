@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-template-versions.sh — read-only HTTPS fetch of `template/.version`
+# check-template-versions.sh — read-only HTTPS fetch of `.base/.version`
 # from every downstream repo's main branch. Used during release verification
 # to confirm `/batch-template-upgrade <vX.Y.Z>` PRs have all merged.
 #
@@ -90,7 +90,7 @@ main() {
   local repo
   for repo in "${repos[@]}"; do
     local reponame="${repo##*/}"
-    local url="https://raw.githubusercontent.com/${ORG}/${reponame}/main/template/.version"
+    local url="https://raw.githubusercontent.com/${ORG}/${reponame}/main/.base/.version"
     local ver
     ver="$(curl -fsSL --max-time 10 "${url}" 2>/dev/null || echo "MISSING")"
     printf '%-22s %s\n' "${reponame}" "${ver}"

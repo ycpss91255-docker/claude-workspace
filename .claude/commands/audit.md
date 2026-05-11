@@ -22,16 +22,16 @@ For each target repo, verify:
 - [ ] `main.yaml` references current template version `@vX.Y.Z`
 
 ### 3. Scripts
-- [ ] All scripts (build.sh, run.sh, exec.sh, stop.sh) are symlinks to template/script/docker/
+- [ ] All scripts (build.sh, run.sh, exec.sh, stop.sh) are symlinks to .base/script/docker/
 - [ ] All scripts have `-h`/`--help` support (inherited from template)
 
 ### 4. template subtree (all repos using template)
-- [ ] `template/` subtree exists
+- [ ] `.base/` subtree exists
 - [ ] `.template_version` matches main.yaml `@tag` references
-- [ ] No stale `docker_setup_helper/` or `docker_template/` directories
+- [ ] No stale `docker_setup_helper/` or `docker_.base/` directories
 
 ## Cross-repo consistency checks
-- [ ] All repos have identical symlinks pointing to template/script/docker/
+- [ ] All repos have identical symlinks pointing to .base/script/docker/
 - [ ] All repos use the same template version (`.template_version`)
 - [ ] No bare `@xxx` in commit messages or PR titles (triggers GitHub mention)
 
