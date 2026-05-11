@@ -223,3 +223,59 @@ STUB_EOF
   assert_output --partial "ros_distro#3: checks=all-pass"
   assert_output --partial "ALL_DONE"
 }
+
+# --min-checks / status guard regressions, mirroring wait_pr_ci_spec.bats.
+
+@test "--min-checks 2 with only 1 matching SUCCESS stays pending (subset rollup race)" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"Integration E2E","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" template:1 \
+        --min-checks 2 --interval 0 --max-iterations 2
+  assert_failure 124
+  assert_output --partial "checks=pending"
+  refute_output --partial "checks=all-pass"
+}
+
+@test "status IN_PROGRESS blocks all-pass (status guard)" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"IN_PROGRESS","conclusion":""}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 2
+  assert_failure 124
+  assert_output --partial "checks=pending"
+  refute_output --partial "checks=all-pass"
+}
+
+@test "per-repo --min-checks <repo>=<N> applies only to that repo" {
+  # template repo needs 2 checks; ai_agent (single-distro container) needs 1.
+  # ai_agent's 1 SUCCESS should still all-pass while template stays pending.
+  stub_gh_per_repo
+  export STUB_AI_AGENT='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"call-docker-build / docker-build","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  export STUB_TEMPLATE='{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"Integration E2E","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" \
+        --check-filter '.name=="call-docker-build / docker-build"' \
+        --check-filter 'template=.name=="test" or (.name|startswith("Integration"))' \
+        --min-checks 'template=2' \
+        ai_agent:1 template:5 \
+        --interval 0 --max-iterations 2
+  assert_failure 124
+  assert_output --partial "ai_agent#1: checks=all-pass"
+  assert_output --partial "template#5: checks=pending"
+  refute_output --partial "ALL_DONE"
+}
+
+@test "--min-checks default 1 preserves backwards-compatible behaviour" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+}
+
+@test "--min-checks non-integer exits 2" {
+  run "$(script wait-pr-ci-batch.sh)" --min-checks foo ai_agent:1
+  assert_failure 2
+  assert_output --partial "--min-checks"
+}
+
+@test "--min-checks <repo>=<non-int> exits 2" {
+  run "$(script wait-pr-ci-batch.sh)" --min-checks 'template=foo' template:1
+  assert_failure 2
+  assert_output --partial "--min-checks"
+}

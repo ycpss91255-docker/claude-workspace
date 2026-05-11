@@ -105,3 +105,64 @@ stub_gh() {
   assert_output --partial "PR1: checks=all-pass mergeable=UNKNOWN"
   refute_output --partial "ALL_DONE"
 }
+
+# --min-checks / status guard regressions (false-positive ALL_DONE seen
+# multiple times during the template v0.22.0 release and #57 fanout when
+# GitHub's PR rollup briefly returned a SUBSET of expected checks before
+# every workflow job had registered).
+
+@test "--min-checks 2 with only 1 matching SUCCESS stays pending" {
+  # Subset-rollup race: filter matches `test` and `Integration ...` checks
+  # but at this poll only Integration has registered. Without --min-checks
+  # the original jq pipeline reports all-pass over the single SUCCESS
+  # element; --min-checks 2 keeps it pending until the second check shows.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"Integration E2E","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 2 \
+    --min-checks 2
+  assert_equal "${status}" 124
+  assert_output --partial "PR1: checks=pending mergeable=MERGEABLE"
+  refute_output --partial "checks=all-pass"
+  refute_output --partial "ALL_DONE"
+}
+
+@test "--min-checks default 1 preserves backwards-compatible behaviour" {
+  # Without --min-checks, the original 1-check-SUCCESS case still reports
+  # all-pass — ensures the new guard is opt-in.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+}
+
+@test "status IN_PROGRESS blocks all-pass even when conclusion field absent" {
+  # A check that registered but has not finished. Real GitHub API returns
+  # status="IN_PROGRESS" with conclusion="" (empty string) for in-flight
+  # jobs. The status guard catches this earlier than the conclusion check
+  # and produces an actionable "pending" label.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"IN_PROGRESS","conclusion":""}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  assert_output --partial "checks=pending"
+  refute_output --partial "checks=all-pass"
+}
+
+@test "status COMPLETED + conclusion SUCCESS reaches ALL_DONE" {
+  # Positive control for the status guard: a fully-finished check passes
+  # both `status == COMPLETED` and `conclusion == SUCCESS`.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+}
+
+@test "--min-checks non-integer exits 2" {
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --min-checks foo
+  assert_failure 2
+  assert_output --partial "--min-checks"
+}
+
+@test "--min-checks 0 exits 2 (must be positive)" {
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --min-checks 0
+  assert_failure 2
+  assert_output --partial "--min-checks"
+}

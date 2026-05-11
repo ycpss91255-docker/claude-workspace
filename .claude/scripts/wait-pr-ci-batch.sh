@@ -42,6 +42,15 @@
 #                             `.name=="..."` — starts with `.`). If the
 #                             same repo key is given twice, the last
 #                             occurrence wins.
+#   --min-checks <N>          Minimum number of filter-matched checks
+#                             required before "all-pass" is allowed. Same
+#                             semantics as wait-pr-ci.sh's --min-checks
+#                             (default 1, backwards-compatible). Per-repo
+#                             override via `--min-checks <repo>=<N>` —
+#                             detection rule matches `--check-filter`.
+#                             Useful when one repo's filter expects 2
+#                             checks (template / multi_run) while others
+#                             only expect 1 (single-distro container).
 #   --interval <seconds>      Poll interval (default 45; 0 for tests)
 #   --max-iterations <N>      Iteration cap (default 0 = unlimited; for tests)
 #   -h, --help                Show this help
@@ -74,10 +83,12 @@ err() {
 main() {
   local owner="${DEFAULT_OWNER}"
   local check_filter="${DEFAULT_FILTER}"
+  local min_checks=1
   local interval=45
   local max_iter=0
   local -a pairs=()
   local -A filter_by_repo=()
+  local -A min_checks_by_repo=()
 
   while (( $# > 0 )); do
     case "$1" in
@@ -94,6 +105,27 @@ main() {
           filter_by_repo["${lhs}"]="${rhs}"
         else
           check_filter="${raw_filter}"
+        fi
+        shift 2
+        ;;
+      --min-checks)
+        local raw_min="$2"
+        local mlhs mrhs
+        mlhs="${raw_min%%=*}"
+        mrhs="${raw_min#*=}"
+        if [[ "${raw_min}" == *=* \
+              && "${mlhs}" =~ ^[A-Za-z0-9_/-]+$ ]]; then
+          if ! [[ "${mrhs}" =~ ^[0-9]+$ ]] || (( mrhs < 1 )); then
+            err "--min-checks ${mlhs}=<N>: N must be a positive integer (got: ${mrhs})"
+            exit 2
+          fi
+          min_checks_by_repo["${mlhs}"]="${mrhs}"
+        else
+          if ! [[ "${raw_min}" =~ ^[0-9]+$ ]] || (( raw_min < 1 )); then
+            err "--min-checks must be a positive integer (got: ${raw_min})"
+            exit 2
+          fi
+          min_checks="${raw_min}"
         fi
         shift 2
         ;;
@@ -163,11 +195,25 @@ main() {
         pair_filter="${filter_by_repo[${short}]}"
       fi
 
+      local pair_min="${min_checks}"
+      if [[ -n "${min_checks_by_repo[${repo}]:-}" ]]; then
+        pair_min="${min_checks_by_repo[${repo}]}"
+      elif [[ -n "${min_checks_by_repo[${short}]:-}" ]]; then
+        pair_min="${min_checks_by_repo[${short}]}"
+      fi
+
+      # See wait-pr-ci.sh for the rationale of the two guards above
+      # `all(.conclusion == "SUCCESS")` — `length < min_checks` catches
+      # GitHub's subset-rollup race, `any(.status != "COMPLETED")` catches
+      # the IN_PROGRESS-with-empty-conclusion case.
       local state
-      state=$(jq -r "[.statusCheckRollup[]? | select(${pair_filter})] | \
-        if length == 0 then \"no-checks\" \
-        elif all(.conclusion == \"SUCCESS\") then \"all-pass\" \
-        elif any(.conclusion == \"FAILURE\") then \"FAIL\" \
+      state=$(jq -r --argjson min "${pair_min}" \
+        "[.statusCheckRollup[]? | select(${pair_filter})] as \$c | \
+        if (\$c | length) == 0 then \"no-checks\" \
+        elif (\$c | length) < \$min then \"pending\" \
+        elif (\$c | any(.status != null and .status != \"COMPLETED\")) then \"pending\" \
+        elif (\$c | all(.conclusion == \"SUCCESS\")) then \"all-pass\" \
+        elif (\$c | any(.conclusion == \"FAILURE\")) then \"FAIL\" \
         else \"pending\" end" <<< "${s}")
 
       local m
