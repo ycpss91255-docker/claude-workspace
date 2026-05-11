@@ -228,7 +228,15 @@ sed_consumer_refs() {
   local version="$2"
 
   if [[ -f "${dir}/Dockerfile" ]]; then
-    sed -i 's|COPY template/|COPY .base/|g' "${dir}/Dockerfile"
+    # Broad sed: any `template/` path literal in the Dockerfile, not
+    # just `COPY template/`. Multi-source COPY lines like
+    # `COPY .base/x template/y /dst/` had a second `template/` after
+    # the COPY token that the prior narrow pattern missed -- which
+    # broke the Phase 6 fanout on ros1_bridge / urg_node_humble /
+    # ros{2,}_distro until each Dockerfile got a follow-up fix
+    # commit. Broaden so future re-runs cover those lines on the
+    # first pass.
+    sed -i 's|template/|.base/|g' "${dir}/Dockerfile"
   fi
 
   sed_main_yaml_uses "${dir}/.github/workflows/main.yaml" "${version}"
