@@ -6,6 +6,25 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `wait-pr-ci.sh` and `wait-pr-ci-batch.sh` no longer declare false
+  `ALL_DONE` when called immediately after a `git push --force-with-lease`
+  while GitHub has not yet retriggered CI on the new head (refs #60). Two
+  new guards above the existing `all(.conclusion == "SUCCESS")` jq check:
+  (1) a watch-start `completedAt` comparison demotes the rollup to
+  `pending` when every matching check's `completedAt` predates the watch
+  start time (carry-over results from a prior head); (2) a per-PR /
+  per-pair `headRefOid` change check emits one `[head-moved] PR<n>
+  <old7>..<new7>` (or `[head-moved] <owner>/<repo>#<pr> ...` for the
+  batch script) log line on detection and forces that pair's state to
+  `pending` for the same iteration. Both guards apply automatically; no
+  new flag required. Backwards-compatible: only fires when every
+  matching check has `completedAt` set (real GitHub API always
+  populates it; existing test stubs without the field keep working).
+  +9 bats tests (5 in `wait_pr_ci_spec.bats`, 4 in
+  `wait_pr_ci_batch_spec.bats`); total `make -C .claude/test test`
+  rises 309 -> 318.
+
 ### Added
 - New `.claude/scripts/batch-license-apache.sh` — one-shot fanout
   helper that adds Apache 2.0 `LICENSE` + CI / License badges + a
