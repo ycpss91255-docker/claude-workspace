@@ -215,7 +215,6 @@ docker/
     │   ├── wait-pr-ci-batch.sh              # 多 repo 多 PR 同一個 Monitor 的 batch 版本（取代 N 個平行 Monitor stream）
     │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
     │   ├── migrate-local-to-setupconf.sh    # 一次性 setup.conf.local -> setup.conf 17 repo 遷移（template #201 / v0.16.0；下個版本後刪除）
-    │   ├── batch-template-v0.21.1-stage-rename.sh # 一次性 v0.21.0->v0.21.1 stage rename + runtime-test 12 repo fanout（template #243 / #250）
     │   ├── batch-license-apache.sh           # 一次性 Apache 2.0 LICENSE + CI/License badge fresh add 13 repo fanout（org-wide license alignment）
     │   └── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
     ├── hooks/                # PostToolUse / PreToolUse hooks
