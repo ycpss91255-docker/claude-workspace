@@ -6,6 +6,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `wait-pr-ci/SKILL.md` documents the cwd assumption that the Monitor
+  examples carry (refs #63). Monitor inherits the agent's cwd at
+  invocation, the relative `.claude/scripts/...` path resolves under
+  that cwd, and worktrees of OTHER downstream repos (e.g.
+  `worktree/ros1_bridge-NN/`) have no `.claude/scripts/` of their own
+  so Monitor exits 127 with no events. `${CLAUDE_PROJECT_DIR}` is set
+  only inside hook script env (the `command:` field of `settings.json`
+  hook entries), not inside Bash / Monitor tool subprocesses, so it
+  cannot be used as a substitute (verified directly:
+  `echo "$CLAUDE_PROJECT_DIR"` from Bash returns empty). Recommended
+  workaround until a portable absolute-path mechanism lands: ensure
+  agent cwd is harness root or a docker_harness worktree before
+  launching Monitor, or prefix the command with `cd <harness-root>
+  &&`. Doc-only change.
+
 ### Fixed
 - `wait-pr-ci.sh` and `wait-pr-ci-batch.sh` no longer declare false
   `ALL_DONE` when called immediately after a `git push --force-with-lease`

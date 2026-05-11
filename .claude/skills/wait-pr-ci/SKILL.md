@@ -17,6 +17,20 @@ Three flavours, one script each:
 
 All three are intentionally siblings — same output shape, same exit codes (`0` = ALL_DONE, `1` = FAIL, `2` = arg error, `124` = max-iter exhausted), same Monitor-wrap pattern. CLI shape differs: `wait-pr-ci.sh` takes `--repo` + `--prs`; `wait-pr-ci-batch.sh` takes positional `<repo>:<pr>` pairs; `wait-tag-ci.sh` takes `--repo` + `--branch`.
 
+### Cwd assumption (worktree gap, refs #63)
+
+The example `Monitor` blocks below use bare relative paths like `.claude/scripts/wait-pr-ci.sh`. Monitor inherits the agent's cwd at the moment the tool is invoked, and the relative path resolves under whatever that cwd is. Two cases to watch:
+
+| Agent cwd | Behaviour |
+|---|---|
+| docker_harness root (`/home/.../docker`) | resolves to `<docker>/.claude/scripts/...` — works |
+| worktree of docker_harness (`worktree/docker_harness-NN/`) | the worktree carries `.claude/` — works |
+| worktree of a DIFFERENT downstream repo (e.g. `worktree/ros1_bridge-NN/`) | that worktree has NO `.claude/scripts/`; Monitor exits 127 with `No such file or directory` and no events stream |
+
+`${CLAUDE_PROJECT_DIR}` is set by Claude Code only inside hook script env (the `command:` field of `.claude/settings.json` hook entries), not inside Bash / Monitor tool subprocesses — testing it via `echo "$CLAUDE_PROJECT_DIR"` from a Monitor or Bash command returns empty. So it cannot be used in these examples.
+
+Until a workable absolute-path mechanism lands (issue #63 lists candidates), the safest pattern is: ensure the agent's cwd is the harness root or a docker_harness worktree before launching Monitor. If the agent is in a downstream-repo worktree, either `cd` to the harness root first (the example is a one-line bash prefix: `cd /home/.../docker && .claude/scripts/...` — Monitor's command field is a bash string), or pass an absolute path inline.
+
 ## PR-scoped — `wait-pr-ci.sh`
 
 ```
