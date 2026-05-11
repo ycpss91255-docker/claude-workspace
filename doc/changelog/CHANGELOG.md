@@ -54,6 +54,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   case); total `make -C .claude/test test` count rises 277 -> 291.
 
 ### Changed
+- `wait-pr-ci/SKILL.md` Monitor command examples (PR-scoped, batch,
+  tag-scoped, plus the two mixed-category batch snippets) now use
+  `${CLAUDE_PROJECT_DIR}/.claude/scripts/...` absolute prefix instead
+  of the bare relative path. Monitor inherits the agent's cwd; when
+  the agent is in a worktree (e.g. `worktree/<repo>-<N>/`), the
+  relative path resolves under the worktree root where `.claude/`
+  does not exist, and Monitor exits 127. `${CLAUDE_PROJECT_DIR}` is
+  set by Claude Code to the harness root regardless of cwd, so the
+  script resolves correctly from any worktree (refs #63).
 - `wait-pr-ci/SKILL.md` filter table extended with `docker_harness`
   (`bats + shellcheck + hadolint`) and the post-topics-taxonomy
   `.github` row (`lint`). The previous `.github` row claimed "no CI"

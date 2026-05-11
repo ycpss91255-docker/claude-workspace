@@ -22,7 +22,7 @@ All three are intentionally siblings — same output shape, same exit codes (`0`
 ```
 Monitor(
   description: "PR #<num> CI",   # or "PR #N1 + #N2 CI" for batches
-  command: ".claude/scripts/wait-pr-ci.sh --repo <OWNER>/<REPO> --prs <CSV>",
+  command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/wait-pr-ci.sh --repo <OWNER>/<REPO> --prs <CSV>",
   timeout_ms: 1800000,           # 30 min single PR; 2400000 (40 min) for batches
   persistent: false,             # script exits naturally on ALL_DONE / FAIL
 )
@@ -50,7 +50,7 @@ Cross-repo batches: see `wait-pr-ci-batch.sh` below. For N=2-3 spawning N parall
 ```
 Monitor(
   description: "batch PR CI (N repos)",
-  command: ".claude/scripts/wait-pr-ci-batch.sh <repo>:<pr> <repo>:<pr> ... [--check-filter <expr>]",
+  command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/wait-pr-ci-batch.sh <repo>:<pr> <repo>:<pr> ... [--check-filter <expr>]",
   timeout_ms: 2400000,            # 40 min for batches
   persistent: false,
 )
@@ -70,7 +70,7 @@ ycpss91255-docker/claude_code#27: checks=pending mergeable=MERGEABLE
 Mixed-category batch example (single-target containers default to `call-docker-build / docker-build`, multi-distro env repos override to `ci-passed`, `ros1_bridge` to `ci-summary`):
 
 ```
-.claude/scripts/wait-pr-ci-batch.sh \
+${CLAUDE_PROJECT_DIR}/.claude/scripts/wait-pr-ci-batch.sh \
   ai_agent:39 claude_code:38 codex_cli:37 gemini_cli:36 \
   ros_distro:3 ros2_distro:3 ros1_bridge:56 \
   --check-filter '.name=="call-docker-build / docker-build"' \
@@ -86,7 +86,7 @@ Pairs with `wait-pr-ci.sh` for single-repo cases — same skill, same patterns, 
 ```
 Monitor(
   description: "tag v0.12.2 CI",
-  command: ".claude/scripts/wait-tag-ci.sh --repo <OWNER>/<REPO> --branch <tag-or-branch>",
+  command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/wait-tag-ci.sh --repo <OWNER>/<REPO> --branch <tag-or-branch>",
   timeout_ms: 1800000,
   persistent: false,
 )
@@ -124,7 +124,7 @@ The status guard is unconditional and applies on every poll. The `--min-checks <
 For `wait-pr-ci-batch.sh`, `--min-checks` accepts the same two forms as `--check-filter`: a bare integer (global default for every pair) or `<repo>=<N>` per-repo override. Detection rule mirrors `--check-filter` exactly. Mixed-category batch example combining filter + min-checks overrides:
 
 ```
-.claude/scripts/wait-pr-ci-batch.sh \
+${CLAUDE_PROJECT_DIR}/.claude/scripts/wait-pr-ci-batch.sh \
   template:42 ai_agent:39 ros_distro:3 ros1_bridge:56 \
   --check-filter 'template=.name=="test" or (.name|startswith("Integration"))' \
   --check-filter '.name=="call-docker-build / docker-build"' \
