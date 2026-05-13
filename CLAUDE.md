@@ -218,7 +218,8 @@ docker/
     │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
     │   ├── migrate-local-to-setupconf.sh    # 一次性 setup.conf.local -> setup.conf 17 repo 遷移（template #201 / v0.16.0；下個版本後刪除）
     │   ├── batch-license-apache.sh           # 一次性 Apache 2.0 LICENSE + CI/License badge fresh add 13 repo fanout（org-wide license alignment）
-    │   └── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
+    │   ├── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
+    │   └── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
