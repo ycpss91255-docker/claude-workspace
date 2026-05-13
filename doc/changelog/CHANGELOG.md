@@ -6,6 +6,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `.claude/settings.json` sandbox `excludedCommands` adds
+  `.claude/scripts/*` so wrappers under `.claude/scripts/` bypass
+  bubblewrap. Resolves the recurring `bwrap: Can't create file at
+  /home/yunchien/workspace/docker/<repo>/.claude: Is a directory`
+  error that hit every `Monitor` / `Bash` invocation of
+  `.claude/scripts/wait-pr-ci.sh` (and friends) when cwd was a
+  downstream-repo worktree -- the downstream `.claude` is a symlink
+  to the workspace root, and bwrap's bind-mount setup chokes when it
+  tries to overlay something on that symlink target. Previously every
+  call needed `dangerouslyDisableSandbox: true` and a per-invocation
+  user prompt. Trust boundary remains: `.claude/scripts/` is
+  repo-owned + PR-reviewed, same level as the existing `docker *` /
+  `./build.sh *` excludes already on the list. The doc snippet in
+  CLAUDE.md「Sandbox baseline」section and the table row for
+  `excludedCommands` were updated to match. Closes #77 sub-task 3.
+
 ### Added
 - `.claude/scripts/ci-wall-time-compare.sh` helper -- fetches per-job
   `gh run view --json jobs` for a baseline + fixed run id of the same

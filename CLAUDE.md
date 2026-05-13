@@ -33,7 +33,8 @@ list 的關鍵組合，新進來的人請理解這 4 個 key 做什麼：
   "autoAllowBashIfSandboxed": true,
   "excludedCommands": [
     "docker *", "make *",
-    "./build.sh *", "./run.sh *", "./exec.sh *", "./stop.sh *"
+    "./build.sh *", "./run.sh *", "./exec.sh *", "./stop.sh *",
+    ".claude/scripts/*"
   ],
   "filesystem": { "allowWrite": ["/tmp"] }
 }
@@ -43,7 +44,7 @@ list 的關鍵組合，新進來的人請理解這 4 個 key 做什麼：
 |---|---|
 | `enabled: true` | 對 Claude 跑的 Bash 加 sandbox（read-only fs + 限制 write/network），失敗會在錯誤訊息出現 "Operation not permitted" |
 | `autoAllowBashIfSandboxed: true` | 若 Bash 命令在 sandbox 內跑得起來（沒撞 read-only / network 限制），**直接 allow 不問 user**，等於把所有 read-only Bash（`grep`、`awk`、`cat`、`ls`、`find` 等）自動放行 |
-| `excludedCommands: ["docker *", ...]` | 列在這的 command **完全跳過 sandbox**（OS-level 不套 seatbelt/bubblewrap）。Anthropic 官方 [sandboxing 文件](https://code.claude.com/docs/en/sandboxing) 明確建議 docker 一定要列進來,因為 sandbox 會擋 `connect(AF_UNIX, /var/run/docker.sock)` syscall(refs issue #39)。`make *` 與 4 支 wrapper 一起列,因為它們內部也會 spawn docker。pattern 是 prefix wildcard 同 `permissions.allow` |
+| `excludedCommands: ["docker *", ...]` | 列在這的 command **完全跳過 sandbox**（OS-level 不套 seatbelt/bubblewrap）。Anthropic 官方 [sandboxing 文件](https://code.claude.com/docs/en/sandboxing) 明確建議 docker 一定要列進來,因為 sandbox 會擋 `connect(AF_UNIX, /var/run/docker.sock)` syscall(refs issue #39)。`make *` 與 4 支 wrapper 一起列,因為它們內部也會 spawn docker。`.claude/scripts/*` 列進來解決 bwrap 對 `app/<repo>/.claude` symlink 的 overlay 衝突(下游 repo 的 `.claude` 是 symlink 到 workspace root,bwrap setup 撞到 `Can't create file at .../.claude: Is a directory` — refs #77 sub-3),信任邊界 == repo-owned scripts 已經過 PR review。pattern 是 prefix wildcard 同 `permissions.allow` |
 | `filesystem.allowWrite: ["/tmp"]` | sandbox 預設禁寫入；這條讓 `/tmp` 可寫，配合「把長 body 寫成 `/tmp/<name>.md` 再給 `gh --body-file`」的 cheatsheet pattern |
 
 **實際影響**：
