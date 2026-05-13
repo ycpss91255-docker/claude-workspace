@@ -30,10 +30,14 @@ Follow this workflow:
 5. **Push branch, create PR, enable auto-merge**:
    ```
    git push -u origin <branch-name>
-   gh pr create --title "<type>: <title>" --body "## Summary\n..."
+   # PR body 必須走 --body-file (enforce_gh_body_file.sh hook BLOCK inline --body)
+   # 先 Write 寫到 /tmp/pr-<slug>-body.md,再:
+   gh pr create --title "<type>: <title>" --body-file /tmp/pr-<slug>-body.md
    gh pr merge <number> --auto --squash --delete-branch
    ```
    `--auto` 讓 GitHub 端在 CI 全綠 + branch up-to-date 時自動 squash-merge + 刪 branch。所有 16 個 active repo 都已開啟 `allow_auto_merge`(2026-05-13 batch enable)。`.github` 例外:doc-only PR + paths filter 會讓 status check 永遠 pending,auto-merge 卡死 — 該 repo 改走手動 `gh pr merge`。
+
+   PR body shape 規範參見 `.claude/skills/gh-artifact-format/SKILL.md`(issue body 同 5 sections,但 PR 多一個 `## Test plan` checklist)。Skill 也涵蓋 close-comment 3 tiers / non-closing comment 3 categories / cross-ref keywords (`Closes` / `Fixes` / `refs` / `supersedes` / `closes part of`)。
 
 6. **Wait for merge (僅當有下游步驟時)**:
    - 如果這個 PR 是 template repo(要接 tag + 13 下游 fanout),或要在 session 內接續其他依賴 merged state 的動作,用 `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`) 等 `ALL_DONE` 通知 — Monitor + 30s poll loop,不會 sleep 卡 agent。
