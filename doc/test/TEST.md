@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **328 tests** (324 smoke + 4 integration) plus shellcheck (20 hook
+Total: **340 tests** (336 smoke + 4 integration) plus shellcheck (21 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -582,6 +582,22 @@ available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
 | silent on make -f Makefile.ci upgrade (already going through wrapper) | wrapper path |
 | silent on unrelated commands | non-trigger |
 | silent on script with similar name (foo/upgrade.sh) | path-prefix discriminator |
+
+### test/smoke/check_no_stale_template_refs_spec.bats (12)
+| Test | Scenario |
+|------|----------|
+| fires on template/script/docker reference in .base/script/docker/*.sh | stale `_lib.sh` source ref → FIRE |
+| fires on template/init.sh reference | stale init path → FIRE |
+| fires on template/upgrade.sh reference | stale upgrade path → FIRE |
+| fires on template/dockerfile/ reference | stale Dockerfile dir → FIRE |
+| fires on template/Makefile reference | stale top-level Makefile → FIRE |
+| fires on Dockerfile under .base/ | Dockerfile pattern matcher → FIRE |
+| silent after s\|template/\|.base/\|g | clean ref → SILENT |
+| silent on literal template/ in archive/ (not under .base/) | scope guard (file outside `.base/`) |
+| silent on .md file under .base/ (doc may discuss rename) | `.md` skip |
+| silent on non-shell file under .base/ | extension matcher → SILENT |
+| silent on missing file | defensive |
+| silent on empty tool_input | defensive |
 
 ## Integration specs
 
