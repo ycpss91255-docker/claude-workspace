@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **354 tests** (350 smoke + 4 integration) plus shellcheck (21 hook
+Total: **378 tests** (374 smoke + 4 integration) plus shellcheck (21 hook
 scripts + 13 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -260,18 +260,49 @@ exempt from `--body-file` scanning.
 | silent when Dockerfile.test-tools has no final-stage apk add | no final apk → SILENT |
 | handles empty smoke step gracefully | YAML run block empty → no crash |
 
-### test/smoke/remind_use_body_file_spec.bats (9)
+### test/smoke/enforce_gh_body_file_spec.bats (33)
+
+Covers `.claude/hooks/enforce_gh_body_file.sh` -- the PreToolUse hook
+that BLOCKS gh routing violations from issue #64. Renamed + upgraded
+from `remind_use_body_file.sh` (non-blocking remind). 8 rules across
+issue/pr create, comment, edit, close, review. 80-char single-line
+threshold for short inline bodies.
+
 | Test | Scenario |
 |------|----------|
-| fires on gh issue close --comment "$(cat path)" | gh + comment substitution → FIRE |
-| fires on gh pr create --body "$(cat path)" | gh + body substitution → FIRE |
-| fires on gh pr edit --body $(cat path) without quotes | unquoted substitution → FIRE |
-| silent on gh ... --body-file already | already canonical form → SILENT |
-| silent on gh ... --body "inline string" | inline body → SILENT |
-| silent on non-gh command using $(cat path) | non-gh substitution → SILENT |
-| fires on gh pr create --body-file - <<EOF (heredoc stdin) | `--body-file -` heredoc variant → FIRE |
-| fires on gh issue create --body-file - alone (stdin variant) | `--body-file -` followed by EOL → FIRE |
-| silent on --body-file with non-dash path that happens to start with dash-like name | path containing `-` but not literal `-` → SILENT |
+| rule 8: gh issue close --comment "$(cat path)" denied | cat substitution → DENY |
+| rule 8: gh pr create --body "$(cat path)" denied | cat substitution → DENY |
+| rule 8: gh pr edit --body $(cat path) without quotes denied | unquoted substitution → DENY |
+| rule 8: gh pr create --body-file - <<EOF heredoc denied | `--body-file -` heredoc → DENY |
+| rule 8: gh issue create --body-file - alone (stdin variant) denied | `--body-file -` alone → DENY |
+| rule 1: gh issue create without --body-file denied | inline body present, no `--body-file` → DENY |
+| rule 1: gh issue create with --body-file /tmp/x.md allowed (silent) | canonical → SILENT |
+| rule 4: gh pr create without --body-file denied (short inline body) | even short `--body "LGTM"` on create → DENY |
+| rule 4: gh pr create with --body-file /tmp/x.md allowed | canonical → SILENT |
+| rule 4: gh pr create --body-file path with dash-like name allowed | path with `-` but not literal `-` → SILENT |
+| rule 3: gh issue close N --comment "..." denied | `--comment` on close → DENY (two-step required) |
+| rule 3: gh issue close N -c "..." (short form) denied | short form of `--comment` → DENY |
+| rule 3: gh issue close N --reason completed (no comment) allowed | reason-only close → SILENT |
+| rule 3: gh issue close N --reason "not planned" allowed | reason-only close with quoted reason → SILENT |
+| rule 3: gh issue close N (no args beyond N) allowed | bare close → SILENT |
+| rule 6: gh pr edit N --body "inline" denied | edit inline body → DENY |
+| rule 6: gh pr edit N --body-file /tmp/x.md allowed | edit via file → SILENT |
+| rule 6: gh pr edit N --add-label "x" (no body) allowed | edit without body → SILENT |
+| rule 2: gh issue comment N --body "<=80 single-line" allowed | short inline → SILENT |
+| rule 2: gh issue comment N --body "<long string>" denied | long inline → DENY |
+| rule 5: gh pr comment N --body "<=80" allowed | short inline → SILENT |
+| rule 5: gh pr comment N --body "<long>" denied | long inline → DENY |
+| rule 7: gh pr review --body "LGTM" allowed | short review → SILENT |
+| rule 7: gh pr review --body "<long>" denied | long review → DENY |
+| silent on non-gh command using $(cat path) | non-gh → SILENT |
+| silent on gh pr view (no body involvement) | read-only subcmd → SILENT |
+| silent on gh pr merge --auto (no body) | merge subcmd → SILENT |
+| silent on gh run view <id> --json jobs | run-scoped read → SILENT |
+| silent on gh api /repos/.../issues/N | raw api read → SILENT |
+| silent on empty tool_input | defensive |
+| silent on non-Bash tool_input shape (e.g. Edit) | wrong tool → SILENT |
+| rule 2: gh issue comment --body "<exactly 80 chars>" allowed | boundary lower side → SILENT |
+| rule 2: gh issue comment --body "<81 chars>" denied | boundary upper side → DENY |
 
 ### test/smoke/wait_pr_ci_spec.bats (22)
 

@@ -6,7 +6,49 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/skills/gh-artifact-format/SKILL.md` -- format guidance for
+  GitHub artifacts (issue title, issue body 5 sections, close-comment
+  3 tiers, non-closing comment 3 categories, cross-ref keyword
+  vocabulary). Paired with the renamed
+  `.claude/hooks/enforce_gh_body_file.sh` hook: the skill is the
+  content rules (what shape an issue body takes), the hook is the
+  routing rules (long body must land in /tmp/<name>.md and pass
+  --body-file). Closes #64.
+
 ### Changed
+- `.claude/hooks/remind_use_body_file.sh` -- renamed to
+  `enforce_gh_body_file.sh`, switched from non-blocking PostToolUse
+  remind to PreToolUse BLOCKING deny. Implements 8 rules from #64
+  discussion:
+  1. `gh issue create` without `--body-file <path>` -> deny.
+  2. `gh issue comment` with `--body|--comment` longer than 80 chars
+     or multi-line -> deny (short inline OK).
+  3. `gh issue close --comment` (any inline) -> deny -- enforce
+     two-step: `gh issue comment N --body-file X` then
+     `gh issue close N [--reason ...]`.
+  4. `gh pr create` without `--body-file <path>` -> deny.
+  5. `gh pr comment` with long `--body` -> deny (80-char threshold
+     same as rule 2).
+  6. `gh pr edit --body` inline -> deny (always file).
+  7. `gh pr review --body` longer than 80 chars or multi-line ->
+     deny.
+  8. `--body "$(cat ...)"` or `--body-file - <<EOF` heredoc on any
+     gh subcommand -> deny (parser-fallback patterns from CLAUDE.md
+     "Bash parser limits" table).
+  Threshold (SHORT_LIMIT = 80 chars, single line) applies uniformly
+  across rules 2/5/7. Trivial close routes through two-step where
+  the comment half can be inline if short enough. Bats coverage:
+  33 specs in
+  `.claude/hooks/test/smoke/enforce_gh_body_file_spec.bats` (vs 9
+  in the old `remind_use_body_file_spec.bats`).
+- `.claude/settings.json` hook registration: pointer updated from
+  `remind_use_body_file.sh` -> `enforce_gh_body_file.sh`.
+- `CLAUDE.md`「Bash 命令寫法的 parser 限制」table row for the
+  `gh ... --body "$(cat)"` pattern now mentions the BLOCK semantics
+  and links the new skill. Bottom of section: the
+  "two hooks remind" bullet list becomes "remind +
+  enforce" with the enforce entry pointing at #64.
 - `.claude/settings.json` sandbox `excludedCommands` adds
   `.claude/scripts/*` so wrappers under `.claude/scripts/` bypass
   bubblewrap. Resolves the recurring `bwrap: Can't create file at

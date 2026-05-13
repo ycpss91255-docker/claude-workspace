@@ -66,7 +66,7 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | 觸發 prompt 的 pattern | parser 警告 | 替代寫法 |
 |---|---|---|
 | `cat <<EOF > /path` 寫檔 | `Unhandled node type: file_redirect` | **用 Write 工具**直接寫檔。非寫不可時用 `bash -c 'cat <<EOF > X ...'` 包起來 |
-| `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` / `--body-file - <<'EOF'`（heredoc 串 stdin） | `Unhandled node type: string` 或 `Contains zsh =cmd equals expansion` | **先 Write 落地成 `/tmp/<name>.md`，再 `gh ... --body-file /tmp/<name>.md`**（gh CLI 原生支援，所有 subcommand 都有；長 body 永遠寫成檔案，不要 inline、也不要串 stdin） |
+| `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` / `--body-file - <<'EOF'`（heredoc 串 stdin） | `Unhandled node type: string` 或 `Contains zsh =cmd equals expansion` | **先 Write 落地成 `/tmp/<name>.md`，再 `gh ... --body-file /tmp/<name>.md`**（gh CLI 原生支援，所有 subcommand 都有；長 body 永遠寫成檔案，不要 inline、也不要串 stdin）。**`enforce_gh_body_file.sh` PreToolUse hook 會 BLOCK** 這兩個 pattern + 5 個額外 routing 違規(`gh issue/pr create` 必須 `--body-file`、`gh issue close --comment` 必須 two-step、`gh pr edit --body` inline、`gh issue|pr comment|pr review --body` inline > 80 字)。配對的 [[gh-artifact-format]] skill 講格式內容(title shape / body 5 sections / close 3 tiers / cross-ref keywords);refs #64 |
 | `for x in $X; do ${x%:*}; done` 多 PR/repo for-loop | `Contains simple_expansion` | **抽永久 `.claude/scripts/<name>.sh`**，主程序只呼叫一行 |
 | Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
 | `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
@@ -76,9 +76,9 @@ pattern**，改用替代寫法可以根除大量無謂的 user prompt：
 | `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
 | `docker run ... bash -c '<長 inline 字串>'` 或 `docker compose ... bash -c '...'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **抽成 script** — 用 Write 寫成 `/tmp/<name>.sh`，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`；或抽 permanent `.claude/scripts/<name>.sh` 接 atomic flags（如 `run-bats-in-compose.sh --suite all --grep '^not ok'`），Claude parser 只看到 atomic args 不 hit string node。長 quoted body 永遠抽成檔案，不要 inline |
 
-對應有兩個 hook 自動偵測並提醒：
-- `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法
-- `.claude/hooks/remind_use_body_file.sh` — `gh ... --body "$(cat)"` 寫法
+對應的 hook 補強：
+- `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法(non-blocking remind)
+- `.claude/hooks/enforce_gh_body_file.sh` — `gh` body-file 規律 BLOCKING (rules 1-8 in `.claude/skills/gh-artifact-format/SKILL.md`,refs #64)
 
 其他 pattern（複雜 for-loop / Monitor body）沒有簡單 heuristic，靠這個
 section 的規則 + 「## 主動優化建議 → 任務結束時主動列 skill 化候選」收斂。
@@ -235,7 +235,7 @@ docker/
     │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker (wrapper list 可被 .claude/lint_wrappers.txt override)
     │   ├── remind_no_heredoc_redirect.sh # cat <<EOF > file 時提醒用 Write 工具
     │   ├── remind_no_chinese_in_git_artifacts.sh # git commit / gh PR / issue title|body|comment 前 BLOCK CJK 與全形字符
-    │   ├── remind_use_body_file.sh     # gh ... --body|--comment "$(cat ...)" 時提醒用 --body-file
+    │   ├── enforce_gh_body_file.sh     # gh issue/pr create/edit/comment/close/review 前 BLOCK 違反 body-file 規律的 8 種 pattern(配合 [[gh-artifact-format]] skill,refs #64)
     │   ├── remind_test_tools_smoke_sync.sh # Dockerfile.test-tools 改動但同層 release-test-tools.yaml 未同步時提醒
     │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
     │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36）
@@ -246,7 +246,8 @@ docker/
     │   ├── check_no_stale_template_refs.sh # Edit/Write 後掃 .base/ 下 .sh/Makefile/Dockerfile 是否殘留 template/<path> 引用(rename 後遺漏,refs base#282)
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
-    │   └── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
+    │   ├── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
+    │   └── gh-artifact-format/SKILL.md # gh issue/pr artifact 格式規範(issue title/body 5 sections/close 3 tiers/comment 3 categories/cross-ref keywords)配 enforce_gh_body_file.sh hook
     ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
