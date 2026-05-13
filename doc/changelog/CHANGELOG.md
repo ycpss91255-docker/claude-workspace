@@ -7,6 +7,31 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- `/pr` slash command (`.claude/commands/pr.md`): step 5 now appends
+  `gh pr merge <N> --auto --squash --delete-branch` right after
+  `gh pr create`, so GitHub auto-merges the PR once required status
+  checks pass and the branch is up to date. Step 6 (`wait-pr-ci`) is
+  reserved for cases that need merged state mid-session (template
+  repo + tag + downstream fanout, or chained workflows). Auto-merge
+  requires `allow_auto_merge=true` on the repo; batch-enabled on all
+  16 active `ycpss91255-docker` repos via
+  `gh repo edit <repo> --enable-auto-merge` on 2026-05-13. `.github`
+  intentionally kept at `false` — its `paths:` filter leaves the
+  `lint` status check pending on doc-only PRs which would stall
+  auto-merge indefinitely (refs the existing wait-pr-ci `.github`
+  carve-out at line 92-101). BEHIND resolution: dependabot PRs get
+  an `@dependabot rebase` comment; ordinary PRs get a local
+  `git pull --rebase origin main` + force-push.
+- `/pr` slash command description (first line, surfaced as the
+  skill's auto-trigger blurb) gains an explicit `TRIGGER when:` cue
+  listing the file classes (`*.sh`, `Dockerfile`, `compose.yaml`,
+  `.github/workflows/*`, `.claude/**`, etc.) and natural-language
+  phrasings (「處理 xxx」「修 xxx」「加 --foo flag」「重構 yyy」)
+  that should make Claude proactively apply the PR workflow without
+  waiting for the user to type `/pr` literally. Backstops the
+  CLAUDE.md「Process discipline — slash command / skill 優先於
+  ad-hoc 執行」rule that the prior generic description failed to
+  enforce in practice.
 - `doc/test/TEST.md` test-row descriptions migrated `template/...` ->
   `.base/...` to match the actual bats specs (which already use
   `.base/` paths since the post-#67 template -> base rename and the
