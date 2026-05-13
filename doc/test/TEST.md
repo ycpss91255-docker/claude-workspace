@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **340 tests** (336 smoke + 4 integration) plus shellcheck (21 hook
-scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **354 tests** (350 smoke + 4 integration) plus shellcheck (21 hook
+scripts + 13 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -440,6 +440,30 @@ longer pollute `git status`). Smoke-only; no network in tests.
 | unknown arg exits 2 | unknown flag |
 | --dry-run prints would-do line per repo without mutating | dry-run path |
 | --only narrows to listed repos in dry-run | scope filter |
+
+### test/smoke/ci_wall_time_compare_spec.bats (14)
+
+Covers `.claude/scripts/ci-wall-time-compare.sh` — fetches two
+`gh run view --json jobs` payloads, diffs per-job wall time + overall,
+and prints a markdown table. Bats stubs `gh` per run-id and asserts
+the formatted output / exit codes.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | basic flag handling |
+| missing --repo exits 2 | required flag validation |
+| missing --baseline exits 2 | required flag validation |
+| missing --fixed exits 2 | required flag validation |
+| unknown arg exits 2 | reject typos |
+| all jobs match, fixed faster -> table with negative deltas | core path, signed delta |
+| fixed slower -> positive delta with + prefix | sign formatting |
+| job present in only baseline is skipped (no fixed counterpart) | inner join semantics |
+| in-progress run (missing completedAt) exits 2 | guard against unfinished baseline |
+| in-progress fixed run (missing startedAt) exits 2 | guard against unfinished fixed |
+| gh API failure exits 1 | propagate gh error |
+| --output writes table to file, stdout is empty | file-output path |
+| table header always present even when no jobs match | empty-match still emits header rows |
+| equal durations -> +0s (0%) delta | zero-delta formatting |
 
 ### test/smoke/run_bats_in_compose_spec.bats (14)
 

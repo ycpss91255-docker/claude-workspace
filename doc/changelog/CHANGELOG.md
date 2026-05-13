@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/ci-wall-time-compare.sh` helper -- fetches per-job
+  `gh run view --json jobs` for a baseline + fixed run id of the same
+  workflow, computes wall time delta per job and overall, and emits a
+  markdown table (`| shard | baseline | fixed | delta |` rows + a
+  `**total wall**` summary row) suitable for pasting into a CI-perf
+  PR body. Args: `--repo OWNER/REPO --baseline RUN-ID --fixed RUN-ID
+  [--output PATH]`. Exits 2 when any job is still in-progress
+  (missing `startedAt` or `completedAt`), 1 on `gh` API failure.
+  Replaces the manual `gh run view --jq` + spreadsheet workflow used
+  for the ros1_bridge `-j` auto-detect benchmark (template#272 cache
+  refinement, template#273 doc-only PR skip, and other CI-perf PRs
+  in flight). Bats coverage: 14 specs in
+  `.claude/hooks/test/smoke/ci_wall_time_compare_spec.bats` covering
+  flag validation, faster / slower / equal-duration deltas, inner-
+  join of jobs (skip jobs present in only one run), in-progress
+  guards on either side, gh API failure propagation, and the
+  `--output` file path. Closes #77 sub-task 2.
 - `.claude/hooks/check_no_stale_template_refs.sh` PostToolUse hook --
   fires on Edit / Write / MultiEdit of `.base/**/*.sh`,
   `.base/**/Makefile*`, `.base/**/Dockerfile*`, `.base/**/*.mk` and
