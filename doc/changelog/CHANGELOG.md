@@ -6,6 +6,29 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/hooks/check_no_stale_template_refs.sh` PostToolUse hook --
+  fires on Edit / Write / MultiEdit of `.base/**/*.sh`,
+  `.base/**/Makefile*`, `.base/**/Dockerfile*`, `.base/**/*.mk` and
+  emits a non-blocking systemMessage when the touched file contains
+  stale `template/<path>` references (any of `template/script/`,
+  `template/init.sh`, `template/upgrade.sh`, `template/_lib`,
+  `template/setup.conf`, `template/dockerfile/`, `template/test/`,
+  `template/config/`, `template/Makefile`). Catches the drift at Edit
+  time so the developer fixes the rename while in flow rather than
+  waiting for fresh-clone breakage (refs base#282 — the v0.25.0
+  rename moved `template/` -> `.base/` physically but left `_lib.sh`
+  refs pointing at the old path, which CI never exercised because
+  `Makefile.ci` paths bypassed the wrapper symlinks). Hook self,
+  `.claude/hooks/test/` fixtures, `.md` files, and files outside
+  `.base/` are all skipped. Bats coverage: 12 specs in
+  `.claude/hooks/test/smoke/check_no_stale_template_refs_spec.bats`
+  (positive: `template/script/docker`, `template/init.sh`,
+  `template/upgrade.sh`, `template/dockerfile/`, `template/Makefile`,
+  Dockerfile under `.base/`; negative: clean `.base/` ref, literal
+  `template/` in `archive/`, `.md` file, non-shell file, missing
+  file, empty input). Closes #77 sub-task 1.
+
 ### Changed
 - `/pr` slash command (`.claude/commands/pr.md`): step 5 now appends
   `gh pr merge <N> --auto --squash --delete-branch` right after
