@@ -6,6 +6,73 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `/pr` slash command (`.claude/commands/pr.md`): step 5 now appends
+  `gh pr merge <N> --auto --squash --delete-branch` right after
+  `gh pr create`, so GitHub auto-merges the PR once required status
+  checks pass and the branch is up to date. Step 6 (`wait-pr-ci`) is
+  reserved for cases that need merged state mid-session (template
+  repo + tag + downstream fanout, or chained workflows). Auto-merge
+  requires `allow_auto_merge=true` on the repo; batch-enabled on all
+  16 active `ycpss91255-docker` repos via
+  `gh repo edit <repo> --enable-auto-merge` on 2026-05-13. `.github`
+  intentionally kept at `false` — its `paths:` filter leaves the
+  `lint` status check pending on doc-only PRs which would stall
+  auto-merge indefinitely (refs the existing wait-pr-ci `.github`
+  carve-out at line 92-101). BEHIND resolution: dependabot PRs get
+  an `@dependabot rebase` comment; ordinary PRs get a local
+  `git pull --rebase origin main` + force-push.
+- `/pr` slash command description (first line, surfaced as the
+  skill's auto-trigger blurb) gains an explicit `TRIGGER when:` cue
+  listing the file classes (`*.sh`, `Dockerfile`, `compose.yaml`,
+  `.github/workflows/*`, `.claude/**`, etc.) and natural-language
+  phrasings (「處理 xxx」「修 xxx」「加 --foo flag」「重構 yyy」)
+  that should make Claude proactively apply the PR workflow without
+  waiting for the user to type `/pr` literally. Backstops the
+  CLAUDE.md「Process discipline — slash command / skill 優先於
+  ad-hoc 執行」rule that the prior generic description failed to
+  enforce in practice.
+- `doc/test/TEST.md` test-row descriptions migrated `template/...` ->
+  `.base/...` to match the actual bats specs (which already use
+  `.base/` paths since the post-#67 template -> base rename and the
+  PR #72 fanout). Affected sections:
+  `remind_readme_on_core_script_spec.bats`,
+  `check_readme_framework_spec.bats`,
+  `check_template_versions_spec.bats`,
+  `check_tag_version_consistency_spec.bats`,
+  `remind_make_first_upgrade_spec.bats`. Pure doc-sync — no spec or
+  hook change. The local docker_harness `template/` folder is left
+  in place per CLAUDE.md note (folder rename is deferred).
+- `remind_tdd_categories.sh` PostToolUse hook now detects per-repo
+  TDD capability by checking which of `test/smoke`, `test/unit`,
+  `test/integration` exist under the repo root, and lists only the
+  applicable categories in the reminder (refs #75). Repo root is
+  resolved by walking up from the touched file looking for a
+  `Dockerfile`, `Makefile.ci`, `.base/`, `template/`, or `init.sh`
+  marker. For ros1_bridge-style downstream repos (only `test/smoke/`
+  on disk), the reminder lists `Smoke + Lint` instead of the legacy
+  `Unit + Smoke + Integration + Lint` claim. For template-style
+  repos (all three test subdirs present), the legacy 4-category
+  reminder is preserved. Fallback: when none of the three test
+  subdirs exist (fresh repo, no infra), claim all three applicable
+  so the broad guidance does not regress for new code. +4 bats tests
+  in `remind_tdd_categories_spec.bats` (file 8 -> 12); total
+  `make -C .claude/test test` rises 324 -> 328.
+- `wait-pr-ci/SKILL.md` documents the cwd assumption that the Monitor
+  examples carry (refs #63). Monitor inherits the agent's cwd at
+  invocation, the relative `.claude/scripts/...` path resolves under
+  that cwd, and worktrees of OTHER downstream repos (e.g.
+  `worktree/ros1_bridge-NN/`) have no `.claude/scripts/` of their own
+  so Monitor exits 127 with no events. `${CLAUDE_PROJECT_DIR}` is set
+  only inside hook script env (the `command:` field of `settings.json`
+  hook entries), not inside Bash / Monitor tool subprocesses, so it
+  cannot be used as a substitute (verified directly:
+  `echo "$CLAUDE_PROJECT_DIR"` from Bash returns empty). Recommended
+  workaround until a portable absolute-path mechanism lands: ensure
+  agent cwd is harness root or a docker_harness worktree before
+  launching Monitor, or prefix the command with `cd <harness-root>
+  &&`. Doc-only change.
+
 ### Fixed
 - `wait-pr-ci.sh` and `wait-pr-ci-batch.sh` no longer declare false
   `ALL_DONE` when called immediately after a `git push --force-with-lease`

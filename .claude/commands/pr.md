@@ -1,4 +1,4 @@
-Create a PR for a bug fix, new feature, or refactoring.
+Create a PR for a bug fix, new feature, or refactoring. TRIGGER when: user asks to fix a bug, add a feature, refactor code, modify scripts (`*.sh`), Dockerfile, compose.yaml, CI workflows (`.github/workflows/*`), `.claude/**`, or any other source under `ycpss91255-docker/*`. Apply this workflow proactively without waiting for the user to type `/pr` — natural-language requests like 「處理 xxx」「修 xxx」「加 --foo flag」「重構 yyy」 all count.
 
 IMPORTANT: All code changes (bug fix, new feature, refactoring, file moves, path changes, Dockerfile changes) MUST go through this PR workflow. Only pure documentation updates (README text, CLAUDE.md) can be pushed directly to main.
 
@@ -27,19 +27,20 @@ Follow this workflow:
    - Docs only: `docs: <description>`
    - Do NOT add AI attribution lines (e.g. `Co-Authored-By: Claude ...`, `Generated with Claude Code`); CLAUDE.md「不加 AI 歸屬標記」明文禁止。
 
-5. **Push branch and create PR**:
+5. **Push branch, create PR, enable auto-merge**:
    ```
    git push -u origin <branch-name>
    gh pr create --title "<type>: <title>" --body "## Summary\n..."
+   gh pr merge <number> --auto --squash --delete-branch
    ```
+   `--auto` 讓 GitHub 端在 CI 全綠 + branch up-to-date 時自動 squash-merge + 刪 branch。所有 16 個 active repo 都已開啟 `allow_auto_merge`(2026-05-13 batch enable)。`.github` 例外:doc-only PR + paths filter 會讓 status check 永遠 pending,auto-merge 卡死 — 該 repo 改走手動 `gh pr merge`。
 
-6. **Wait for CI**, then merge:
-   - Use the `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`) — Monitor + 30s poll loop, emits per-check notifications, ends with `ALL_DONE`. Don't busy-poll with `sleep` or repeat `gh pr checks`.
-   - On `ALL_DONE`:
-     ```
-     gh pr merge <number> --squash --delete-branch
-     ```
-   - If merge fails with "branch is not up to date" (dependabot batch / main moved), comment `@dependabot rebase` (or rebase locally + force-push) and re-invoke the skill on the same PR.
+6. **Wait for merge (僅當有下游步驟時)**:
+   - 如果這個 PR 是 template repo(要接 tag + 13 下游 fanout),或要在 session 內接續其他依賴 merged state 的動作,用 `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`) 等 `ALL_DONE` 通知 — Monitor + 30s poll loop,不會 sleep 卡 agent。
+   - 一般 bug fix / feat / doc PR 沒有下游步驟,fire-and-forget 即可,GitHub auto-merge 會處理完。
+   - 若 auto-merge 卡在 BEHIND(main 移動 / dependabot batch),GitHub 不會自動 rebase。處理方式:
+     - dependabot PR:留 `@dependabot rebase` comment
+     - 一般 PR:本地 `git pull --rebase origin main` + force-push,auto-merge 重新評估
 
 7. **If this PR was on the `template` repo**: after merge + tag, the
    13 downstream repos need the new template subtree version pulled.

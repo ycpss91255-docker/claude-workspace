@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **324 tests** (320 smoke + 4 integration) plus shellcheck (20 hook
+Total: **328 tests** (324 smoke + 4 integration) plus shellcheck (20 hook
 scripts + 12 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -86,10 +86,10 @@ stdin and asserts one of three behaviours:
 | git commit with no staged files is silent | empty index → SILENT |
 | git commit with only README staged is silent | only `README.md` staged → SILENT |
 | git commit with build.sh (non-core script) is silent | `build.sh` is not a core install/upgrade script → SILENT |
-| git commit with template/upgrade.sh and no README fires | core script + no README → FIRE |
-| git commit with template/init.sh and no README fires | core script + no README → FIRE |
-| git commit with template/script/docker/setup.sh and no README fires | core script + no README → FIRE |
-| git commit with upgrade.sh (template-internal session, no prefix) fires | path without `template/` prefix still matches → FIRE |
+| git commit with .base/upgrade.sh and no README fires | core script + no README → FIRE |
+| git commit with .base/init.sh and no README fires | core script + no README → FIRE |
+| git commit with .base/script/docker/setup.sh and no README fires | core script + no README → FIRE |
+| git commit with upgrade.sh (template-internal session, no prefix) fires | path without `.base/` prefix still matches → FIRE |
 | git commit with core script + README is silent | both staged → SILENT |
 | git commit with core script + translated README is silent | `README.zh-TW.md` counts → SILENT |
 | git -C <path> commit resolves work dir from -C | parses `-C <repo>` to find correct repo → FIRE |
@@ -137,13 +137,13 @@ stdin and asserts one of three behaviours:
 | [1] fires on missing CI badge | English README without `actions/workflows/main.yaml/badge.svg` → FIRE |
 | [2] fires on missing 4-language link | no `**[English](README.md)**` → FIRE |
 | [3] fires when TL;DR is a blockquote | `> **TL;DR**` legacy quote → FIRE (must be `## TL;DR` H2) |
-| [4] fires on stale template/build.sh symlink target | `build.sh -> template/build.sh` row → FIRE (canonical: `template/script/docker/build.sh`) |
-| [5] fires on .template_version reference | obsolete root version-pin file mentioned → FIRE (canonical: `template/.version` since v0.16.0) |
+| [4] fires on stale .base/build.sh symlink target | `build.sh -> .base/build.sh` row → FIRE (canonical: `.base/script/docker/build.sh`) |
+| [5] fires on .template_version reference | obsolete root version-pin file mentioned → FIRE (canonical: `.base/.version` since v0.16.0) |
 | [6] fires on missing TEST.md link | no `(doc/test/TEST.md)` anywhere → FIRE |
 | [drift] fires when a translation has no CI badge while English does | zh-TW empty while English has badge → FIRE |
 | [drift] fires when a translation file is missing entirely | doc/README.ja.md missing → FIRE |
 | checks a translation file directly with [zh-TW] label | edit doc/README.zh-TW.md, drift → message prefixed `[zh-TW]` |
-| silent when editing template/README.md (the framework reference itself) | path under `template/` → SILENT (skipped) |
+| silent when editing .base/README.md (the framework reference itself) | path under `.base/` → SILENT (skipped) |
 | silent when editing archive/<repo>/README.md (read-only archive) | path under `archive/` → SILENT (skipped) |
 | silent when editing a non-README file | unrelated path → SILENT |
 | silent on multi_run/README.md when fully aligned | multi_run path with all 4 languages aligned → SILENT |
@@ -196,7 +196,7 @@ stdin and asserts one of three behaviours:
 | silent on git pull (not subtree) | non-subtree git pull → SILENT |
 | silent on make upgrade (recommended path) | `make ... upgrade` → SILENT |
 
-### test/smoke/remind_tdd_categories_spec.bats (8)
+### test/smoke/remind_tdd_categories_spec.bats (12)
 | Test | Scenario |
 |------|----------|
 | fires on .sh file edit | shell logic → FIRE |
@@ -207,6 +207,10 @@ stdin and asserts one of three behaviours:
 | silent on .md edit | docs → SILENT |
 | silent on .bats edit | test file → SILENT |
 | silent on .claude/ internals | hook self-edits → SILENT |
+| [#75] .sh in downstream repo with only test/smoke/ drops Unit + Integration | repo-detect: ros1_bridge layout → only Smoke + Lint clauses |
+| [#75] .sh in repo with full test infra keeps all 4 categories | repo-detect: template layout → all 4 clauses |
+| [#75] Dockerfile in repo with only test/smoke/ keeps Smoke + Lint | repo-detect on Dockerfile path |
+| [#75] repo without any test/ subdir falls back to all 4 categories | fallback preserves pre-#75 behaviour |
 
 ### test/smoke/remind_no_heredoc_redirect_spec.bats (10)
 | Test | Scenario |
@@ -389,7 +393,7 @@ via PATH.
 ### test/smoke/check_template_versions_spec.bats (7)
 
 Covers `.claude/scripts/check-template-versions.sh` (read-only HTTPS fetch
-of `template/.version` for every downstream repo, used during release
+of `.base/.version` for every downstream repo, used during release
 verification). Replaces an ad-hoc multi-repo for-loop curl pattern that
 trips the bash AST parser. `curl` is stubbed via PATH so the script runs
 without network.
@@ -521,7 +525,7 @@ template v0.18.0 / v0.18.1 to ship with `.version` still on v0.17.0
 | silent for rc tag matching .version | rc semver in `.version` |
 | blocks rc tag when .version still on previous version | rc mismatch |
 | silent when no .version at repo root (rule N/A) | template-less repo |
-| silent for downstream consumer with template/.version (no root .version) | downstream tags independent of consumed template version |
+| silent for downstream consumer with .base/.version (no root .version) | downstream tags independent of consumed template version |
 | silent on git tag -d (delete) | delete out of scope |
 | silent on git push delete (:tag) | colon-delete form |
 | silent on git tag listing (no positional tag) | list mode |
@@ -564,15 +568,15 @@ stay silent.
 
 Covers `.claude/hooks/remind_make_first_upgrade.sh` — non-blocking
 PreToolUse reminder that nags when the agent runs
-`./template/upgrade.sh` directly while `Makefile.ci upgrade` is
+`./.base/upgrade.sh` directly while `Makefile.ci upgrade` is
 available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
 (refs issue #36 Ask 2).
 
 | Test | Scenario |
 |------|----------|
-| fires on ./template/upgrade.sh when Makefile.ci has upgrade target | trigger path with VERSION arg |
-| fires on bare template/upgrade.sh (no leading ./) | path-prefix variant |
-| fires on absolute path template/upgrade.sh | absolute-path variant |
+| fires on ./.base/upgrade.sh when Makefile.ci has upgrade target | trigger path with VERSION arg |
+| fires on bare .base/upgrade.sh (no leading ./) | path-prefix variant |
+| fires on absolute path .base/upgrade.sh | absolute-path variant |
 | silent when Makefile.ci absent (no make wrapper available) | rule N/A |
 | silent when Makefile.ci has no upgrade target | rule N/A |
 | silent on make -f Makefile.ci upgrade (already going through wrapper) | wrapper path |
