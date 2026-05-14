@@ -130,6 +130,16 @@ warning 影響，視頻率決定要不要 skill 化）。
 
 三項全數通過才能進入 commit / PR 流程。任一項失敗就回頭修，不要 defer。
 
+**Canonical entry**：上面三步在 docker_harness 內可直接用 `/verify`
+（`.claude/commands/verify.md` + `.claude/scripts/verify.sh`）一次跑完
+— phases = shellcheck / hadolint / bats / tree-audit / TEST.md drift /
+doc-scan / diff-stats。hard phase（shellcheck / hadolint / bats）失敗
+即 exit 1 並 short-circuit 後面的 phase（`--continue-on-fail` 可關），
+soft phase 失敗會在 summary 標 fail 但不中斷 — 最後印一張 markdown 表。
+`/verify --dry-run` 看 phase 計畫；`/verify --phase <name>` 跑單一
+phase；`/verify --base <ref>` 換 diff-stats / doc-scan 的對比基準（預設
+`origin/main`）。其他 repo 沒這個 wrapper 仍走 `make` / `./build.sh test`。
+
 ## 測試分類（TDD 必須涵蓋的 4 個面向）
 
 所有變更採嚴格 TDD：先寫失敗測試 → 寫最少程式碼讓測試通過 → 重構。任何變更先思考「這次動到的東西，落在 1～4 哪幾類？」每個受影響的類別都要有對應測試覆蓋。
@@ -202,7 +212,8 @@ docker/
     │   ├── new-repo.md                # /new-repo — 建立新 Docker repo
     │   ├── pr.md                      # /pr — Bug fix / 新功能 PR 流程
     │   ├── release.md                 # /release — Tag 與 release 流程
-    │   └── safe-delete.md             # /safe-delete — 用 trash 取代 rm
+    │   ├── safe-delete.md             # /safe-delete — 用 trash 取代 rm
+    │   └── verify.md                  # /verify — 變更完成 checklist 一次跑完 (shellcheck/hadolint/bats/tree/test-md/doc-scan/diff-stats)
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
     │   ├── batch-rename-template-to-base.sh # 一次性 #263 Phase 6 fanout：13 下游 git rm template/ + git subtree add --prefix=.base ycpss91255-docker/base.git vX.Y.Z + Dockerfile/main.yaml/README sed
@@ -224,7 +235,8 @@ docker/
     │   ├── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
     │   ├── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
     │   ├── batch-open-archive-rename-issues.sh # 開 11 張下游 follow-up issue：7 archive(4 agent + ros1_bridge / sick_humble / sick_noetic) + 4 rename + template->.base 遷移(urg_node_*, realsense_*),idempotent 跳過 title 相同既有 issue
-    │   └── setup-memory-link.sh             # 新 clone / 換機器:建 symlink ~/.claude/projects/<encoded>/memory -> <workspace>/.claude/memory,讓 per-project memory portable + git-tracked。idempotent
+    │   ├── setup-memory-link.sh             # 新 clone / 換機器:建 symlink ~/.claude/projects/<encoded>/memory -> <workspace>/.claude/memory,讓 per-project memory portable + git-tracked。idempotent
+    │   └── verify.sh                         # /verify 的實作:依序跑 shellcheck/hadolint/bats/tree-audit/TEST.md drift/doc-scan/diff-stats,hard-fail 阻擋,輸出 markdown summary
     ├── memory/               # Claude Code per-project memory（auto-loaded via symlink）
     │   ├── MEMORY.md         # 入口索引(被 Claude Code 自動讀進 system prompt 開頭)
     │   ├── feedback_*.md     # 個別 feedback / workflow rule（每檔有 name + description + type frontmatter）

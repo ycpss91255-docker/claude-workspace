@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **486 tests** (482 smoke + 4 integration) plus shellcheck (25 hook
-scripts + 20 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **501 tests** (497 smoke + 4 integration) plus shellcheck (25 hook
+scripts + 21 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -833,6 +833,33 @@ network access.
 | denies with explicit -C work-dir form | `git -C <dir>` resolution |
 | denies with cd && form | `cd <dir> && git ...` resolution |
 | silent when cwd is not a git repo (allow) | rule N/A → silent |
+
+### test/smoke/verify_spec.bats (15)
+
+Covers `.claude/scripts/verify.sh` — the unified change-complete
+verification loop fronted by `/verify`. Stubs the test image's
+`make lint`/`hadolint`/`test` targets via a temp `Makefile` so the
+spec runs without docker; phases that hit the filesystem
+(`tree-audit`, `test-md`, `doc-scan`, `diff-stats`) exercise real
+paths against a temp git repo seeded by `setup()`.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown arg exits 2 | flag validation |
+| --phase needs a name | required-arg validation |
+| unknown phase name exits 2 | phase-name validation |
+| valid phases listed on bad phase name | error message lists known phases |
+| --dry-run prints all phases without executing | plan-only mode |
+| --dry-run with --phase narrows the plan | single-phase plan |
+| single hard phase prints summary table | phase routing + summary table |
+| all phases run end-to-end on a clean tree | full pipeline happy path |
+| TEST.md drift reported when count mismatches | per-section drift detection |
+| TEST.md drift reported when listed file missing | drift when bats file absent |
+| hard-phase failure stops later phases by default | short-circuit on hard fail |
+| --continue-on-fail runs later phases despite hard failure | override short-circuit |
+| doc-scan flags AI attribution in changed files | doc-scan positive |
+| doc-scan passes when no AI attribution present | doc-scan negative |
 
 ## Integration specs
 

@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/commands/verify.md` + `.claude/scripts/verify.sh` -- new
+  `/verify` slash command and underlying script that runs the
+  project's change-complete checklist (CLAUDE.md「變更完成
+  checklist」) in one pass. Seven phases: `shellcheck` /
+  `hadolint` / `bats` (hard — exit 1 on fail, short-circuit later
+  phases unless `--continue-on-fail`), then `tree-audit` /
+  `test-md` / `doc-scan` / `diff-stats` (soft — flag in summary,
+  do not abort). Flags: `--dry-run` (plan only), `--phase <name>`
+  (repeatable, narrow to a subset), `--base <ref>` (diff base for
+  `diff-stats` + `doc-scan`, default `origin/main`),
+  `--repo-root <path>` (override `${CLAUDE_PROJECT_DIR}` / git
+  toplevel). Final output is a markdown `## Verify summary` table
+  mapping each phase to `pass` / `fail` / `skipped`. 15 bats
+  cases in `verify_spec.bats`. CLAUDE.md "變更完成 checklist"
+  section gains a "Canonical entry" paragraph pointing here.
+  Closes #93.
 - `.claude/memory/` -- 15 per-project memory files moved into the repo
   (was previously in `~/.claude/projects/<encoded-workspace-path>/memory/`,
   which is workspace-path-coupled and lost across machine moves). The
