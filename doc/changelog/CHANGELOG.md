@@ -27,6 +27,17 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   section explaining the rationale, directory shape, setup command,
   and reminding that per-file frontmatter rules (`name` /
   `description` / `metadata.type` + `MEMORY.md` index) are unchanged.
+
+### Fixed
+- `.claude/hooks/remind_strategic_compact.sh` -- removed
+  `hookSpecificOutput` from the emitted JSON. Stop event schema only
+  accepts top-level `systemMessage` / `decision` / `reason` /
+  `continue` / `suppressOutput` / `stopReason`; `hookSpecificOutput`
+  is reserved for PreToolUse / UserPromptSubmit / PostToolUse /
+  PostToolBatch. The previous output (introduced in PR #96 / closes
+  #92) triggered "Hook JSON output validation failed" in Claude Code
+  on every fire. Added regression test
+  `fired output omits hookSpecificOutput` to lock the shape.
 - `.claude/hooks/remind_strategic_compact.sh` -- Stop hook that reads
   the session transcript and proposes `/compact` at task boundaries.
   Two signals (any one fires the proposal): `gh pr merge` Bash

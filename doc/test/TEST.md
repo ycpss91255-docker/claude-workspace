@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **485 tests** (481 smoke + 4 integration) plus shellcheck (25 hook
+Total: **486 tests** (482 smoke + 4 integration) plus shellcheck (25 hook
 scripts + 20 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -745,7 +745,7 @@ and portable. Tests use `mktemp` workspaces + `--home` /
 | encoded path replaces every / with - | path encoding |
 | trailing slash on workspace is normalised | path normalisation |
 
-### test/smoke/remind_strategic_compact_spec.bats (18)
+### test/smoke/remind_strategic_compact_spec.bats (19)
 
 Covers `.claude/hooks/remind_strategic_compact.sh` — Stop hook that
 reads the session transcript and proposes `/compact` at task
@@ -773,6 +773,7 @@ OR total tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
 | different session id re-proposes (no false throttling across sessions) | session scoping |
 | text mention of 'gh pr merge' does NOT count as signal | tool_use only |
 | tool_use of a non-Bash tool with 'gh pr merge' in input does NOT count | Bash only |
+| fired output omits hookSpecificOutput (Stop schema forbids it) | Stop schema regression |
 
 ### test/smoke/remind_main_sync_spec.bats (23)
 

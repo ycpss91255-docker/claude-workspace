@@ -100,13 +100,11 @@ main() {
   msg="$(printf 'Strategic compact suggestion: session hit a task boundary.\nSignals:%s\nConsider running /compact now -- distilled state (files on disk, git, CLAUDE.md, TaskList) survives; mid-task reasoning does not. See .claude/skills/strategic-compact/SKILL.md for the when-to / when-not-to rubric.' \
     "${reasons_md}")"
 
-  jq -n --arg m "${msg}" '{
-    systemMessage: $m,
-    hookSpecificOutput: {
-      hookEventName: "Stop",
-      additionalContext: $m
-    }
-  }'
+  # Stop event JSON schema accepts top-level systemMessage only; the
+  # hookSpecificOutput key is reserved for PreToolUse / UserPromptSubmit
+  # / PostToolUse / PostToolBatch. Including it under Stop triggers
+  # "Hook JSON output validation failed" in Claude Code.
+  jq -n --arg m "${msg}" '{systemMessage: $m}'
 
   return 0
 }

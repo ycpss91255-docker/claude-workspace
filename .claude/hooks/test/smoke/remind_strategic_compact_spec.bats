@@ -181,3 +181,17 @@ mk_input() {
   run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "wrong-1")"
   assert_silent
 }
+
+# ---- schema regression (Stop hook output shape) ----
+
+@test "fired output omits hookSpecificOutput (Stop schema forbids it)" {
+  local tx
+  tx="$(mk_transcript 5 1)"
+  run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "schema-1")"
+  assert_success
+  local has_sm has_hso
+  has_sm="$(echo "${output}" | jq -r 'has("systemMessage")')"
+  has_hso="$(echo "${output}" | jq -r 'has("hookSpecificOutput")')"
+  [[ "${has_sm}" == "true" ]] || { echo "expected systemMessage present"; return 1; }
+  [[ "${has_hso}" == "false" ]] || { echo "expected hookSpecificOutput absent (Stop schema)"; return 1; }
+}
