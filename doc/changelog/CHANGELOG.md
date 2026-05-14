@@ -7,6 +7,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/batch-pr-close.sh` -- batch close N `<repo>:<pr>`
+  pairs in a single invocation, with a required `--reason` posted as a
+  uniform PR comment before close. Sibling of `batch-pr-merge.sh` for
+  the "supersession" half of the lifecycle (the original use case: 13
+  in-flight v0.28.1 fanout PRs retired in favour of v0.28.2 re-fanout
+  after the SSH X11 hotfix landed). Short `<repo>` form auto-prefixed
+  with the default owner; `--no-delete-branch` opt-out for the default
+  branch-delete behaviour; `--dry-run` for plan inspection. 16 bats
+  cases in `batch_pr_close_spec.bats`. Closes the cross-repo
+  batch-mutation gap flagged in CLAUDE.md's "跨 repo 批次 mutation
+  規範" -- N individual `gh pr close` calls trigger yes-fatigue and
+  effectively bypass the single-prompt ask gate.
 - `.claude/skills/gh-artifact-format/SKILL.md` -- format guidance for
   GitHub artifacts (issue title, issue body 5 sections, close-comment
   3 tiers, non-closing comment 3 categories, cross-ref keyword
