@@ -91,6 +91,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   routing rules (long body must land in /tmp/<name>.md and pass
   --body-file). Closes #64.
 
+### Fixed
+- `.claude/hooks/remind_main_sync.sh` -- regex anchored to command
+  boundary + quoted regions stripped before matching, so commit
+  messages and `grep` patterns containing the literal `gh pr merge`
+  no longer trigger the reminder. Originally introduced in PR #90,
+  the naive `[[ cmd =~ gh\s+pr\s+merge ]]` regex fired on every
+  `git commit -m "...gh pr merge..."` (the commit message body that
+  describes the hook itself triggered it). Fix: strip `"..."` and
+  `'...'` regions via sed first, then require `gh pr merge` to
+  appear at start-of-string or after one of `;` `&` `|` `$(`
+  (with optional whitespace). 7 new regression specs cover the
+  false-positive cases plus the boundary anchors.
+
 ### Changed
 - `.claude/settings.json` -- registers `remind_main_sync.sh` and
   `check_main_fresh_before_worktree.sh` under the PreToolUse Bash

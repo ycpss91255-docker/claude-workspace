@@ -96,3 +96,42 @@ load '../lib/test_helper'
   run "$(hook remind_main_sync.sh)" <<< '{"tool_input":{"command":"git push && gh pr merge 89 --squash"}}'
   assert_message_contains "PR merged"
 }
+
+@test "fires when gh pr merge appears after ;" {
+  run "$(hook remind_main_sync.sh)" <<< '{"tool_input":{"command":"git push; gh pr merge 89"}}'
+  assert_message_contains "PR merged"
+}
+
+@test "fires when gh pr merge appears inside \$( ... )" {
+  run "$(hook remind_main_sync.sh)" <<< '{"tool_input":{"command":"echo $(gh pr merge 89 --json url)"}}'
+  assert_message_contains "PR merged"
+}
+
+# ---- false-positive guards (substring inside quoted regions) ----
+
+@test "silent when gh pr merge is inside double-quoted commit message" {
+  run "$(hook remind_main_sync.sh)" <<< '{"tool_input":{"command":"git commit -m \"feat(hook): describe gh pr merge handling\""}}'
+  assert_silent
+}
+
+@test "silent when gh pr merge is inside single-quoted commit message" {
+  run "$(hook remind_main_sync.sh)" <<< "{\"tool_input\":{\"command\":\"git commit -m 'feat: gh pr merge stuff'\"}}"
+  assert_silent
+}
+
+@test "silent on grep 'gh pr merge' (search literal, not subcommand)" {
+  run "$(hook remind_main_sync.sh)" <<< "{\"tool_input\":{\"command\":\"grep -r 'gh pr merge' .claude/hooks\"}}"
+  assert_silent
+}
+
+@test "silent on echo 'gh pr merge'" {
+  run "$(hook remind_main_sync.sh)" <<< "{\"tool_input\":{\"command\":\"echo 'gh pr merge'\"}}"
+  assert_silent
+}
+
+# ---- mixed: still fires when subcommand is real even if literal also appears in quotes ----
+
+@test "fires when gh pr merge runs alongside a commit message that also mentions it" {
+  run "$(hook remind_main_sync.sh)" <<< '{"tool_input":{"command":"git commit -m \"docs: mention gh pr merge\" && gh pr merge 89 --squash"}}'
+  assert_message_contains "PR merged"
+}

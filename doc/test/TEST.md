@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **464 tests** (460 smoke + 4 integration) plus shellcheck (25 hook
+Total: **471 tests** (467 smoke + 4 integration) plus shellcheck (25 hook
 scripts + 19 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -749,7 +749,7 @@ OR total tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
 | text mention of 'gh pr merge' does NOT count as signal | tool_use only |
 | tool_use of a non-Bash tool with 'gh pr merge' in input does NOT count | Bash only |
 
-### test/smoke/remind_main_sync_spec.bats (16)
+### test/smoke/remind_main_sync_spec.bats (23)
 
 Covers `.claude/hooks/remind_main_sync.sh` — PreToolUse on Bash matching
 `gh pr merge`. Reminds the user to `git pull --ff-only origin main` on
@@ -774,6 +774,13 @@ presence of `--auto`.
 | fires on gh pr merge with -R owner/repo | short repo flag |
 | fires on gh pr merge with --repo owner/repo --auto | long repo flag + auto |
 | fires when gh pr merge appears after && | chained command |
+| fires when gh pr merge appears after ; | semicolon-chained command |
+| fires when gh pr merge appears inside $( ... ) | command-substitution boundary |
+| silent when gh pr merge is inside double-quoted commit message | substring-in-quote false-positive guard |
+| silent when gh pr merge is inside single-quoted commit message | substring-in-quote false-positive guard |
+| silent on grep 'gh pr merge' (search literal, not subcommand) | quoted search literal |
+| silent on echo 'gh pr merge' | quoted echo argument |
+| fires when gh pr merge runs alongside a commit message that also mentions it | real subcommand wins over quoted mention |
 
 ### test/smoke/check_main_fresh_before_worktree_spec.bats (14)
 
