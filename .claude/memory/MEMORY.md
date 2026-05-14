@@ -1,0 +1,15 @@
+- [TDD 開發流程（4 類測試 + commit 順序）](feedback_tdd.md) — 嚴格 red→green→refactor 拆 commit；變更要對應補 smoke / unit / integration / lint 四類中受影響的測試
+- [工作流程與品質要求](feedback_workflow.md) — 分支策略、100% 覆蓋率、README 同步、Google style、TEST.md
+- [主動提出優化建議](feedback_proactive_optimization.md) — 發現繁瑣流程或可優化之處時必須主動提出討論
+- [不使用 Emoji](feedback_no_emoji.md) — 所有程式碼、文件、README、section headers 一律不用 emoji
+- [Template subtree 升級後一定要 init.sh](feedback_template_subtree_upgrade.md) — subtree pull 後必須跑 ./template/init.sh 重整 root symlinks
+- [Template subtree 升級先用 make](feedback_make_first_upgrade.md) — make -f Makefile.ci upgrade [VERSION=vX.Y.Z] 優先，./template/upgrade.sh 留作 fallback
+- [Consumer Dockerfile 用 *.sh glob](feedback_dockerfile_script_paths.md) — /lint COPY 用 `*.sh` 而非寫死 template/<path>/<script>.sh
+- [Subagent sandbox 比主 session 嚴](feedback_subagent_sandbox_limits.md) — 批次 git/腳本 mutation 用主 session loop,不要派 subagent
+- [ros1_bridge 換成自建支援 Jetson](project_ros1_bridge_jetson.md) — devel 改 ros:foxy-ros-base-focal + snapshot apt，因 osrf 無 arm64
+- [不 cd，用 -C / 相對路徑](feedback_no_cd_use_relative.md) — cd 改變 session cwd，Monitor 會繼承 → 相對路徑斷掉；用 make -C / git -C 取代
+- [Sandbox 內禁編輯 CLAUDE.md](feedback_no_claude_md_edit_in_sandbox.md) — CLAUDE.md 改動需 user 明確同意；先提 diff 等核可再動，避免 system-prompt 污染
+- [改 git repo 一律用 git worktree](feedback_use_worktree.md) — 主 checkout 永遠停 origin/main；新 branch 走 `<workspace>/worktree/<repo>-<N>/`；資料夾不存在要先問 user
+- [Code-change 請求自動套 /pr](feedback_auto_invoke_pr.md) — user 用自然語言描述「處理/修/加」code 變更時，主動 Skill 呼叫 /pr，不要 ad-hoc Edit+commit
+- [Issue/PR body 先中文 draft 再翻英文](feedback_bilingual_issue_pr_draft.md) — gh issue/pr create body 先寫 zh-TW 給 user review，approve 後再翻成英文 submit（CJK hook 仍會擋直接送中文）
+- [多步討論用 Plan mode](feedback_plan_mode_for_discussions.md) — 多步驟提案 / 草稿 review 走 ExitPlanMode，不要在 chat 裡 inline dump；單行確認 / 是非題仍走 chat
