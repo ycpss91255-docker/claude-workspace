@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **471 tests** (467 smoke + 4 integration) plus shellcheck (25 hook
-scripts + 19 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **486 tests** (482 smoke + 4 integration) plus shellcheck (25 hook
+scripts + 20 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -720,7 +720,32 @@ available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
 | silent on missing file | defensive |
 | silent on empty tool_input | defensive |
 
-### test/smoke/remind_strategic_compact_spec.bats (18)
+### test/smoke/setup_memory_link_spec.bats (14)
+
+Covers `.claude/scripts/setup-memory-link.sh` — creates a symlink
+from `~/.claude/projects/<encoded-workspace-path>/memory/` to
+`<workspace>/.claude/memory/` so per-project memory is repo-tracked
+and portable. Tests use `mktemp` workspaces + `--home` /
+`--workspace` overrides so no real `$HOME` is touched.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown arg exits 2 | flag validation |
+| missing workspace memory dir exits 2 | precondition check |
+| non-existent workspace exits 2 | input validation |
+| creates symlink when project dir does not yet exist | happy path |
+| creates symlink when project dir exists but memory does not | partial-state happy path |
+| idempotent: existing correct symlink leaves it alone | re-run safe |
+| replaces wrong-target symlink | symlink-target divergence |
+| existing dir matching repo copy is replaced without --force | content-equal replacement |
+| existing dir with extra file refuses without --force | data-loss guard |
+| existing dir with extra file replaced with --force (backup created) | --force + backup |
+| --dry-run does not modify anything | dry-run safety |
+| encoded path replaces every / with - | path encoding |
+| trailing slash on workspace is normalised | path normalisation |
+
+### test/smoke/remind_strategic_compact_spec.bats (19)
 
 Covers `.claude/hooks/remind_strategic_compact.sh` — Stop hook that
 reads the session transcript and proposes `/compact` at task
@@ -748,6 +773,7 @@ OR total tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
 | different session id re-proposes (no false throttling across sessions) | session scoping |
 | text mention of 'gh pr merge' does NOT count as signal | tool_use only |
 | tool_use of a non-Bash tool with 'gh pr merge' in input does NOT count | Bash only |
+| fired output omits hookSpecificOutput (Stop schema forbids it) | Stop schema regression |
 
 ### test/smoke/remind_main_sync_spec.bats (23)
 

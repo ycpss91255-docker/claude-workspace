@@ -7,6 +7,37 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/memory/` -- 15 per-project memory files moved into the repo
+  (was previously in `~/.claude/projects/<encoded-workspace-path>/memory/`,
+  which is workspace-path-coupled and lost across machine moves). The
+  expected Claude Code location is now reached via symlink (see
+  `setup-memory-link.sh` below). Memory now ports with the repo and
+  appears in git history.
+- `.claude/scripts/setup-memory-link.sh` -- new clone / new machine
+  setup helper. Detects workspace, computes
+  `~/.claude/projects/<encoded-path>/memory/` (workspace path with `/`
+  -> `-`), and creates the symlink to `<workspace>/.claude/memory/`.
+  Idempotent: re-running on a correct setup is a no-op; wrong-target
+  symlinks get replaced; matching-content dirs get rm'd + symlinked;
+  diverged-content dirs are refused without `--force` (with `--force`
+  the existing dir is backed up to `.backup-<timestamp>` before
+  replacement). `--dry-run`, `--workspace`, `--home` overrides. 14
+  bats cases in `setup_memory_link_spec.bats`.
+- `CLAUDE.md` -- new "Per-project memory (repo-portable via symlink)"
+  section explaining the rationale, directory shape, setup command,
+  and reminding that per-file frontmatter rules (`name` /
+  `description` / `metadata.type` + `MEMORY.md` index) are unchanged.
+
+### Fixed
+- `.claude/hooks/remind_strategic_compact.sh` -- removed
+  `hookSpecificOutput` from the emitted JSON. Stop event schema only
+  accepts top-level `systemMessage` / `decision` / `reason` /
+  `continue` / `suppressOutput` / `stopReason`; `hookSpecificOutput`
+  is reserved for PreToolUse / UserPromptSubmit / PostToolUse /
+  PostToolBatch. The previous output (introduced in PR #96 / closes
+  #92) triggered "Hook JSON output validation failed" in Claude Code
+  on every fire. Added regression test
+  `fired output omits hookSpecificOutput` to lock the shape.
 - `.claude/hooks/remind_strategic_compact.sh` -- Stop hook that reads
   the session transcript and proposes `/compact` at task boundaries.
   Two signals (any one fires the proposal): `gh pr merge` Bash

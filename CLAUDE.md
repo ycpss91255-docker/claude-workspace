@@ -223,7 +223,12 @@ docker/
     │   ├── batch-license-apache.sh           # 一次性 Apache 2.0 LICENSE + CI/License badge fresh add 13 repo fanout（org-wide license alignment）
     │   ├── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
     │   ├── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
-    │   └── batch-open-archive-rename-issues.sh # 開 11 張下游 follow-up issue：7 archive(4 agent + ros1_bridge / sick_humble / sick_noetic) + 4 rename + template->.base 遷移(urg_node_*, realsense_*),idempotent 跳過 title 相同既有 issue
+    │   ├── batch-open-archive-rename-issues.sh # 開 11 張下游 follow-up issue：7 archive(4 agent + ros1_bridge / sick_humble / sick_noetic) + 4 rename + template->.base 遷移(urg_node_*, realsense_*),idempotent 跳過 title 相同既有 issue
+    │   └── setup-memory-link.sh             # 新 clone / 換機器:建 symlink ~/.claude/projects/<encoded>/memory -> <workspace>/.claude/memory,讓 per-project memory portable + git-tracked。idempotent
+    ├── memory/               # Claude Code per-project memory（auto-loaded via symlink）
+    │   ├── MEMORY.md         # 入口索引(被 Claude Code 自動讀進 system prompt 開頭)
+    │   ├── feedback_*.md     # 個別 feedback / workflow rule（每檔有 name + description + type frontmatter）
+    │   └── project_*.md      # 專案性 context（如 ros1_bridge_jetson）
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
@@ -765,6 +770,56 @@ documented command / 為什麼」,讓 conversation log 留痕。
   user 沒明確同意不放行(取代「直接跑 docker 繞過 wrapper 邏輯」的
   人工約束)。read-only 子命令(ps/images/inspect/...)、make 內部觸發的
   docker compose、已在 ask 列表的破壞性 docker subs 都不受影響。
+
+## Per-project memory（repo-portable via symlink）
+
+Claude Code 的 per-project memory 預設存在
+`~/.claude/projects/<encoded-workspace-path>/memory/`,其中
+`<encoded-workspace-path>` 是把 workspace 絕對路徑的 `/` 換成 `-`
+（例如 `/home/yunchien/workspace/docker` →
+`-home-yunchien-workspace-docker`）。這個路徑被 workspace 絕對位置
+鎖死,**換機器或改 workspace 路徑就會失聯**。
+
+為了讓 memory 跟 repo 走 + 進 git history,實際 memory 檔案存在
+`<workspace>/.claude/memory/`(git-tracked),Claude Code 預期的位置
+則用 symlink 連回來：
+
+```
+<workspace>/.claude/memory/                       (git-tracked source of truth)
+├── MEMORY.md                                     (index, ≤150 chars/line)
+├── feedback_*.md                                 (workflow / convention rules)
+└── project_*.md                                  (project context)
+
+~/.claude/projects/-home-yunchien-workspace-docker/memory  →  symlink → <workspace>/.claude/memory
+```
+
+### 新 clone / 換機器 setup
+
+跑一次：
+
+```bash
+bash .claude/scripts/setup-memory-link.sh
+```
+
+idempotent — 偵測現有 symlink target,已正確就 skip；偵測舊
+non-symlink 資料夾且內容跟 repo 一致就 rm + symlink；偵測新內容
+（這台機器才有的 entry）就 refuse 並要求先 merge 進 repo,除非
+`--force`(會先備份成 `.backup-<timestamp>`)。
+
+`--dry-run` 看預期動作。`--workspace <path>` / `--home <path>` 給
+測試用 override。
+
+### Memory 檔案規則（不變）
+
+仍依 Claude Code 標準格式：
+
+- frontmatter `name` (kebab-case slug) + `description` + `metadata.type`
+  (`user` / `feedback` / `project` / `reference`)
+- 主檔名跟 `name` 對齊（如 `feedback_no_emoji.md`）
+- `MEMORY.md` 是 index — 一行一個 entry,`- [Title](file.md) — hook`
+- 用 `[[name]]` 連 related memories
+
+詳細寫法見 auto-memory section（system prompt 開頭）。
 
 ## 主動優化建議
 
