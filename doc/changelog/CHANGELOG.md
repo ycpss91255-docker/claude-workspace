@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/hooks/remind_strategic_compact.sh` -- Stop hook that reads
+  the session transcript and proposes `/compact` at task boundaries.
+  Two signals (any one fires the proposal): `gh pr merge` Bash
+  invocation in this session OR total tool-call count reaching
+  `STRATEGIC_COMPACT_TOOL_THRESHOLD` (default 50). Non-blocking
+  (hook output schema does not support triggering `/compact`
+  directly). Throttled once per session per signal-set hash via a
+  marker file in `${TMPDIR:-/tmp}`. Disable per-session with
+  `STRATEGIC_COMPACT_DISABLE=1`. 18 bats cases in
+  `remind_strategic_compact_spec.bats`. Closes #92.
+- `.claude/skills/strategic-compact/SKILL.md` -- companion rubric:
+  when to manually `/compact` (PR just merged, TaskList all-done,
+  exploration distilled into a plan, > 50 tool calls without compact,
+  task-transition boundary) vs when NOT to (mid-implementation,
+  debugging a specific failure, just received user feedback mid-turn,
+  holding non-trivial in-memory state). Pre-compaction checklist
+  (write down anything not yet on disk / TodoWrite / CLAUDE.md /
+  memory before compacting). Inspired by
+  `affaan-m/everything-claude-code`'s `strategic-compact` skill.
 - `.claude/hooks/remind_main_sync.sh` -- PreToolUse non-blocking
   reminder on `gh pr merge`. Two variants by presence of `--auto`:
   "auto-merge queued, pull main after CI passes" vs "PR merged, pull

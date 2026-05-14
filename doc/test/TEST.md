@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **446 tests** (442 smoke + 4 integration) plus shellcheck (24 hook
+Total: **464 tests** (460 smoke + 4 integration) plus shellcheck (25 hook
 scripts + 19 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -719,6 +719,35 @@ available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
 | silent on non-shell file under .base/ | extension matcher → SILENT |
 | silent on missing file | defensive |
 | silent on empty tool_input | defensive |
+
+### test/smoke/remind_strategic_compact_spec.bats (18)
+
+Covers `.claude/hooks/remind_strategic_compact.sh` — Stop hook that
+reads the session transcript and proposes `/compact` at task
+boundaries. Signals: `gh pr merge` Bash invocation (any count > 0)
+OR total tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
+(default 50). Throttled once per session per signal-set hash.
+
+| Test | Scenario |
+|------|----------|
+| silent when STRATEGIC_COMPACT_DISABLE=1 | kill switch |
+| silent when stop_hook_active=true | re-entry guard |
+| silent when transcript_path missing | defensive |
+| silent when transcript_path unreadable | defensive |
+| silent on non-Stop input shape (no transcript_path key) | defensive |
+| silent on low tool-count + no PR merge | no-signal happy path |
+| silent on empty transcript | edge case |
+| fires on gh pr merge invocation (even with low tool count) | PR-merge signal |
+| fires on tool count >= default threshold (50) | count signal |
+| silent on tool count below default threshold (49 < 50) | threshold boundary |
+| fires on both PR merge AND high tool count (both reasons listed) | combined signal |
+| respects STRATEGIC_COMPACT_TOOL_THRESHOLD override (lower) | env override down |
+| respects STRATEGIC_COMPACT_TOOL_THRESHOLD override (higher) | env override up |
+| ignores non-integer threshold override (falls back to default 50) | bad-input guard |
+| second fire with same signal-set is silent (throttle marker) | idempotency |
+| different session id re-proposes (no false throttling across sessions) | session scoping |
+| text mention of 'gh pr merge' does NOT count as signal | tool_use only |
+| tool_use of a non-Bash tool with 'gh pr merge' in input does NOT count | Bash only |
 
 ### test/smoke/remind_main_sync_spec.bats (16)
 
