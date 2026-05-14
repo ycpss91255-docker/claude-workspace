@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/hooks/remind_main_sync.sh` -- PreToolUse non-blocking
+  reminder on `gh pr merge`. Two variants by presence of `--auto`:
+  "auto-merge queued, pull main after CI passes" vs "PR merged, pull
+  main now". 16 bats cases in `remind_main_sync_spec.bats`.
+- `.claude/hooks/check_main_fresh_before_worktree.sh` -- PreToolUse
+  BLOCKING on `git worktree add ... main` (or `... origin/main`). Runs
+  `git fetch --quiet origin main` then compares `rev-list --count
+  main..origin/main`; denies with a concrete `git pull --ff-only`
+  instruction when local main is behind. Degraded paths (non-git cwd,
+  fetch failure, no origin/main yet) silently allow. 14 bats cases in
+  `check_main_fresh_before_worktree_spec.bats` (uses local bare-repo
+  origin fixture so the fetch path runs without network access).
+  Pairs with the rule supplement in CLAUDE.md「Git 工作流程 > 主
+  checkout 狀態」: "停在 origin/main" means continuously ff-tracking
+  origin/main HEAD, not freezing at a commit. PR #89 precedent: a
+  worktree branched off stale local main forced a mid-PR rebase when
+  upstream moved.
 - `.claude/scripts/fix-dockerfile-lint-lib.sh` -- generalised replacement
   for the one-shot v0.28.1 fanout fix. Patches downstream Dockerfiles
   that pre-date #284's `_lib.sh` -> `lib/*.sh` sub-libs split, adding
@@ -56,6 +73,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   --body-file). Closes #64.
 
 ### Changed
+- `.claude/settings.json` -- registers `remind_main_sync.sh` and
+  `check_main_fresh_before_worktree.sh` under the PreToolUse Bash
+  matcher (16 entries total).
+- `CLAUDE.md`「Git 工作流程 > 主 checkout 狀態」row clarified: "停在
+  origin/main" means continuously ff-tracking origin/main HEAD (run
+  `git pull --ff-only origin main` after every PR merge), not freezing
+  at a commit. Cites the two new hooks (`remind_main_sync.sh` reminds,
+  `check_main_fresh_before_worktree.sh` blocks worktree-from-stale).
+  Hooks tree listing in CLAUDE.md updated.
 - `.claude/scripts/batch-template-upgrade.sh`,
   `check-template-versions.sh`, `batch-gitignore-add-line.sh` -- shrunk
   `DEFAULT_REPOS` active list from 13 to 2 (`env/ros_distro` +
