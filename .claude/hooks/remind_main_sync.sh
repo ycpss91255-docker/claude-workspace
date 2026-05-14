@@ -15,24 +15,48 @@
 # 某個 commit」。PR #89 那次踩到正是因為 local main 落後好幾個 PR,
 # 從 stale base 起 worktree branch,後來才被迫 rebase。
 #
-# Trigger pattern: `gh pr merge` 出現在 command 任一段（含 chained &&）。
+# Trigger pattern: `gh pr merge` 出現在 command 作為實際子指令,不算
+# quoted string 內 substring(避免 `git commit -m "...gh pr merge..."`
+# 之類的 commit message 觸發 false positive)。實作:
+#   1. 用 sed 砍掉雙引號 / 單引號區段(unnested 簡單情況)
+#   2. 在 cleaned 字串上跑 trigger regex
+#   3. 加 command-boundary anchor (^ 或 ; & | $( 之後),`gh pr merge`
+#      必須是 actual subcommand 才 match
 # 不限定 `--squash` / `--merge` / `--rebase`,任何 merge mode 都觸發。
 # Skip read-only `gh pr view` / `gh pr checks` etc.
 
 set -uo pipefail
 
+# Strip outer-level double-quoted and single-quoted regions so a literal
+# `gh pr merge` inside a commit message / -m argument / heredoc body
+# does not falsely trigger the reminder. Conservative: handles
+# unnested quotes; mixed nesting / escaped quotes degrade gracefully
+# (worst case: a false positive survives -- never a false negative).
+strip_quoted_regions() {
+  local s="$1"
+  s="$(printf '%s' "${s}" | sed -E 's/"[^"]*"//g')"
+  s="$(printf '%s' "${s}" | sed -E "s/'[^']*'//g")"
+  printf '%s' "${s}"
+}
+
 main() {
-  local input cmd msg variant
+  local input cmd cleaned msg variant
   input="$(cat)"
   cmd="$(printf '%s' "${input}" | jq -r '.tool_input.command // empty' 2>/dev/null)"
 
   [[ -z "${cmd}" ]] && return 0
 
-  # Must contain `gh pr merge` (with whitespace before "merge" to exclude
-  # `gh pr merged-by-N` etc. — currently no such subcommand but defensive).
-  [[ "${cmd}" =~ gh[[:space:]]+pr[[:space:]]+merge([[:space:]]|$) ]] || return 0
+  cleaned="$(strip_quoted_regions "${cmd}")"
 
-  if [[ "${cmd}" =~ --auto([[:space:]]|$) ]]; then
+  # `gh pr merge` must sit at a command boundary in `cleaned`: start of
+  # string, or right after one of `;` `&` `|` `$(`, allowing whitespace
+  # between the boundary and `gh`. This prevents matches mid-token (e.g.
+  # the substring of a removed quoted region's surroundings).
+  if ! [[ "${cleaned}" =~ (^|[\;\&\|]|\$\()[[:space:]]*gh[[:space:]]+pr[[:space:]]+merge([[:space:]]|$) ]]; then
+    return 0
+  fi
+
+  if [[ "${cleaned}" =~ --auto([[:space:]]|$) ]]; then
     variant="queued"
     msg="Auto-merge queued. After CI passes and GitHub completes the merge, run \`git -C \$(git rev-parse --show-toplevel 2>/dev/null) pull --ff-only origin main\` (or the same from your main checkout) to keep local main tracking origin/main HEAD. See CLAUDE.md 'Git 工作流程 > 主 checkout 狀態'."
   else
