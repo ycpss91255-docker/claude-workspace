@@ -20,6 +20,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   --dry-run plan output, --repos CSV narrowing, and --org override.
   Long-term root cause (downstream Dockerfile drift outliving subtree
   pulls) is tracked separately for an upgrade.sh auto-patch.
+- `.claude/scripts/batch-open-archive-rename-issues.sh` -- one-shot batch
+  opener for 11 follow-up issues across downstream repos parked from
+  docker_harness's active upgrade list: 7 archive issues (`agent/ai_agent`,
+  `claude_code`, `codex_cli`, `gemini_cli`, plus `app/ros1_bridge`,
+  `sick_humble`, `sick_noetic` — superseded by `env/ros_distro` +
+  `env/ros2_distro`) and 4 sensor rename + `template/` -> `.base/`
+  migration issues (`urg_node_humble` -> `urg_node_ros2`, `urg_node_noetic`
+  -> `urg_node_ros`, `realsense_humble` -> `realsense_ros2`,
+  `realsense_noetic` -> `realsense_ros`). Bodies written to
+  `${TMPDIR:-/tmp}/issue-{archive,rename}-<repo>.md` then `gh issue
+  create --body-file` (per `enforce_gh_body_file.sh` rule 1); idempotent
+  via exact-title check skipping repos that already have a matching
+  issue. `--only`, `--owner`, `--refs`, `--dry-run` supported. 16 bats
+  cases in `batch_open_archive_rename_issues_spec.bats`.
 - `.claude/scripts/batch-pr-close.sh` -- batch close N `<repo>:<pr>`
   pairs in a single invocation, with a required `--reason` posted as a
   uniform PR comment before close. Sibling of `batch-pr-merge.sh` for
@@ -42,6 +56,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   --body-file). Closes #64.
 
 ### Changed
+- `.claude/scripts/batch-template-upgrade.sh`,
+  `check-template-versions.sh`, `batch-gitignore-add-line.sh` -- shrunk
+  `DEFAULT_REPOS` active list from 13 to 2 (`env/ros_distro` +
+  `env/ros2_distro`). The other 11 downstream repos (4 agent + 3 ROS
+  app + 4 sensor) are commented out with a header note explaining the
+  reason (archive pending for 7, rename + `.base` subtree migration
+  pending for 4 sensor repos). Companion
+  `batch-open-archive-rename-issues.sh` opens the 11 follow-up issues
+  that gate uncommenting each entry. `CLAUDE.md` directory tree
+  annotated with per-repo status (`archive 待辦` /
+  `rename -> <new> + template/->.base/ 待辦`); "主 checkout 狀態" row
+  in Git workflow section updated from "13 個 active" to "2 個 active +
+  11 待 follow-up".
 - `.claude/hooks/remind_use_body_file.sh` -- renamed to
   `enforce_gh_body_file.sh`, switched from non-blocking PostToolUse
   remind to PreToolUse BLOCKING deny. Implements 8 rules from #64
