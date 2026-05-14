@@ -247,6 +247,8 @@ docker/
     │   ├── remind_topics_yaml_on_new_repo.sh # gh repo create ycpss91255-docker/* 前提醒去 .github topics.yaml 加 repos.* 條目
     │   ├── check_readme_framework.sh    # Edit/Write 後掃下游 repo README.md (+ 3 翻譯) 是否符合 .base/README.md 框架(badge / 4 語言 link / TL;DR H2 / Smoke Tests link / 無 stale 路徑) — non-blocking warning
     │   ├── check_no_stale_template_refs.sh # Edit/Write 後掃 .base/ 下 .sh/Makefile/Dockerfile 是否殘留 template/<path> 引用(rename 後遺漏,refs base#282)
+    │   ├── remind_main_sync.sh         # gh pr merge 前提醒 merge 後跑 git pull --ff-only origin main 保持本地 main 持續 ff-tracking origin/main HEAD
+    │   ├── check_main_fresh_before_worktree.sh # git worktree add ... main 前 BLOCK：若 local main 落後 origin/main 就 deny + 提示先 pull,避免從 stale base 起 branch(refs PR #89 precedent)
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   ├── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
@@ -579,7 +581,7 @@ git push origin v1.3.0-rc2
 | 規則 | 內容 |
 |---|---|
 | 工作位置 | **`<workspace>/worktree/<repo>-<N>/`**（已 gitignored 在 workspace `.gitignore`）。N 通常用 PR / issue 編號（如 `template-177` `docker_harness-22`），新工作沒編號可用 branch slug |
-| 主 checkout 狀態 | 2 個 active 下游 repo（env/× 2）+ template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP。其餘 11 個 repo（agent/× 4、app/× 7）有 open follow-up issue 待 archive 或 rename + `.base` 遷移，不在當前 active 升級流程內；批次 script 以註解保留 entry，待 prerequisite 完成後取消註解。`archive/` 底下 6 個 archived repo 屬只讀備份 |
+| 主 checkout 狀態 | 2 個 active 下游 repo（env/× 2）+ template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP。「停在 origin/main」= **持續 ff-tracking origin/main HEAD**,不是凍結在某個 commit — **每次 PR merge 後立即 `git pull --ff-only origin main`**（hook `remind_main_sync.sh` 會在 `gh pr merge` 前提醒；`check_main_fresh_before_worktree.sh` 會在 `git worktree add ... main` 時 BLOCK 若 local 落後 origin/main,避免從 stale base 起 branch 後被迫 rebase — PR #89 踩過正是此 case）。其餘 11 個 repo（agent/× 4、app/× 7）有 open follow-up issue 待 archive 或 rename + `.base` 遷移，不在當前 active 升級流程內；批次 script 以註解保留 entry，待 prerequisite 完成後取消註解。`archive/` 底下 6 個 archived repo 屬只讀備份 |
 | 起 branch | `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main` |
 | 收尾 | merge 後 `git worktree remove <path>`，或 `git worktree prune` 清理 stale entry |
 | 平行工作 | 同一 repo 可有多個 worktree，每個對應一個 branch / PR — 不會互相打架 |

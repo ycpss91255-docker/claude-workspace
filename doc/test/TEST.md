@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **416 tests** (412 smoke + 4 integration) plus shellcheck (22 hook
+Total: **446 tests** (442 smoke + 4 integration) plus shellcheck (24 hook
 scripts + 19 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -719,6 +719,58 @@ available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
 | silent on non-shell file under .base/ | extension matcher → SILENT |
 | silent on missing file | defensive |
 | silent on empty tool_input | defensive |
+
+### test/smoke/remind_main_sync_spec.bats (16)
+
+Covers `.claude/hooks/remind_main_sync.sh` — PreToolUse on Bash matching
+`gh pr merge`. Reminds the user to `git pull --ff-only origin main` on
+the main checkout after the merge lands. Two message variants by
+presence of `--auto`.
+
+| Test | Scenario |
+|------|----------|
+| silent on non-gh command | non-trigger |
+| silent on gh pr view | read-only path |
+| silent on gh pr checks | read-only path |
+| silent on gh pr create | wrong subcommand |
+| silent on git pull (already syncing main) | non-merge path |
+| silent on empty tool_input | defensive |
+| silent on non-Bash tool_input shape | defensive |
+| fires immediate variant on plain gh pr merge | immediate happy path |
+| fires immediate variant on gh pr merge --squash --delete-branch | typical flags |
+| fires immediate variant on gh pr merge --merge | --merge flag |
+| fires immediate variant on gh pr merge --rebase | --rebase flag |
+| fires queued variant on gh pr merge --auto | queued message variant |
+| fires queued variant on gh pr merge --auto --delete-branch --squash | --auto with extra flags |
+| fires on gh pr merge with -R owner/repo | short repo flag |
+| fires on gh pr merge with --repo owner/repo --auto | long repo flag + auto |
+| fires when gh pr merge appears after && | chained command |
+
+### test/smoke/check_main_fresh_before_worktree_spec.bats (14)
+
+Covers `.claude/hooks/check_main_fresh_before_worktree.sh` — PreToolUse
+BLOCKING on Bash matching `git worktree add ... main` (or
+`origin/main`). Denies when local main is behind origin/main, so the
+new worktree never branches from a stale base. Uses a local bare-repo
+origin + clone fixture so `git fetch origin main` works without
+network access.
+
+| Test | Scenario |
+|------|----------|
+| silent on non-git command | non-trigger |
+| silent on git status | non-worktree-add path |
+| silent on git worktree list (not add) | wrong subcommand |
+| silent on git worktree remove | wrong subcommand |
+| silent on git worktree add branching from a tag, not main | non-main start-point |
+| silent on git worktree add branching from a feature branch (no main token) | non-main start-point |
+| silent on empty tool_input | defensive |
+| silent (allow) when local main aligned with origin/main (main token) | aligned → allow |
+| silent (allow) when local main aligned with origin/main (origin/main token) | origin/main token form |
+| denies when local main is 1 commit behind origin/main (main token) | BEHIND → deny |
+| denies when local main is 1 commit behind origin/main (origin/main token) | origin/main token, BEHIND |
+| denies with explicit -C work-dir form | `git -C <dir>` resolution |
+| denies with cd && form | `cd <dir> && git ...` resolution |
+| silent when cwd is not a git repo (allow) | rule N/A → silent |
 
 ## Integration specs
 
