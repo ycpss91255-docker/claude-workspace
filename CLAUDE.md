@@ -164,22 +164,22 @@ warning 影響，視頻率決定要不要 skill 化）。
 
 ```
 docker/
-├── agent/                    # AI Agent 容器
-│   ├── ai_agent/             # All-in-one（Claude + Gemini + Codex）
-│   ├── claude_code/          # Claude Code 獨立版
-│   ├── gemini_cli/           # Gemini CLI 獨立版
-│   └── codex_cli/            # Codex CLI 獨立版
-├── env/                      # ROS 開發環境容器
+├── agent/                    # AI Agent 容器（4 個 archive 待辦,refs batch-open-archive-rename-issues.sh）
+│   ├── ai_agent/             # All-in-one（Claude + Gemini + Codex）— archive 待辦
+│   ├── claude_code/          # Claude Code 獨立版 — archive 待辦
+│   ├── gemini_cli/           # Gemini CLI 獨立版 — archive 待辦
+│   └── codex_cli/            # Codex CLI 獨立版 — archive 待辦
+├── env/                      # ROS 開發環境容器（active 升級流程的全部 2 個 repo）
 │   ├── ros_distro/           # ROS 1 multi-distro (noetic / kinetic × ros: / osrf/ros: × variants)
 │   └── ros2_distro/          # ROS 2 multi-distro (humble / jazzy × ros: / osrf/ros: × variants)
-├── app/                      # 應用程式容器
-│   ├── ros1_bridge/
-│   ├── urg_node_humble/
-│   ├── urg_node_noetic/
-│   ├── realsense_humble/
-│   ├── realsense_noetic/
-│   ├── sick_humble/
-│   └── sick_noetic/
+├── app/                      # 應用程式容器（3 個 archive 待辦 + 4 個 rename + .base 遷移待辦）
+│   ├── ros1_bridge/          # archive 待辦（被 env/ros_distro + env/ros2_distro 覆蓋）
+│   ├── urg_node_humble/      # rename -> urg_node_ros2 + template/->.base/ 待辦
+│   ├── urg_node_noetic/      # rename -> urg_node_ros  + template/->.base/ 待辦
+│   ├── realsense_humble/     # rename -> realsense_ros2 + template/->.base/ 待辦
+│   ├── realsense_noetic/     # rename -> realsense_ros  + template/->.base/ 待辦
+│   ├── sick_humble/          # archive 待辦（被 env/ros2_distro 覆蓋）
+│   └── sick_noetic/          # archive 待辦（被 env/ros_distro 覆蓋）
 ├── archive/                  # 已 archive（read-only）下游 repo 的本地 checkout，留作參考
 │   ├── ros_noetic/           # superseded by env/ros_distro (noetic-ros-base entry)
 │   ├── ros_kinetic/          # superseded by env/ros_distro (kinetic-ros-base entry)
@@ -195,7 +195,7 @@ docker/
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md                   # /audit — 跨 repo 健康檢查
     │   ├── batch-pr.md                # /batch-pr — 批次跨 repo PR（通用）
-    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級 13 下游 template tag
+    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級下游 template tag（active list 目前 = env/ros_distro + env/ros2_distro,其餘 11 個 repo 在 DEFAULT_REPOS 內 comment-out 待 follow-up）
     │   ├── doc-sync.md                # /doc-sync — 變更完成 checklist 對齊檢查
     │   ├── issue-check.md             # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
     │   ├── issue-fix.md               # /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N] — auto-fix 一個或全部 open issue（合理才修，不合理留 comment）
@@ -222,7 +222,8 @@ docker/
     │   ├── migrate-local-to-setupconf.sh    # 一次性 setup.conf.local -> setup.conf 17 repo 遷移（template #201 / v0.16.0；下個版本後刪除）
     │   ├── batch-license-apache.sh           # 一次性 Apache 2.0 LICENSE + CI/License badge fresh add 13 repo fanout（org-wide license alignment）
     │   ├── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
-    │   └── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
+    │   ├── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
+    │   └── batch-open-archive-rename-issues.sh # 開 11 張下游 follow-up issue：7 archive(4 agent + ros1_bridge / sick_humble / sick_noetic) + 4 rename + template->.base 遷移(urg_node_*, realsense_*),idempotent 跳過 title 相同既有 issue
     ├── hooks/                # PostToolUse / PreToolUse hooks
     │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
     │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
@@ -578,7 +579,7 @@ git push origin v1.3.0-rc2
 | 規則 | 內容 |
 |---|---|
 | 工作位置 | **`<workspace>/worktree/<repo>-<N>/`**（已 gitignored 在 workspace `.gitignore`）。N 通常用 PR / issue 編號（如 `template-177` `docker_harness-22`），新工作沒編號可用 branch slug |
-| 主 checkout 狀態 | 13 個 active 下游 repo（agent/× 4、app/× 7、env/× 2）+ template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP。`archive/` 底下 6 個 archived repo 屬只讀備份，不在批次操作範圍內 |
+| 主 checkout 狀態 | 2 個 active 下游 repo（env/× 2）+ template + workspace 主 checkout **永遠停在 origin/main**，不長 branch、不放 WIP。其餘 11 個 repo（agent/× 4、app/× 7）有 open follow-up issue 待 archive 或 rename + `.base` 遷移，不在當前 active 升級流程內；批次 script 以註解保留 entry，待 prerequisite 完成後取消註解。`archive/` 底下 6 個 archived repo 屬只讀備份 |
 | 起 branch | `git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main` |
 | 收尾 | merge 後 `git worktree remove <path>`，或 `git worktree prune` 清理 stale entry |
 | 平行工作 | 同一 repo 可有多個 worktree，每個對應一個 branch / PR — 不會互相打架 |
@@ -638,7 +639,7 @@ Status check 名稱依 repo 類型不同：
 
 不適用 tag-triggered workflow（release-test-tools / release-worker）— 那是 tag-scoped 不是 PR-scoped，套同樣 Monitor pattern 但改查 `gh run list --branch <tag>`。
 
-skill 內含 status check filter 對應表（template / docker_harness / 單 distro 容器 / multi-distro env / multi-distro app / .github），詳見 SKILL.md。`docker_harness` 跟 `.github` 不走 default filter — 前者 check 名稱是 `bats + shellcheck + hadolint`（單 job test workflow），後者是 `lint`（topics-taxonomy lint workflow）；兩個都不在 default 的 `test` / `Integration ...` 裡，跑 `wait-pr-ci.sh` 必須帶 `--check-filter '.name=="bats + shellcheck + hadolint"'` 或 `--check-filter '.name=="lint"'`，否則第一次 poll 噴 `no-checks` 後就一直空轉。Multi-distro repo（`env/ros_distro`、`env/ros2_distro`、`app/ros1_bridge`）的 PR rollup 沒有 `call-docker-build / docker-build`，必須改傳 `--check-filter '.name=="ci-passed"'`（env multi-distro）或 `--check-filter '.name=="ci-summary"'`（`ros1_bridge` post-#54）。`wait-pr-ci-batch.sh` 在混合 repo 類型 batch 時用 `--check-filter <repo>=<expr>` per-repo override（`ros_distro=...` / `ros2_distro=...` / `ros1_bridge=...`）配 global default 即可一次涵蓋全 13 下游。
+skill 內含 status check filter 對應表（template / docker_harness / 單 distro 容器 / multi-distro env / multi-distro app / .github），詳見 SKILL.md。`docker_harness` 跟 `.github` 不走 default filter — 前者 check 名稱是 `bats + shellcheck + hadolint`（單 job test workflow），後者是 `lint`（topics-taxonomy lint workflow）；兩個都不在 default 的 `test` / `Integration ...` 裡，跑 `wait-pr-ci.sh` 必須帶 `--check-filter '.name=="bats + shellcheck + hadolint"'` 或 `--check-filter '.name=="lint"'`，否則第一次 poll 噴 `no-checks` 後就一直空轉。Multi-distro repo（`env/ros_distro`、`env/ros2_distro`、`app/ros1_bridge`）的 PR rollup 沒有 `call-docker-build / docker-build`，必須改傳 `--check-filter '.name=="ci-passed"'`（env multi-distro）或 `--check-filter '.name=="ci-summary"'`（`ros1_bridge` post-#54）。`wait-pr-ci-batch.sh` 在混合 repo 類型 batch 時用 `--check-filter <repo>=<expr>` per-repo override（`ros_distro=...` / `ros2_distro=...` 為當前 active；`ros1_bridge=...` 等其餘 repo 在 archive / rename follow-up 期間暫不需要,但 expression 留作 reactivate 後參考）配 global default 即可一次涵蓋當前所有 active 下游。
 
 ### Bug fix 必須附帶 regression test
 

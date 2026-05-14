@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **378 tests** (374 smoke + 4 integration) plus shellcheck (21 hook
-scripts + 13 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **416 tests** (412 smoke + 4 integration) plus shellcheck (22 hook
+scripts + 19 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -375,6 +375,72 @@ and aggregates all PRs into one stream.
 | headRefOid change between polls emits [head-moved] (batch) | headRefOid guard per-pair (issue #60) |
 | stable headRefOid across polls preserves ALL_DONE path (batch) | negative control for headRefOid guard |
 | JSON without headRefOid preserves backwards-compatible behaviour (batch) | mocks without headRefOid keep working |
+
+### test/smoke/fix_dockerfile_lint_lib_spec.bats (6)
+
+Covers `.claude/scripts/fix-dockerfile-lint-lib.sh` — the generalised
+`--branch`-aware fanout patch for downstream Dockerfiles that pre-date
+template #284's `_lib.sh` -> `lib/*.sh` sub-libs split.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --branch exits 2 | required-arg validation |
+| unknown arg exits 2 | flag validation |
+| --dry-run prints plan for all default repos and exits 0 | full enumeration |
+| --repos CSV narrows the repo list | filter |
+| --org overrides default owner in dry-run output | owner flag |
+
+### test/smoke/batch_open_archive_rename_issues_spec.bats (16)
+
+Covers `.claude/scripts/batch-open-archive-rename-issues.sh` — opens 11
+follow-up issues across downstream repos parked from docker_harness's
+active list (7 archive + 4 rename + `.base` migration). `gh` is stubbed
+via PATH; bodies land under a temp `TMPDIR` so test runs are sealed.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown arg exits 2 | flag validation |
+| --dry-run lists all 7 archive + 4 rename issues | full enumeration |
+| --dry-run writes body files under TMPDIR | side-effect path |
+| archive body has 5 standard sections + parked reason + refs line | body shape (archive) |
+| rename body has 5 standard sections + new name + ROS version label + refs line | body shape (rename) |
+| body omits refs section when --refs not given | refs is opt-in |
+| --only filters to single archive repo | filter happy path |
+| --only filters to multiple slugs across archive + rename groups | cross-group filter |
+| --only with non-matching slug creates none | filter no-match |
+| archive title format: 'chore: archive <repo> (out of docker_harness active list)' | title contract (archive) |
+| rename title format: 'chore: rename <old> -> <new> (+ .base migration)' | title contract (rename) |
+| non-dry-run calls 'gh issue create -R <owner/repo> --title ... --body-file ...' | argv shape uses --body-file (rule 1 of enforce_gh_body_file.sh) |
+| --owner overrides default org for create | owner flag |
+| skips create when an issue with the same title already exists | idempotent re-run |
+| gh create failure counts toward 'failed' and exits 1 | failure surfacing |
+
+### test/smoke/batch_pr_close_spec.bats (16)
+
+Covers `.claude/scripts/batch-pr-close.sh` — close N superseded PRs across
+repos with a shared `--reason` comment posted first. Sibling of
+`batch-pr-merge.sh`. `gh` stubbed via PATH.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --reason exits 2 | required-arg validation |
+| no pairs exits 2 | required-arg validation |
+| bad pair (no colon) exits 2 | format validation |
+| non-numeric PR exits 2 | PR validation up-front |
+| short repo name is normalized to ycpss91255-docker/<repo> | default owner prefix |
+| full owner/repo form is accepted (no prefix added) | full-form override |
+| --owner overrides default for short form | owner flag |
+| --dry-run prints planned closes and skips gh invocation | dry-run no-op |
+| successful close invokes gh pr close with --comment and --delete-branch | argv shape (happy path) |
+| --no-delete-branch omits --delete-branch from gh invocation | branch-deletion toggle |
+| gh failure produces summary and exits 1 | failure surfacing |
+| mixed success and failure continues and reports both | continue-on-error semantics |
+| unknown flag exits 2 | flag validation |
+| empty repo in pair exits 2 | empty-repo guard |
+| empty PR in pair exits 2 | empty-pr guard |
 
 ### test/smoke/batch_pr_merge_spec.bats (14)
 
