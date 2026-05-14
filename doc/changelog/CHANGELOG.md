@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/fix-dockerfile-lint-lib.sh` -- generalised replacement
+  for the one-shot v0.28.1 fanout fix. Patches downstream Dockerfiles
+  that pre-date #284's `_lib.sh` -> `lib/*.sh` sub-libs split, adding
+  `COPY .base/script/docker/lib /lint/lib` before the `RUN shellcheck`
+  anchor and extending the shellcheck invocation to also cover
+  `/lint/lib/*.sh`. Takes `--branch <name>` (required) so each fanout
+  cycle targets its own `chore/template-vX.Y.Z` branch instead of
+  growing one-shot scripts per version. Idempotent: re-runs on
+  already-patched Dockerfiles are no-ops. 6 bats cases in
+  `fix_dockerfile_lint_lib_spec.bats` covering arg parsing, --help,
+  --dry-run plan output, --repos CSV narrowing, and --org override.
+  Long-term root cause (downstream Dockerfile drift outliving subtree
+  pulls) is tracked separately for an upgrade.sh auto-patch.
 - `.claude/scripts/batch-pr-close.sh` -- batch close N `<repo>:<pr>`
   pairs in a single invocation, with a required `--reason` posted as a
   uniform PR comment before close. Sibling of `batch-pr-merge.sh` for
