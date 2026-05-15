@@ -228,6 +228,7 @@ docker/
     │   ├── fix-dockerfile-lint-lib.sh        # 通用：對 --branch 指定的 chore 分支批次 patch downstream Dockerfile 加 `COPY .base/script/docker/lib /lint/lib`（#284 sub-libs split 後 fanout 必須跑，idempotent）
     │   ├── fix-dockerfile-copy-script.sh     # 通用：對 --branch 指定的 chore 分支批次 patch downstream Dockerfile 把 `COPY *.sh /lint/` 改成 `COPY script/*.sh /lint/`（base#330 / v0.31.0 wrapper consolidation 後 root 沒有 *.sh,active 2 個下游 fanout 必須跑,idempotent）
     │   ├── check-claude-md-tree.sh          # CI lint：parse 此檔 .claude/ tree vs filesystem，drift 就 exit 1
+    │   ├── rebase-pr.sh                      # one-shot rebase + force-push for a PR whose base moved (BEHIND/CONFLICTING);auto-resolve worktree by branch via $WORKSPACE_DIR scan,refs #87
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
     │   ├── wait-pr-ci-batch.sh              # 多 repo 多 PR 同一個 Monitor 的 batch 版本（取代 N 個平行 Monitor stream）
     │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
@@ -274,6 +275,7 @@ docker/
     │   ├── remind_strategic_compact.sh # Stop hook：讀 transcript 偵測 task-boundary 訊號(gh pr merge / tool count >= 50)後 propose /compact,configurable via STRATEGIC_COMPACT_{DISABLE,TOOL_THRESHOLD};refs #92
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
+    │   ├── rebase-pr/SKILL.md          # PR 因 BEHIND/CONFLICTING 需 rebase 時的 one-shot 流程,配 rebase-pr.sh + wait-pr-ci FAIL hint,refs #87
     │   ├── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
     │   ├── gh-artifact-format/SKILL.md # gh issue/pr artifact 格式規範(issue title/body 5 sections/close 3 tiers/comment 3 categories/cross-ref keywords)配 enforce_gh_body_file.sh hook
     │   ├── semver-bump/SKILL.md        # 版本 tag 流程:X/Y/Z 分類 + RC 程序 + RELEASE_X_BUMP_ACK 使用,配 release-tag.sh + enforce_semver_tag_via_script.sh,refs #106

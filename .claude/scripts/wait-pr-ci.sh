@@ -119,7 +119,7 @@ main() {
 
     local out=""
     local all_ready=1
-    local fail_pr=""
+    local fail_pr="" fail_reason=""
 
     local pr
     for pr in "${prs[@]}"; do
@@ -190,11 +190,16 @@ main() {
 
       out="${out}PR${pr}: checks=${state} mergeable=${m}"$'\n'
 
+      # mergeable=CONFLICTING means main moved + the PR has merge conflicts.
+      # No amount of polling will resolve this -- the head must be rebased.
+      # Surface as FAIL with a rebase-pr.sh hint so the caller acts on it
+      # (refs issue #87) rather than looping forever waiting for MERGEABLE.
       case "${state}" in
-        FAIL) fail_pr="${pr}"; all_ready=0 ;;
+        FAIL) fail_pr="${pr}"; fail_reason="check"; all_ready=0 ;;
         all-pass)
           case "${m}" in
             MERGEABLE) : ;;
+            CONFLICTING) fail_pr="${pr}"; fail_reason="conflict"; all_ready=0 ;;
             *) all_ready=0 ;;
           esac
           ;;
@@ -209,7 +214,15 @@ main() {
     prev="${out}"
 
     if [[ -n "${fail_pr}" ]]; then
-      printf 'FAIL %s\n' "${fail_pr}"
+      case "${fail_reason:-}" in
+        conflict)
+          printf 'FAIL %s (mergeable=CONFLICTING). Rebase:\n  .claude/scripts/rebase-pr.sh %s --repo %s\nSee .claude/skills/rebase-pr/SKILL.md.\n' \
+            "${fail_pr}" "${fail_pr}" "${repo}"
+          ;;
+        *)
+          printf 'FAIL %s\n' "${fail_pr}"
+          ;;
+      esac
       exit 1
     fi
 
