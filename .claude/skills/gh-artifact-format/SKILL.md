@@ -166,11 +166,47 @@ Two notes on usage:
 - `Closes #N` only auto-closes when the PR merges to the **default branch**. For PRs targeting a non-main branch, the issue stays open and you must close manually.
 - Cross-repo refs work: `Closes ycpss91255-docker/base#282` from a `docker_harness` PR auto-closes the linked `base` issue when merged. Same keyword set.
 
+## 6. Labels (issue create)
+
+Every `gh issue create` must pass `--label <name>` (enforced by hook
+rule 9). PRs are exempt -- they inherit labels from the issue they
+close via `Closes #N`.
+
+Map the title type prefix to a stock GitHub label:
+
+| Title type | Label |
+|---|---|
+| `feat(*)` | `enhancement` |
+| `refactor(*)` | `enhancement` |
+| `chore(*)` | `enhancement` |
+| `track(*)` | `enhancement` |
+| `fix(*)` | `bug` |
+| `docs(*)` | `documentation` |
+
+Multiple labels are allowed and encouraged when applicable:
+`--label "bug" --label "help wanted"`. Stock label inventory in every
+org repo:
+
+- `bug` / `enhancement` / `documentation` -- primary type axis (use one).
+- `question` -- for issues that are really questions, not work items.
+- `wontfix` / `invalid` / `duplicate` -- close-decision labels (apply
+  on close, not on open).
+- `good first issue` / `help wanted` -- visibility / recruitment.
+
+The `base` repo additionally has `backlog` / `dependencies` /
+`github_actions`. Those are not yet rolled out org-wide. Cross-repo
+label inventory alignment is out of scope for #91 and tracked
+separately.
+
+Empty `--label ""` / `--label=` does not satisfy the rule. The hook is
+lexical -- if the label name does not exist on the target repo, `gh`
+itself errors out with a clear message; no API call from the hook.
+
 ## Quick reference
 
 | Task | Inline OK? | Routing |
 |---|---|---|
-| Open an issue | n/a | `gh issue create --body-file /tmp/issue-X-open.md` (Rule 1) |
+| Open an issue | n/a | `gh issue create --body-file /tmp/issue-X-open.md --label <name>` (Rules 1 + 9) |
 | Open a PR | n/a | `gh pr create --body-file /tmp/pr-X-body.md` (Rule 4) |
 | Edit a PR body | no | `gh pr edit N --body-file /tmp/pr-X-body.md` (Rule 6) |
 | Trivial close | yes (<= 80) | `gh issue comment N --body "<short>"` then `gh issue close N --reason completed` |

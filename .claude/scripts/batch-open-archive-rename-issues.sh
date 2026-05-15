@@ -221,9 +221,13 @@ create_issue() {
   fi
 
   info "creating ${owner_repo}: ${title}"
+  # --label enhancement: archive + rename issues are all chore(*) titles;
+  # chore maps to enhancement per gh-artifact-format SKILL.md Section 6.
+  # Required by enforce_gh_body_file.sh rule 9 (#91).
   gh issue create -R "${owner_repo}" \
     --title "${title}" \
-    --body-file "${body_path}"
+    --body-file "${body_path}" \
+    --label enhancement
 }
 
 in_only_list() {
