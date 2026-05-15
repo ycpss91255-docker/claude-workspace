@@ -103,7 +103,7 @@ main() {
     done_count=$(jq -r '[.[] | select(.status == "completed")] | length' \
                    <<< "${filtered}")
     failed_count=$(jq -r \
-      '[.[] | select(.status == "completed" and .conclusion != "success")] | length' \
+      '[.[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped")] | length' \
       <<< "${filtered}")
 
     if (( total > 0 && done_count == total )); then
@@ -113,7 +113,7 @@ main() {
       fi
       local first_fail
       first_fail=$(jq -r \
-        '[.[] | select(.status == "completed" and .conclusion != "success")][0].name // "?"' \
+        '[.[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped")][0].name // "?"' \
         <<< "${filtered}")
       printf 'FAIL %s\n' "${first_fail}"
       exit 1

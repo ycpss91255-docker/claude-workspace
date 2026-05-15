@@ -118,6 +118,7 @@ If the tag was just pushed, the first iteration may see no runs yet (`total == 0
 - `ALL_DONE` is the final notification — that's the cue to merge / release.
 - On any `FAIL`, the script prints `FAIL <name>` and exits 1. Investigate before retrying.
 - `--max-iterations <N>` caps iterations for tests; production callers leave it unset and rely on `Monitor` `timeout_ms`.
+- **SKIPPED counts as success-equivalent** in the all-pass check (refs #86). GitHub itself treats `SKIPPED` as non-blocking for branch protection, so a doc-only-short-circuit pattern that fires `if: needs.classify.outputs.code_changed == 'true'` on the heavy jobs (skipping them on doc-only PRs) reaches `ALL_DONE` instead of hanging. `FAILURE` / `CANCELLED` / `TIMED_OUT` still trip `FAIL`. Applies to `wait-pr-ci.sh` + `wait-pr-ci-batch.sh` (uppercase `SKIPPED`) and `wait-tag-ci.sh` (lowercase `skipped`, matching the `gh run list` JSON shape).
 
 ## False-positive ALL_DONE guard — `--min-checks <N>`
 

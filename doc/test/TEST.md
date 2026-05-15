@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **515 tests** (511 smoke + 4 integration) plus shellcheck (25 hook
+Total: **518 tests** (514 smoke + 4 integration) plus shellcheck (25 hook
 scripts + 22 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -304,7 +304,7 @@ threshold for short inline bodies.
 | rule 2: gh issue comment --body "<exactly 80 chars>" allowed | boundary lower side → SILENT |
 | rule 2: gh issue comment --body "<81 chars>" denied | boundary upper side → DENY |
 
-### test/smoke/wait_pr_ci_spec.bats (22)
+### test/smoke/wait_pr_ci_spec.bats (23)
 
 Covers `.claude/scripts/wait-pr-ci.sh` (the PR-scoped polling loop extracted
 out of the wait-pr-ci skill so the Monitor body becomes a single command, no
@@ -319,6 +319,7 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | unknown arg exits 2 | unknown flag |
 | all-pass + MERGEABLE single PR exits 0 with ALL_DONE | happy path |
 | any FAILURE check exits 1 with FAIL <pr> | fail-fast on FAILURE |
+| mixed SUCCESS+SKIPPED rollup hits ALL_DONE | SKIPPED counts as success-equivalent (issue #86) |
 | multiple PRs all-pass + MERGEABLE exits 0 | CSV PR batching |
 | custom --check-filter narrows to a non-default check name | filter override (container-repo / org-profile usage) |
 | max-iterations exits 124 when stuck pending | iteration cap |
@@ -336,7 +337,7 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | stable headRefOid across polls preserves ALL_DONE path | negative control for headRefOid guard |
 | JSON without headRefOid preserves backwards-compatible behaviour | mocks without headRefOid keep working |
 
-### test/smoke/wait_pr_ci_batch_spec.bats (30)
+### test/smoke/wait_pr_ci_batch_spec.bats (31)
 
 Covers `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo flavour for
 `/batch-template-upgrade` follow-up. Same Monitor pattern + output
@@ -354,6 +355,7 @@ and aggregates all PRs into one stream.
 | full owner/repo form is accepted (no prefix added) | full form override |
 | --owner overrides default for short form | owner flag |
 | any FAILURE check exits 1 with FAIL <repo>#<pr> | failure surfacing |
+| mixed SUCCESS+SKIPPED rollup hits ALL_DONE | SKIPPED counts as success-equivalent (issue #86) |
 | multiple pairs all-pass + MERGEABLE exits 0 | batch happy path |
 | custom --check-filter narrows to a non-default check name | container-repo filter usage |
 | max-iterations exits 124 when stuck pending | iteration cap |
@@ -467,7 +469,7 @@ printed by `batch-template-upgrade.sh` works for both scripts.
 | empty repo in pair exits 2 | empty-repo guard |
 | empty PR in pair exits 2 | empty-pr guard |
 
-### test/smoke/wait_tag_ci_spec.bats (10)
+### test/smoke/wait_tag_ci_spec.bats (11)
 
 Covers `.claude/scripts/wait-tag-ci.sh` (the sibling script for
 tag/branch-triggered workflows — `gh run list --branch <ref>` instead of
@@ -481,6 +483,7 @@ via PATH.
 | missing --branch exits 2 | required arg validation |
 | unknown arg exits 2 | unknown flag |
 | all runs completed + success exits 0 with ALL_DONE | happy path |
+| mixed success+skipped runs hit ALL_DONE | skipped counts as success-equivalent (issue #86) |
 | any completed run with conclusion != success exits 1 with FAIL <name> | fail on completed-non-success |
 | any in_progress run keeps polling and hits max-iterations 124 | partial completion stays pending |
 | empty run list (tag just pushed) keeps polling and hits max-iterations 124 | total==0 ≠ green |

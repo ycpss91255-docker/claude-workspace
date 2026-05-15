@@ -89,6 +89,18 @@ STUB_EOF
   assert_output --partial "FAIL 7"
 }
 
+@test "mixed SUCCESS+SKIPPED rollup hits ALL_DONE" {
+  # refs ycpss91255-docker/docker_harness#86 -- SKIPPED is a legitimate
+  # terminal state (job-level if: evaluated false). Treated as
+  # success-equivalent so the doc-only short-circuit pattern (base#317)
+  # does not hang forever.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS"},{"name":"Integration","status":"COMPLETED","conclusion":"SKIPPED"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "PR1: checks=all-pass mergeable=MERGEABLE"
+  assert_output --partial "ALL_DONE"
+}
+
 @test "multiple PRs all-pass + MERGEABLE exits 0" {
   stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
   run "$(script wait-pr-ci.sh)" --repo a/b --prs 1,2,3 --interval 0 --max-iterations 3

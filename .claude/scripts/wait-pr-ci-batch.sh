@@ -240,7 +240,7 @@ main() {
         if (\$c | length) == 0 then \"no-checks\" \
         elif (\$c | length) < \$min then \"pending\" \
         elif (\$c | any(.status != null and .status != \"COMPLETED\")) then \"pending\" \
-        elif (\$c | all(.conclusion == \"SUCCESS\")) then \
+        elif (\$c | all(.conclusion == \"SUCCESS\" or .conclusion == \"SKIPPED\")) then \
           (if (\$c | all(.completedAt != null)) \
               and (\$c | all((.completedAt | fromdateiso8601) < \$watch_start)) \
            then \"pending\" else \"all-pass\" end) \

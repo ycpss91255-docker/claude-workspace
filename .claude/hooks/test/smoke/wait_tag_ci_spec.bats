@@ -54,6 +54,17 @@ stub_gh() {
   assert_output --partial "ALL_DONE"
 }
 
+@test "mixed success+skipped runs hit ALL_DONE" {
+  # refs ycpss91255-docker/docker_harness#86 -- gh run list returns lowercase
+  # conclusions; treat skipped as success-equivalent for parity with the
+  # PR-scoped wait-pr-ci.sh / wait-pr-ci-batch.sh siblings.
+  stub_gh '[{"databaseId":1,"name":"release","status":"completed","conclusion":"success"},{"databaseId":2,"name":"build","status":"completed","conclusion":"skipped"}]'
+  run "$(script wait-tag-ci.sh)" --repo a/b --branch v0.12.2 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "build: completed/skipped"
+  assert_output --partial "ALL_DONE"
+}
+
 @test "any completed run with conclusion != success exits 1 with FAIL <name>" {
   stub_gh '[{"databaseId":1,"name":"release","status":"completed","conclusion":"success"},{"databaseId":2,"name":"build","status":"completed","conclusion":"failure"}]'
   run "$(script wait-tag-ci.sh)" --repo a/b --branch v0.12.2 --interval 0 --max-iterations 3

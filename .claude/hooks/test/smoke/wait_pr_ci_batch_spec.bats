@@ -81,6 +81,15 @@ stub_gh() {
   assert_output --partial "FAIL ycpss91255-docker/ai_agent#9"
 }
 
+@test "mixed SUCCESS+SKIPPED rollup hits ALL_DONE" {
+  # refs ycpss91255-docker/docker_harness#86 -- sibling of wait-pr-ci.sh.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"COMPLETED","conclusion":"SUCCESS"},{"name":"Integration","status":"COMPLETED","conclusion":"SKIPPED"}]}'
+  run "$(script wait-pr-ci-batch.sh)" a/b:1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "a/b#1: checks=all-pass mergeable=MERGEABLE"
+  assert_output --partial "ALL_DONE"
+}
+
 @test "multiple pairs all-pass + MERGEABLE exits 0" {
   stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
   run "$(script wait-pr-ci-batch.sh)" ai_agent:1 claude_code:2 codex_cli:3 \
