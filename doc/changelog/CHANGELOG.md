@@ -7,6 +7,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/rebase-pr.sh` + `.claude/skills/rebase-pr/SKILL.md`
+  -- one-shot rebase + force-push for a PR whose base branch has
+  moved (`mergeStateStatus: BEHIND` / `CONFLICTING`; refs #87).
+  Auto-resolves the target worktree by scanning
+  `${WORKSPACE_DIR:-${PWD}}/worktree/*` for a branch matching the
+  PR's head ref; `--worktree <path>` overrides; `--dry-run` previews.
+  Exit codes: 0 success, 1 fetch/rebase failure, 2 conflict (prints
+  conflicted file list + recovery steps), 3 pre-condition failure.
+  `wait-pr-ci.sh` now detects `mergeable=CONFLICTING` and emits
+  `FAIL <pr> (mergeable=CONFLICTING)` with the canonical
+  `rebase-pr.sh` incantation instead of looping forever waiting
+  for `MERGEABLE`. 14 new bats cases on `rebase_pr_spec.bats` + 1
+  regression case on `wait_pr_ci_spec.bats`.
 - `enforce_gh_body_file.sh` rule 9 -- `gh issue create` must carry
   `--label <non-empty>` (#91). PRs are exempt (they inherit labels
   from the closed issue). `gh-artifact-format/SKILL.md` Section 6

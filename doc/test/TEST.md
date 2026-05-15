@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **572 tests** (568 smoke + 4 integration) plus shellcheck (26 hook
-scripts + 23 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **587 tests** (583 smoke + 4 integration) plus shellcheck (26 hook
+scripts + 24 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -312,7 +312,7 @@ threshold for short inline bodies.
 | rule 2: gh issue comment --body "<exactly 80 chars>" allowed | boundary lower side → SILENT |
 | rule 2: gh issue comment --body "<81 chars>" denied | boundary upper side → DENY |
 
-### test/smoke/wait_pr_ci_spec.bats (23)
+### test/smoke/wait_pr_ci_spec.bats (24)
 
 Covers `.claude/scripts/wait-pr-ci.sh` (the PR-scoped polling loop extracted
 out of the wait-pr-ci skill so the Monitor body becomes a single command, no
@@ -327,6 +327,7 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | unknown arg exits 2 | unknown flag |
 | all-pass + MERGEABLE single PR exits 0 with ALL_DONE | happy path |
 | any FAILURE check exits 1 with FAIL <pr> | fail-fast on FAILURE |
+| all-pass + CONFLICTING mergeable exits 1 with rebase-pr hint | mergeable=CONFLICTING surfaces as FAIL with rebase-pr.sh hint (issue #87) |
 | mixed SUCCESS+SKIPPED rollup hits ALL_DONE | SKIPPED counts as success-equivalent (issue #86) |
 | multiple PRs all-pass + MERGEABLE exits 0 | CSV PR batching |
 | custom --check-filter narrows to a non-default check name | filter override (container-repo / org-profile usage) |
@@ -540,6 +541,32 @@ PATH; `git` operations run against a real temp repo seeded per test.
 | X bump blocked even with ACK if RC CI fails | RC failure trumps ACK |
 | X bump blocked with ACK but no RC tag at all | RC missing trumps ACK |
 | --dry-run does not create any tag | dry-run preview |
+
+### test/smoke/rebase_pr_spec.bats (14)
+
+Covers `.claude/scripts/rebase-pr.sh` -- the one-shot rebase +
+force-push primitive for a PR whose base branch has moved
+(`mergeStateStatus: BEHIND` / `CONFLICTING`). `gh` is stubbed via
+PATH; `git` operations run against real temp worktrees so the
+auto-resolver's branch-name match is exercised end-to-end. Refs
+issue #87.
+
+| Test | Scenario |
+|------|----------|
+| --help exits 0 and prints usage | help path |
+| missing \<pr\> exits 3 | arg validation |
+| non-numeric \<pr\> exits 3 | shape validation |
+| unknown flag exits 3 | flag validation |
+| duplicate positional exits 3 | arg duplicate guard |
+| gh failure (PR not found) exits 3 | upstream lookup failure |
+| non-OPEN PR exits 3 | state guard (MERGED / CLOSED) |
+| no matching worktree exits 3 with hint | worktree-resolver miss |
+| --worktree pointing at non-existent path exits 3 | explicit-path validation |
+| auto-resolves worktree by branch via WORKSPACE_DIR scan | resolver happy path |
+| --worktree overrides auto-resolution | explicit override |
+| ambiguous worktree match (>1 branch hit) falls back to no-match exit 3 | resolver disambiguation |
+| --dry-run prints planned commands, no fetch / rebase / push | dry-run preview |
+| --dry-run honours non-main base branch | non-main base support |
 
 ### test/smoke/wait_tag_ci_spec.bats (11)
 
