@@ -213,6 +213,7 @@ docker/
     │   ├── pr.md                      # /pr — Bug fix / 新功能 PR 流程
     │   ├── release.md                 # /release — Tag 與 release 流程
     │   ├── safe-delete.md             # /safe-delete — 用 trash 取代 rm
+    │   ├── adr.md                     # /adr <slug> — 建立新 ADR (Architecture Decision Record),配 new-adr.sh + remind_adr_on_design_decision.sh Stop hook,refs #97
     │   └── verify.md                  # /verify — 變更完成 checklist 一次跑完 (shellcheck/hadolint/bats/tree/test-md/doc-scan/diff-stats)
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
     │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
@@ -241,6 +242,7 @@ docker/
     │   ├── verify.sh                         # /verify 的實作:依序跑 shellcheck/hadolint/bats/tree-audit/TEST.md drift/doc-scan/diff-stats,hard-fail 阻擋,輸出 markdown summary
     │   ├── instinct-query.sh                 # 查詢 .claude/instincts.yaml — `instinct-query.sh <kind> [path]` 印出符合 trigger 的 instincts (5 kinds: file_edit / git_commit / gh_pr_create / gh_issue_create / bash_command)，hooks/skills 用來取代 grep CLAUDE.md prose;refs #95
     │   ├── release-tag.sh                    # canonical primitive for cutting version tags;decision tree (RC / Z / Y / X bump) + .version integrity + RC CI 查詢 + RELEASE_X_BUMP_ACK 檢查;搭配 enforce_semver_tag_via_script.sh 強制 routing,refs #106
+    │   ├── new-adr.sh                         # /adr 的實作:auto-number 8 位數補零,從 doc/adr/[0-9]*.md 掃 max+1,渲染 5-section 模板 (Date/Status/Context/Decision/Alternatives/Consequences),refs #97
     │   └── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
     ├── memory/               # Claude Code per-project memory（auto-loaded via symlink）
     │   ├── MEMORY.md         # 入口索引(被 Claude Code 自動讀進 system prompt 開頭)
@@ -273,6 +275,7 @@ docker/
     │   ├── remind_main_sync.sh         # gh pr merge 前提醒 merge 後跑 git pull --ff-only origin main 保持本地 main 持續 ff-tracking origin/main HEAD
     │   ├── check_main_fresh_before_worktree.sh # git worktree add ... main 前 BLOCK：若 local main 落後 origin/main 就 deny + 提示先 pull,避免從 stale base 起 branch(refs PR #89 precedent)
     │   ├── remind_strategic_compact.sh # Stop hook：讀 transcript 偵測 task-boundary 訊號(gh pr merge / tool count >= 50)後 propose /compact,configurable via STRATEGIC_COMPACT_{DISABLE,TOOL_THRESHOLD};refs #92
+    │   ├── remind_adr_on_design_decision.sh # Stop hook：transcript 掃 rationale 關鍵字 (alternative/trade-off/rejected because/...) 達 threshold 且 session 無 doc/adr/ 寫入時提案 /adr,configurable via ADR_REMIND_{DISABLE,THRESHOLD};refs #97
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   ├── rebase-pr/SKILL.md          # PR 因 BEHIND/CONFLICTING 需 rebase 時的 one-shot 流程,配 rebase-pr.sh + wait-pr-ci FAIL hint,refs #87

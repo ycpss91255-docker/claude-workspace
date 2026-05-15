@@ -7,6 +7,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `/adr <slug>` slash command + `.claude/scripts/new-adr.sh` +
+  `.claude/hooks/remind_adr_on_design_decision.sh` (Stop hook) --
+  Architecture Decision Record convention (issue #97). Captures
+  "why we chose X over Y" rationale that doesn't fit any other
+  artifact slot. Per-repo `doc/adr/NNNNNNNN-<slug>.md` with 5
+  sections (Date / Status / Context / Decision / Alternatives /
+  Consequences). Auto-numbering scans `doc/adr/[0-9]*.md` for
+  max+1; 8-digit zero-padded; numbers never reused. The Stop
+  hook reads the session transcript, counts rationale-shaped
+  exchanges (alternative / trade-off / rejected because /
+  why not / decided to / out of scope because; case-insensitive),
+  and nudges `/adr` if threshold met (default 3) and no
+  `doc/adr/` Write/Edit happened. Configurable via
+  `ADR_REMIND_DISABLE` and `ADR_REMIND_THRESHOLD`. Bootstrap
+  `doc/adr/00000001-why-adr.md` records the convention itself.
+  28 new bats cases.
 - `.claude/scripts/rebase-pr.sh` + `.claude/skills/rebase-pr/SKILL.md`
   -- one-shot rebase + force-push for a PR whose base branch has
   moved (`mergeStateStatus: BEHIND` / `CONFLICTING`; refs #87).

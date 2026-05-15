@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **587 tests** (583 smoke + 4 integration) plus shellcheck (26 hook
-scripts + 24 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **615 tests** (611 smoke + 4 integration) plus shellcheck (27 hook
+scripts + 25 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -541,6 +541,56 @@ PATH; `git` operations run against a real temp repo seeded per test.
 | X bump blocked even with ACK if RC CI fails | RC failure trumps ACK |
 | X bump blocked with ACK but no RC tag at all | RC missing trumps ACK |
 | --dry-run does not create any tag | dry-run preview |
+
+### test/smoke/new_adr_spec.bats (16)
+
+Covers `.claude/scripts/new-adr.sh` -- the canonical creator for
+Architecture Decision Records. Each test runs against a fresh
+temp repo seeded with `git init`, so the `git rev-parse --show-toplevel`
+resolution + `doc/adr/` mkdir paths get exercised end-to-end.
+Refs issue #97.
+
+| Test | Scenario |
+|------|----------|
+| --help exits 0 with usage | help path |
+| missing slug exits 2 | arg validation |
+| invalid slug (uppercase) exits 2 | shape validation |
+| invalid slug (underscore) exits 2 | shape validation |
+| invalid slug (leading dash) exits 2 | shape validation |
+| invalid slug (double dash) exits 2 | shape validation |
+| slug too long exits 2 | length cap (80) |
+| unknown flag exits 2 | flag validation |
+| first ADR gets number 00000001 | bootstrap numbering |
+| second ADR gets number 00000002 | increment |
+| auto-numbering picks max+1 across non-contiguous existing ADRs | max-scan |
+| rejects collision when same slug already exists | filename-collision guard |
+| template body contains all 4 sections | template rendering (Context / Decision / Alternatives / Consequences) |
+| title-cases the slug in the H1 | slug -> title-case transform |
+| --dry-run does not create the file | preview mode |
+| creates doc/adr/ directory when missing | mkdir bootstrap |
+
+### test/smoke/remind_adr_on_design_decision_spec.bats (12)
+
+Covers `.claude/hooks/remind_adr_on_design_decision.sh` -- Stop
+hook that nudges `/adr` when a session shows rationale-shaped
+exchanges but landed no `doc/adr/` Write/Edit. Transcript JSONL
+is synthesised inline via the `emit_text` / `emit_tool_use`
+helpers. Refs issue #97.
+
+| Test | Scenario |
+|------|----------|
+| silent on empty transcript | defensive |
+| silent with one rationale hit (below threshold) | threshold gate |
+| fires with 3 rationale hits (threshold met) | happy path |
+| silent when doc/adr/ Write happened in same session | activity-suppression |
+| silent when stop_hook_active=true (re-entry guard) | recursion guard |
+| silent when ADR_REMIND_DISABLE=1 | env disable |
+| rationale match is case-insensitive | regex flag |
+| custom threshold via env | ADR_REMIND_THRESHOLD override |
+| Edit (not just Write) on doc/adr/ also counts as ADR activity | tool-use matcher |
+| non-ADR Write does not suppress the nudge | path filter |
+| throttle: second fire with same signal-bucket silent | TMPDIR marker |
+| silent on missing transcript_path | defensive |
 
 ### test/smoke/rebase_pr_spec.bats (14)
 
