@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **501 tests** (497 smoke + 4 integration) plus shellcheck (25 hook
-scripts + 21 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **515 tests** (511 smoke + 4 integration) plus shellcheck (25 hook
+scripts + 22 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -860,6 +860,32 @@ paths against a temp git repo seeded by `setup()`.
 | --continue-on-fail runs later phases despite hard failure | override short-circuit |
 | doc-scan flags AI attribution in changed files | doc-scan positive |
 | doc-scan passes when no AI attribution present | doc-scan negative |
+
+### test/smoke/instinct_query_spec.bats (14)
+
+Covers `.claude/scripts/instinct-query.sh` -- queries
+`.claude/instincts.yaml` for instincts matching a trigger kind + path,
+or `--list` for the full table. The fixture builds a temp YAML with
+5 entries exercising the supported schema (file_edit with glob,
+file_edit without glob, git_commit, bash_command, file_edit with
+both glob + not_glob).
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown flag exits 2 | flag validation |
+| missing kind exits 2 | required-arg validation |
+| too many positional args exits 2 | arg cap |
+| --list prints every instinct name with its kind | list mode |
+| git_commit kind returns the commit-title instinct | kind match |
+| kind with no matching instinct exits 1 | empty-result exit code |
+| file_edit on .sh path returns shell-style + no-emoji | glob match + kind-only |
+| file_edit on .py path returns only no-emoji | glob excludes |
+| file_edit on Dockerfile matches glob with curly? | glob without extension |
+| not_glob excludes the matching glob entry | negative glob |
+| guidance bullets are printed indented | output shape |
+| refs line printed when present, omitted when absent | optional field |
+| missing INSTINCTS_FILE exits 2 | resolution failure |
 
 ## Integration specs
 

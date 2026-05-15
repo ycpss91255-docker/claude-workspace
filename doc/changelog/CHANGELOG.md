@@ -6,6 +6,27 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/instincts.yaml` + `.claude/scripts/instinct-query.sh` +
+  `.claude/scripts/_instinct_parser.py` -- pilot for issue #95: a
+  structured, machine-readable store of repo conventions (shell
+  style, commit-title shape, PR / issue body rules, gh artifact
+  routing, TDD test-category mapping, etc.) that hooks / skills /
+  commands can query instead of grepping CLAUDE.md prose. The
+  query script accepts `<kind> [path]` and `--list`; trigger kinds
+  are `file_edit` (with optional `glob` + `not_glob`),
+  `git_commit`, `gh_pr_create`, `gh_issue_create`, `bash_command`.
+  The parser is a 60-line stdlib-only subset reader (no PyYAML
+  dependency, so the Alpine test container does not need an extra
+  package). `remind_tdd_categories.sh` is the proof-of-concept
+  consumer: when it fires the TDD reminder it appends the matching
+  instincts so the conventions land in the same systemMessage.
+  `.claude/scripts/check-claude-md-tree.sh` ignores `__pycache__/`
+  emitted on-demand by Python helper imports.
+  CLAUDE.md gains a new "機器可讀 conventions store" sub-section
+  under "Process discipline" pointing at the new files. 14 bats
+  cases in `instinct_query_spec.bats`. Closes #95.
+
 ### Changed
 - Documentation cleanup: replace lingering `template` references with
   `base` (the renamed upstream repo) and `.base/` (the renamed subtree

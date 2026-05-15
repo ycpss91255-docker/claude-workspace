@@ -34,6 +34,7 @@ main() {
     */check_no_ai_attribution.sh|*/remind_no_ai_attribution.sh) return 0 ;;
     # Meta-rule docs that legitimately quote the forbidden patterns to forbid them.
     */CLAUDE.md|*/.claude/commands/*.md|*/.claude/skills/*/SKILL.md) return 0 ;;
+    */.claude/instincts.yaml) return 0 ;;
     # Project doc conventions that catalog/describe rule violations.
     */doc/test/TEST.md|*/doc/changelog/CHANGELOG.md) return 0 ;;
     # Hook-test fixtures must contain the forbidden patterns to assert detection.
