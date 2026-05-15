@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/fix-dockerfile-copy-script.sh` -- permanent
+  helper for the v0.31.0 fanout flow. Patches downstream
+  Dockerfiles that lint wrappers via `COPY *.sh /lint/` to
+  `COPY script/*.sh /lint/`, because base v0.31.0 (#330) moves
+  the seven user-facing wrappers from the repo root into a
+  `script/` subfolder. Without the patch, post-upgrade smoke
+  tests fail on `build.sh -h exits 0` /
+  `run.sh contains XDG_SESSION_TYPE check`
+  (`grep /lint/run.sh: No such file or directory`). Shape
+  mirrors `fix-dockerfile-lint-lib.sh` (#284 sub-libs split
+  fanout): `--branch <name>` required, `--org` / `--repos` /
+  `--dry-run` optional, idempotent grep-guards on both new and
+  old patterns. Default repo set is the 2 active downstream
+  (`ros_distro` / `ros2_distro`) per `/batch-template-upgrade`
+  DEFAULT_REPOS. Surfaced during base v0.31.0-rc1 RC
+  validation on `env/ros_distro` (commit `32624a3` on closed
+  RC PR ycpss91255-docker/ros_distro#23).
 - `.claude/instincts.yaml` + `.claude/scripts/instinct-query.sh` +
   `.claude/scripts/_instinct_parser.py` -- pilot for issue #95: a
   structured, machine-readable store of repo conventions (shell
