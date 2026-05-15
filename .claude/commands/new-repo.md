@@ -5,19 +5,19 @@ Create a new Docker container repo under the ycpss91255-docker GitHub organizati
 Follow the standard workflow defined in CLAUDE.md. The user will specify the repo type and name.
 
 Repo types:
-- **env**: ROS development environment (has template subtree)
-- **agent**: AI Agent with DinD (has template subtree, post_setup.sh, encrypt_env.sh)
-- **app**: Pre-compiled application runtime (has template subtree)
+- **env**: ROS development environment (has `.base/` subtree)
+- **agent**: AI Agent with DinD (has `.base/` subtree, post_setup.sh, encrypt_env.sh)
+- **app**: Pre-compiled application runtime (has `.base/` subtree)
 
-All repos must use the template architecture.
+All repos must use the same architecture (`.base/` subtree pulled from `ycpss91255-docker/base`).
 
 Workflow:
 
 1. **Create directory**: `mkdir ${CLAUDE_PROJECT_DIR}/<category>/<repo_name>`
 
-2. **Add template subtree**:
+2. **Add `.base/` subtree**:
    ```
-   git subtree add --prefix=template \
+   git subtree add --prefix=.base \
        git@github.com:ycpss91255-docker/base.git <latest_tag> --squash
    ```
 
@@ -27,10 +27,10 @@ Workflow:
    - script/entrypoint.sh (container-internal script)
    - .env.example (IMAGE_NAME=<repo_name>)
    - .hadolint.yaml (custom rules if needed, otherwise symlink to .base/)
-   - .template_version (current template version)
+   - `.base/.version` is the version tracker (managed by the subtree pull / upgrade flow; no need to write a root-level file)
    - .gitignore (.env, coverage/)
    - test/smoke/<name>_env.bats (repo-specific smoke tests)
-   - .github/workflows/main.yaml (calls template reusable workflows)
+   - .github/workflows/main.yaml (calls base's reusable workflows)
    - README.md (English, root directory)
    - doc/README.zh-TW.md + doc/README.zh-CN.md + doc/README.ja.md
 
@@ -48,7 +48,7 @@ Workflow:
    COPY .base/test/smoke/ /smoke_test/
    COPY test/smoke/ /smoke_test/
    ```
-   Note: For headless apps (no GUI), selectively COPY only script_help.bats + test_helper.bash from template (skip display_env.bats).
+   Note: For headless apps (no GUI), selectively COPY only script_help.bats + test_helper.bash from `.base/` (skip display_env.bats).
 
    Note: Docker COPY does not follow symlinks. Lint COPY must reference .base/ directly:
    ```dockerfile

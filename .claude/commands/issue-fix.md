@@ -8,7 +8,7 @@ Use this when you've already triaged via `/issue-check` and want to delegate one
 /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N]
 ```
 
-- `<repo>` (required) — short name under `ycpss91255-docker`, e.g. `template`, `docker_harness`, `ai_agent`, `ros1_bridge`
+- `<repo>` (required) — short name under `ycpss91255-docker`, e.g. `base`, `docker_harness`, `ai_agent`, `ros1_bridge`
 - `<issue_num>` (optional) — issue number. **If omitted or set to `all`, run batch mode** over every open issue on the repo (oldest first, FIFO).
 - `--dry-run` (optional) — read + evaluate + print the plan; do NOT open a worktree, branch, comment on the issue, or open a PR. Compatible with batch mode (lists verdict per issue).
 - `--limit N` (optional, batch mode only) — process at most `N` issues after filtering. Default unlimited.
@@ -83,7 +83,7 @@ The reject comment MUST:
 
 - Start with the literal sentence: `Reviewed by /issue-fix automation; declining to auto-fix.`
 - State which check failed in 1 sentence (English — the `remind_no_chinese_in_git_artifacts.sh` PreToolUse hook will block CJK characters in `gh issue comment` bodies)
-- Suggest what would unblock auto-fix (e.g. "add a minimal reproducer", "split into two issues — one for the template change, one for the downstream rollout", "discuss the abstraction in a comment first")
+- Suggest what would unblock auto-fix (e.g. "add a minimal reproducer", "split into two issues — one for the base change, one for the downstream rollout", "discuss the abstraction in a comment first")
 - Use `--body-file /tmp/issue-fix-reject-<num>.md` (write the body via the Write tool first; never inline `--body "$(cat ...)"` per CLAUDE.md `gh ... --body-file` rule)
 
 Then record this issue's outcome and (single-issue mode) report rejection / (batch mode) continue to next issue.
@@ -111,7 +111,7 @@ Resolve the source git tree:
 | `<repo>` | Source git tree |
 |---|---|
 | `docker_harness` | `${CLAUDE_PROJECT_DIR}` itself |
-| any other (`template`, `ai_agent`, `app/<x>`, `env/<x>`, etc.) | `${CLAUDE_PROJECT_DIR}/<repo>` (the subtree / submodule subdir) |
+| any other (`base`, `ai_agent`, `app/<x>`, `env/<x>`, etc.) | `${CLAUDE_PROJECT_DIR}/<repo>` (the subtree / submodule subdir) |
 
 Then:
 
@@ -135,7 +135,7 @@ Strict TDD (per CLAUDE.md):
 1. Write a regression test FIRST (red). Place it in the right test category per CLAUDE.md "測試分類" table — smoke / unit / integration / lint.
 2. Implement the minimal fix (green).
 3. Verify per the repo's standard runner (always Docker, never bare `bats` / `shellcheck`):
-   - `template` → `make -f Makefile.ci test`
+   - `base` → `make -f Makefile.ci test`
    - `docker_harness` → `make -C .claude/test test`
    - container repos (`agent/*` / `app/*` / `env/*`) → `./build.sh test`
 
@@ -174,7 +174,7 @@ Use the `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`). Per-repo `--c
 
 | `<repo>` | `--check-filter` |
 |---|---|
-| `template`, `multi_run` | (default — covers `test` + `Integration E2E (...)`) |
+| `base`, `multi_run` | (default — covers `test` + `Integration E2E (...)`) |
 | `docker_harness` | `'.name=="bats + shellcheck + hadolint"'` |
 | container repos (`agent/*` / `app/*` / `env/*`) | `'.name=="call-docker-build / docker-build"'` |
 | `.github` (org profile) | `'false'` (no CI) |

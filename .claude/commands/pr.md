@@ -18,7 +18,7 @@ Follow this workflow:
 3. **Verify locally**:
    - Run `shellcheck -S warning *.sh` on changed .sh files
    - Run `./build.sh test` if Dockerfile or smoke tests changed
-   - Run `make -f Makefile.ci test` if working in template repo
+   - Run `make -f Makefile.ci test` if working in the base repo
 
 4. **Commit** with conventional message:
    - Bug fix: `fix: <description>`
@@ -40,14 +40,14 @@ Follow this workflow:
    PR body shape 規範參見 `.claude/skills/gh-artifact-format/SKILL.md`(issue body 同 5 sections,但 PR 多一個 `## Test plan` checklist)。Skill 也涵蓋 close-comment 3 tiers / non-closing comment 3 categories / cross-ref keywords (`Closes` / `Fixes` / `refs` / `supersedes` / `closes part of`)。
 
 6. **Wait for merge (僅當有下游步驟時)**:
-   - 如果這個 PR 是 template repo(要接 tag + 13 下游 fanout),或要在 session 內接續其他依賴 merged state 的動作,用 `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`) 等 `ALL_DONE` 通知 — Monitor + 30s poll loop,不會 sleep 卡 agent。
+   - 如果這個 PR 是 base repo(要接 tag + 13 下游 fanout),或要在 session 內接續其他依賴 merged state 的動作,用 `wait-pr-ci` skill (`.claude/skills/wait-pr-ci/SKILL.md`) 等 `ALL_DONE` 通知 — Monitor + 30s poll loop,不會 sleep 卡 agent。
    - 一般 bug fix / feat / doc PR 沒有下游步驟,fire-and-forget 即可,GitHub auto-merge 會處理完。
    - 若 auto-merge 卡在 BEHIND(main 移動 / dependabot batch),GitHub 不會自動 rebase。處理方式:
      - dependabot PR:留 `@dependabot rebase` comment
      - 一般 PR:本地 `git pull --rebase origin main` + force-push,auto-merge 重新評估
 
-7. **If this PR was on the `template` repo**: after merge + tag, the
-   13 downstream repos need the new template subtree version pulled.
+7. **If this PR was on the `base` repo**: after merge + tag, the
+   13 downstream repos need the new `.base/` subtree version pulled.
    **Scope: workspace cwd only** — the fanout below assumes
    `${CLAUDE_PROJECT_DIR}` is the workspace dir that contains all 13
    sub-repos. If the current session was started inside a single repo
@@ -65,7 +65,7 @@ Follow this workflow:
      (cd "${CLAUDE_PROJECT_DIR}/$repo" && ./.base/upgrade.sh && git push)
    done
    ```
-   For non-template PRs (fix / feat / refactor on a single repo), step 7
+   For non-base PRs (fix / feat / refactor on a single repo), step 7
    is **N/A** — your work ends at step 6.
 
 Context from user: $ARGUMENTS

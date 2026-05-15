@@ -2,7 +2,7 @@
 # remind_readme_on_core_script.sh — Claude Code PreToolUse hook (matcher: Bash)
 #
 # Fires before any Bash command. When the command is `git commit`, check
-# whether template's core install/upgrade scripts are staged without a
+# whether the base repo's core install/upgrade scripts are staged without a
 # corresponding update to any README. On drift, emit an advisory JSON
 # systemMessage. Non-blocking — exit 0.
 #
@@ -17,7 +17,7 @@
 #   - `git commit` (not amend / allow-empty)
 #   - staged paths match core scripts (.base/upgrade.sh, .base/init.sh,
 #     .base/script/docker/setup.sh, or the same paths from a
-#     template-internal session without the `.base/` prefix)
+#     base-internal session without the `.base/` prefix)
 #   - no README*.md staged in the same commit
 
 set -uo pipefail
@@ -67,7 +67,7 @@ main() {
   (( has_core == 1 && has_readme == 0 )) || return 0
 
   local msg
-  msg="$(printf 'README drift reminder in %s:\n  staged template core script(s) (upgrade.sh / init.sh / setup.sh) but no README*.md is in the commit.\n  README "Upgrading" / "Configuration" sections often need to track behavior changes here (e.g. preserved vs regenerated files, safety guards, implicit-downgrade refusal).\n  This is advisory — if your change is internal-only (refactor, lint fix), ignore. Run /doc-sync if unsure.\n  Staged files:\n%s' \
+  msg="$(printf 'README drift reminder in %s:\n  staged base core script(s) (upgrade.sh / init.sh / setup.sh) but no README*.md is in the commit.\n  README "Upgrading" / "Configuration" sections often need to track behavior changes here (e.g. preserved vs regenerated files, safety guards, implicit-downgrade refusal).\n  This is advisory — if your change is internal-only (refactor, lint fix), ignore. Run /doc-sync if unsure.\n  Staged files:\n%s' \
     "${repo_root}" "$(printf '%s' "${staged}" | sed 's/^/    /')")"
 
   jq -n --arg m "${msg}" '{

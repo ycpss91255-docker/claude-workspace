@@ -19,7 +19,7 @@ Parse the argument for both VERSION and TARGET:
   - `env` — ros_distro, ros2_distro
   - `agent` — ai_agent, claude_code, gemini_cli, codex_cli
   - `app` — ros1_bridge, urg_node_humble, urg_node_noetic, realsense_humble, realsense_noetic, sick_humble, sick_noetic
-  - `template` — template repo (its own `.version` line, separate from the rest)
+  - `base` — base repo (its own `.version` line, separate from the rest)
   - Or specify individual repos
 
 ## 2. Branch + bump
@@ -31,7 +31,7 @@ git checkout main && git pull --ff-only origin main
 git checkout -b release/vX.Y.Z
 ```
 
-**For the `template` repo**, bump two files:
+**For the `base` repo**, bump two files:
 
 - `.version` — single line, the new tag.
 - `doc/changelog/CHANGELOG.md` — promote the `[Unreleased]` section to
@@ -109,7 +109,7 @@ patterns** (e.g., `` `@default:` ``) — bare `@xxx` triggers GitHub
 
 Tags fire several workflows in parallel:
 
-- `template`: `Self Test` (with `release` job) + `Release test-tools image to GHCR`
+- `base`: `Self Test` (with `release` job) + `Release test-tools image to GHCR`
 - container repos: `call-docker-build` + `call-release`
 
 Use the `wait-pr-ci` skill's tag flavour:
@@ -131,16 +131,18 @@ If RC CI (step 4) or tag workflows (step 7) fail:
   is destructive on a public tag and confuses release-worker workflows that
   may have already run.
 
-## 9. Downstream propagation (template only)
+## 9. Downstream propagation (base only)
 
-After tagging `template@vX.Y.Z`:
+After tagging `base@vX.Y.Z`:
 
 - Each downstream repo (the 17 in env / agent / app) needs its `.base/`
   subtree pulled to the new tag.
 - Use `/batch-template-upgrade vX.Y.Z` to mass-upgrade all 17 in one batch
-  (one PR per downstream repo, parallel CI).
+  (one PR per downstream repo, parallel CI). The command name keeps
+  the `template` prefix for backward compatibility with existing scripts
+  / muscle memory; it has always upgraded the `.base/` subtree.
 - This is its own multi-PR workflow — run `/batch-template-upgrade` after
-  the template tag's CI is fully green; do not interleave with the release
+  the base tag's CI is fully green; do not interleave with the release
   itself.
 
 ## Important reminders
@@ -148,7 +150,7 @@ After tagging `template@vX.Y.Z`:
 - Tags are **annotated**: always `-a` + `-m`. Lightweight tags don't carry the message and `release-worker.yaml`'s release-notes extraction breaks on them.
 - The CHANGELOG `[Unreleased]` heading must remain above the new release section for the next cycle. Don't delete it.
 - Do not `--no-verify` or skip hooks during the chore PR commit. The hook gates (CHANGELOG drift, TEST.md drift, emoji, AI attribution) catch real issues at the worst possible time of the cycle.
-- `release-worker.yaml` is not part of the `template` repo's own self-test — it lives in template and is consumed by container repos via `uses: ycpss91255-docker/base/.github/workflows/release-worker.yaml@<tag>`. Verify it ran cleanly via step 7.
+- `release-worker.yaml` is not part of the `base` repo's own self-test — it lives in `base` and is consumed by container repos via `uses: ycpss91255-docker/base/.github/workflows/release-worker.yaml@<tag>`. Verify it ran cleanly via step 7.
 
 ## Context
 

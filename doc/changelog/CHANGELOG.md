@@ -6,6 +6,22 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Documentation cleanup: replace lingering `template` references with
+  `base` (the renamed upstream repo) and `.base/` (the renamed subtree
+  prefix) across `.claude/commands/*.md`, `.claude/skills/wait-pr-ci/SKILL.md`,
+  `.claude/hooks/*.sh` advisory text, and CLAUDE.md narrative sections.
+  Audit checklist `audit.md` swaps `.template_version` -> `.base/.version`
+  (the version tracker file was renamed in `base@v0.25.0`; the legacy
+  filename no longer exists). The slash command and script names
+  (`/batch-template-upgrade`, `batch-template-upgrade.sh`,
+  `check-template-versions.sh`, `batch-rename-template-to-base.sh`,
+  `batch-template-pr-body.template.md`) keep their original spelling
+  for backward compatibility; only the narrative was updated.
+- `remind_subtree_init.sh` trigger pattern now matches both legacy
+  `template` and current `.base` in `git subtree pull` commands, so
+  the reminder still fires for the new `--prefix=.base` form.
+
 ### Added
 - `.claude/commands/verify.md` + `.claude/scripts/verify.sh` -- new
   `/verify` slash command and underlying script that runs the

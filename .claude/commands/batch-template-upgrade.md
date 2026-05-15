@@ -1,18 +1,20 @@
-Batch-upgrade all downstream repos under `ycpss91255-docker` to a target template tag.
+Batch-upgrade all downstream repos under `ycpss91255-docker` to a target `base` tag.
+
+**Naming**: this slash command (and the underlying script) keeps the `template` prefix for backward compatibility with existing scripts / muscle memory. The upstream repo was renamed `ycpss91255-docker/template` -> `ycpss91255-docker/base` and the subtree prefix moved from `template/` -> `.base/`; the slash command keeps its old name so existing workflows do not break.
 
 **Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-template-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `.base/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
 
-Use this **after** a new `template` tag has been pushed and the tag's CI is green. This propagates the new template version to all 13 downstream repos (agent / app / env) by opening one PR per repo.
+Use this **after** a new `base` tag has been pushed and the tag's CI is green. This propagates the new base version to all 13 downstream repos (agent / app / env) by opening one PR per repo.
 
 ## When to invoke
 
-- A new `template` tag (`vX.Y.Z` or `vX.Y.Z-rcN`) just landed and you want downstreams on it.
+- A new `base` tag (`vX.Y.Z` or `vX.Y.Z-rcN`) just landed and you want downstreams on it.
 - Re-running for repos that failed the previous batch (use `--only`).
 - Dry-run inspection before committing to a real run.
 
 ## Why a dedicated command (vs `/batch-pr`)
 
-`/batch-pr` is generic — it doesn't know template-subtree mechanics:
+`/batch-pr` is generic — it doesn't know `.base/` subtree mechanics:
 - `./.base/upgrade.sh <tag>` runs subtree pull + integrity check + `init.sh` + `main.yaml` `@tag` rewrite
 - `./.base/init.sh` re-runs after subtree pull to resync root symlinks
 - Default branch is `main` for all 13 repos, but origin tracking can be stale (uses HTTPS fetch to bypass)
