@@ -236,7 +236,9 @@ docker/
     │   ├── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
     │   ├── batch-open-archive-rename-issues.sh # 開 11 張下游 follow-up issue：7 archive(4 agent + ros1_bridge / sick_humble / sick_noetic) + 4 rename + template->.base 遷移(urg_node_*, realsense_*),idempotent 跳過 title 相同既有 issue
     │   ├── setup-memory-link.sh             # 新 clone / 換機器:建 symlink ~/.claude/projects/<encoded>/memory -> <workspace>/.claude/memory,讓 per-project memory portable + git-tracked。idempotent
-    │   └── verify.sh                         # /verify 的實作:依序跑 shellcheck/hadolint/bats/tree-audit/TEST.md drift/doc-scan/diff-stats,hard-fail 阻擋,輸出 markdown summary
+    │   ├── verify.sh                         # /verify 的實作:依序跑 shellcheck/hadolint/bats/tree-audit/TEST.md drift/doc-scan/diff-stats,hard-fail 阻擋,輸出 markdown summary
+    │   ├── instinct-query.sh                 # 查詢 .claude/instincts.yaml — `instinct-query.sh <kind> [path]` 印出符合 trigger 的 instincts (5 kinds: file_edit / git_commit / gh_pr_create / gh_issue_create / bash_command)，hooks/skills 用來取代 grep CLAUDE.md prose;refs #95
+    │   └── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
     ├── memory/               # Claude Code per-project memory（auto-loaded via symlink）
     │   ├── MEMORY.md         # 入口索引(被 Claude Code 自動讀進 system prompt 開頭)
     │   ├── feedback_*.md     # 個別 feedback / workflow rule（每檔有 name + description + type frontmatter）
@@ -275,7 +277,8 @@ docker/
     ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
-    └── settings.json                   # hooks 註冊 + permissions + sandbox（**唯一一份,無 settings.local.json**）
+    ├── settings.json                   # hooks 註冊 + permissions + sandbox（**唯一一份,無 settings.local.json**）
+    └── instincts.yaml                  # 結構化 repo conventions (#95 pilot) — hooks/skills/commands 用 `instinct-query.sh` 查詢,取代 CLAUDE.md prose grep
 ```
 
 ## 常用指令
@@ -767,6 +770,22 @@ flow（tag、push、merge、release、批次操作）一律走 documented entry*
 
 若使用者明確要求 ad-hoc 執行某步,照做但要在訊息裡點名「跳過了哪個
 documented command / 為什麼」,讓 conversation log 留痕。
+
+### 機器可讀 conventions store — `.claude/instincts.yaml`
+
+CLAUDE.md (這個檔案) 是 narrative source of truth。對於需要程式化查詢
+的 convention（shell style / commit title / PR body 規律 / TDD 4 類測試
+等），另外有一份 `.claude/instincts.yaml` 用 YAML schema 存結構化版本,
+hook / skill / slash command 可以用 `.claude/scripts/instinct-query.sh
+<kind> [path]` 查 trigger 命中的 instincts,而不是 grep prose。
+
+支援 5 種 trigger kind:`file_edit`(可選 `glob` / `not_glob` 過濾路徑)、
+`git_commit`、`gh_pr_create`、`gh_issue_create`、`bash_command`。
+`instinct-query.sh --list` 印出所有 instincts 的 name + kind。
+
+instincts.yaml 與 CLAUDE.md 之間目前**沒有自動同步**;兩邊都需要手改
+保持一致。pilot 用 `remind_tdd_categories.sh` 當示範 consumer — 該 hook
+在 fire reminder 時會 append 一段 instincts 輸出。Refs #95。
 
 對應的 hook 補強：
 

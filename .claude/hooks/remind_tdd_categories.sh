@@ -160,9 +160,24 @@ main() {
 
   reminder="$(build_reminder "${key}" "${repo_root}")"
 
+  # PoC integration with .claude/instincts.yaml (#95): query the
+  # machine-readable convention store for instincts that apply to this
+  # file, and append them under the TDD nag. Soft failure -- absent
+  # query helper / instincts file / no match all just skip the append.
+  local instinct_query="${CLAUDE_PROJECT_DIR:-${PWD}}/.claude/scripts/instinct-query.sh"
+  local instincts=""
+  if [[ -x "${instinct_query}" ]]; then
+    instincts="$("${instinct_query}" file_edit "${file_path}" 2>/dev/null || true)"
+  fi
+
   local msg
-  msg="$(printf 'TDD reminder — 剛動到 %s（類別：%s）\n%s\n對照表：CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」' \
-    "${file_path}" "${category}" "${reminder}")"
+  if [[ -n "${instincts}" ]]; then
+    msg="$(printf 'TDD reminder — 剛動到 %s（類別：%s）\n%s\n對照表：CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」\n\nApplicable instincts (.claude/instincts.yaml):\n%s' \
+      "${file_path}" "${category}" "${reminder}" "${instincts}")"
+  else
+    msg="$(printf 'TDD reminder — 剛動到 %s（類別：%s）\n%s\n對照表：CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」' \
+      "${file_path}" "${category}" "${reminder}")"
+  fi
 
   jq -n --arg m "${msg}" '{
     systemMessage: $m,

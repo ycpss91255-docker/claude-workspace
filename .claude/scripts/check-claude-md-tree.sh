@@ -115,6 +115,11 @@ for d in AUDITED:
         for child in p.iterdir():
             if child.name.startswith("."):
                 continue
+            # Skip Python bytecode caches; created on-demand by
+            # `instinct-query.sh` / similar consumers of helper .py
+            # modules and not part of the tracked tree.
+            if child.name == "__pycache__":
+                continue
             fs[d].add(child.name + ("/" if child.is_dir() else ""))
 
 drift = False
