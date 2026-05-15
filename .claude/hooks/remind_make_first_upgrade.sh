@@ -7,7 +7,7 @@
 # reminder pointing at `make -f Makefile.ci upgrade` as the preferred entry.
 # Non-blocking — exit 0.
 #
-# Why: CLAUDE.md「常用指令 → template」與「template subtree 更新流程」
+# Why: CLAUDE.md「常用指令 → base」與「base subtree 更新流程」
 # 規定升級一律 make 優先,`./.base/upgrade.sh` 留作 fallback,只在 make
 # 不可用或 target 出問題時才用。這層提醒避免 agent 記憶體裡只剩
 # upgrade.sh、跳過 make wrapper 的 init.sh resync / main.yaml @tag rewrite
@@ -58,7 +58,7 @@ main() {
     version_arg=" VERSION=${BASH_REMATCH[1]}"
   fi
 
-  msg="$(printf 'template upgrade 提醒：偵測到直接跑 ./.base/upgrade.sh,優先改用 make wrapper:\n  make -f Makefile.ci upgrade%s\nmake target 內部會呼叫同一支 upgrade.sh,但會幫你跑 init.sh resync + main.yaml @tag sed,降低漏步的機率。只在 make 不可用或 target 出問題時才 fallback 直接跑 .sh。' \
+  msg="$(printf 'base subtree upgrade 提醒：偵測到直接跑 ./.base/upgrade.sh,優先改用 make wrapper:\n  make -f Makefile.ci upgrade%s\nmake target 內部會呼叫同一支 upgrade.sh,但會幫你跑 init.sh resync + main.yaml @tag sed,降低漏步的機率。只在 make 不可用或 target 出問題時才 fallback 直接跑 .sh。' \
     "${version_arg}")"
 
   jq -n --arg m "${msg}" '{
