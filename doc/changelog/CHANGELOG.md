@@ -6,6 +6,19 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `wait-pr-ci` skill (`.claude/scripts/wait-pr-ci.sh` +
+  `wait-pr-ci-batch.sh` + `wait-tag-ci.sh`) now treats `SKIPPED`
+  (uppercase for PR rollups, lowercase `skipped` for tag run-lists)
+  as success-equivalent in the all-pass / ALL_DONE check (refs #86).
+  GitHub itself treats `SKIPPED` as non-blocking for branch
+  protection. Previously the script required strict `SUCCESS` and
+  hung forever when a job-level `if:` evaluated false (e.g. the
+  doc-only short-circuit pattern from base#317, where `integration-e2e`
+  / `behavioural` skip when `needs.classify.outputs.code_changed`
+  is false). `FAILURE` / `CANCELLED` / `TIMED_OUT` still trip `FAIL`.
+  SKILL.md `## Behaviour (both scripts)` documents the new semantics.
+
 ### Added
 - `.claude/scripts/fix-dockerfile-copy-script.sh` -- permanent
   helper for the v0.31.0 fanout flow. Patches downstream
