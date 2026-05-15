@@ -11,6 +11,9 @@
 #
 # Rules (deny on violation):
 #   1. `gh issue create` without `--body-file <path>`
+#   9. `gh issue create` without `--label <non-empty>` (PR create exempt;
+#      added by issue #91 -- maps title type prefix to stock GitHub label,
+#      see gh-artifact-format SKILL.md Section 6)
 #   2. `gh issue comment` with `--body|--comment "<long>"` (long = multi-
 #      line or > 80 chars). Short single-line bodies <= 80 chars are
 #      allowed inline.
@@ -77,6 +80,42 @@ has_real_body_file() {
   return 1
 }
 
+has_label() {
+  # Rule 9 (#91): require `--label <non-empty>` (or `-l`, or `--label=`).
+  # Empty value (--label "" / --label '' / --label= ) does not count.
+  # The check is lexical; gh itself errors out if the label name is bogus
+  # or not present on the target repo.
+  #
+  # Bash regex (=~) does not support back-references, so quoted-form
+  # and bare-form are matched in separate alternatives instead of via
+  # a captured quote char.
+  local cmd="$1"
+  # --label "value" or -l "value" (double-quoted non-empty)
+  if [[ "${cmd}" =~ (^|[[:space:]])(--label|-l)[[:space:]]+\"[^\"]+\"([[:space:]]|$) ]]; then
+    return 0
+  fi
+  # --label 'value' or -l 'value' (single-quoted non-empty)
+  if [[ "${cmd}" =~ (^|[[:space:]])(--label|-l)[[:space:]]+\'[^\']+\'([[:space:]]|$) ]]; then
+    return 0
+  fi
+  # --label value or -l value (bare; first char not quote / = / dash)
+  if [[ "${cmd}" =~ (^|[[:space:]])(--label|-l)[[:space:]]+[^[:space:]\"\'=-][^[:space:]]*([[:space:]]|$) ]]; then
+    return 0
+  fi
+  # --label="value" or --label='value' (quoted, equals form)
+  if [[ "${cmd}" =~ --label=\"[^\"]+\"([[:space:]]|$) ]]; then
+    return 0
+  fi
+  if [[ "${cmd}" =~ --label=\'[^\']+\'([[:space:]]|$) ]]; then
+    return 0
+  fi
+  # --label=value (bare, equals form, non-empty)
+  if [[ "${cmd}" =~ --label=[^[:space:]\"\'][^[:space:]]*([[:space:]]|$) ]]; then
+    return 0
+  fi
+  return 1
+}
+
 has_stdin_body_file() {
   local cmd="$1"
   [[ "${cmd}" =~ --body-file[[:space:]]+-([[:space:]\&\|\;\<]|$) ]]
@@ -131,6 +170,12 @@ main() {
     "issue create"|"pr create")
       if ! has_real_body_file "${cmd}"; then
         deny "gh ${subcmd} needs --body-file <path>. Write the body to /tmp/<name>.md, then gh ${subcmd} ... --body-file /tmp/<name>.md. Rules 1/4 of #64 (creation artifacts are reviewer-visible, must land in a real file)."
+        return 0
+      fi
+      # Rule 9 (#91): `gh issue create` must carry --label <non-empty>.
+      # PRs are exempt -- they inherit labels from the issue they close.
+      if [[ "${subcmd}" == "issue create" ]] && ! has_label "${cmd}"; then
+        deny "gh issue create needs --label <name> (Rule 9 of #91). Map the title type prefix to a stock GitHub label per .claude/skills/gh-artifact-format/SKILL.md Section 6: feat/refactor/chore/track -> enhancement, fix -> bug, docs -> documentation. Example: gh issue create ... --body-file /tmp/x.md --label enhancement"
         return 0
       fi
       return 0

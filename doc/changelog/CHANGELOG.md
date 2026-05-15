@@ -7,6 +7,16 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `enforce_gh_body_file.sh` rule 9 -- `gh issue create` must carry
+  `--label <non-empty>` (#91). PRs are exempt (they inherit labels
+  from the closed issue). `gh-artifact-format/SKILL.md` Section 6
+  documents the title-type -> label mapping
+  (feat/refactor/chore/track -> enhancement; fix -> bug; docs ->
+  documentation). `batch-open-archive-rename-issues.sh` updated to
+  pass `--label enhancement` (chore-type titles). 8 new bats cases
+  cover the rule (with-label, label= form, -l short, quoted multi-word,
+  two-label, empty quoted, empty after equals, PR exempt). Closes the
+  "every fresh issue lands in /issue-check Untriaged bucket" gap.
 - `.claude/scripts/release-tag.sh` + `.claude/hooks/enforce_semver_tag_via_script.sh`
   + `.claude/skills/semver-bump/SKILL.md` -- canonical script + boundary
   hook + skill enforcing the project's semver workflow (issue #106):

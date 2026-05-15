@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **564 tests** (560 smoke + 4 integration) plus shellcheck (26 hook
+Total: **572 tests** (568 smoke + 4 integration) plus shellcheck (26 hook
 scripts + 23 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -260,7 +260,7 @@ exempt from `--body-file` scanning.
 | silent when Dockerfile.test-tools has no final-stage apk add | no final apk → SILENT |
 | handles empty smoke step gracefully | YAML run block empty → no crash |
 
-### test/smoke/enforce_gh_body_file_spec.bats (33)
+### test/smoke/enforce_gh_body_file_spec.bats (41)
 
 Covers `.claude/hooks/enforce_gh_body_file.sh` -- the PreToolUse hook
 that BLOCKS gh routing violations from issue #64. Renamed + upgraded
@@ -276,7 +276,15 @@ threshold for short inline bodies.
 | rule 8: gh pr create --body-file - <<EOF heredoc denied | `--body-file -` heredoc → DENY |
 | rule 8: gh issue create --body-file - alone (stdin variant) denied | `--body-file -` alone → DENY |
 | rule 1: gh issue create without --body-file denied | inline body present, no `--body-file` → DENY |
-| rule 1: gh issue create with --body-file /tmp/x.md allowed (silent) | canonical → SILENT |
+| rule 1: gh issue create with --body-file + --label allowed (silent) | canonical (Rule 1 + Rule 9) → SILENT |
+| rule 9: gh issue create with --body-file but no --label denied | label missing → DENY (issue #91) |
+| rule 9: gh issue create with --label= form allowed | `=` form variant → SILENT |
+| rule 9: gh issue create with -l short form allowed | short flag → SILENT |
+| rule 9: gh issue create with quoted multi-word label allowed | quoted value → SILENT |
+| rule 9: gh issue create with two --label flags allowed | multi-label → SILENT |
+| rule 9: gh issue create with empty --label "" denied | empty value → DENY |
+| rule 9: gh issue create with --label= (empty after equals) denied | empty `=` value → DENY |
+| rule 9: gh pr create without --label still allowed (PR exempt) | PRs inherit labels from closed issues → SILENT |
 | rule 4: gh pr create without --body-file denied (short inline body) | even short `--body "LGTM"` on create → DENY |
 | rule 4: gh pr create with --body-file /tmp/x.md allowed | canonical → SILENT |
 | rule 4: gh pr create --body-file path with dash-like name allowed | path with `-` but not literal `-` → SILENT |

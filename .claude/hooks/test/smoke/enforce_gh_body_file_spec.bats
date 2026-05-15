@@ -36,8 +36,56 @@ load '../lib/test_helper'
   assert_permission_decision "deny"
 }
 
-@test "rule 1: gh issue create with --body-file /tmp/x.md allowed (silent)" {
+@test "rule 1: gh issue create with --body-file + --label allowed (silent)" {
+  # Post #91: issue create needs both --body-file (rule 1) and --label
+  # (rule 9). With label present the call is fully silent.
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md --label enhancement"}}'
+  assert_silent
+}
+
+@test "rule 9: gh issue create with --body-file but no --label denied" {
   run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md"}}'
+  assert_permission_decision "deny"
+  assert_message_contains "Rule 9 of #91"
+  assert_message_contains "--label"
+}
+
+@test "rule 9: gh issue create with --label= form allowed" {
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md --label=enhancement"}}'
+  assert_silent
+}
+
+@test "rule 9: gh issue create with -l short form allowed" {
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md -l bug"}}'
+  assert_silent
+}
+
+@test "rule 9: gh issue create with quoted multi-word label allowed" {
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md --label \"help wanted\""}}'
+  assert_silent
+}
+
+@test "rule 9: gh issue create with two --label flags allowed" {
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md --label bug --label \"help wanted\""}}'
+  assert_silent
+}
+
+@test "rule 9: gh issue create with empty --label \"\" denied" {
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md --label \"\""}}'
+  assert_permission_decision "deny"
+  assert_message_contains "Rule 9 of #91"
+}
+
+@test "rule 9: gh issue create with --label= (empty after equals) denied" {
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh issue create --title T --body-file /tmp/x.md --label="}}'
+  assert_permission_decision "deny"
+  assert_message_contains "Rule 9 of #91"
+}
+
+@test "rule 9: gh pr create without --label still allowed (PR exempt)" {
+  # PRs inherit labels from the issue they close; rule 9 only applies
+  # to issue create.
+  run "$(hook enforce_gh_body_file.sh)" <<< '{"tool_input":{"command":"gh pr create --title T --body-file /tmp/x.md"}}'
   assert_silent
 }
 
