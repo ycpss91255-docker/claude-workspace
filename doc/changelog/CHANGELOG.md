@@ -7,6 +7,33 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/hooks/check_git_push_diff.sh` -- new PreToolUse Bash hook
+  that inspects the diff a `git push` is about to upload and surfaces
+  warnings on (a) large changed-file count above
+  `CHECK_PUSH_FILE_THRESHOLD` (default 30, narrated as "likely a
+  rebase" when `--force-with-lease` is present), (b) binary blobs
+  detected via `file --mime` (lock files, images, build artefacts
+  that should not have been committed), (c) generated-file path hits
+  (dist/, build/, lockfiles, `_pb2.py`, `.min.js`). Non-blocking
+  systemMessage. `CHECK_PUSH_DISABLE=1` silences. Skips `--dry-run`,
+  branch-delete syntax (`origin :branch`), tags-only pushes.
+- `.claude/hooks/session_summary.sh` -- new Stop hook that appends a
+  one-paragraph activity summary per stop event to
+  `${SESSION_SUMMARY_LOG_DIR:-${TMPDIR}}/claude-session-<YYYY-MM-DD>.log`.
+  Captures: PR/issue URLs invoked, files modified (Edit / Write /
+  MultiEdit), and a `git=N gh=N docker=N make=N other=N` bash mix
+  counter. Throttled via per-session content-hash marker so a re-entry
+  storm does not multiply log lines. Disable with
+  `SESSION_SUMMARY_DISABLE=1`.
+- `.claude/hooks/extract_pattern_proposal.sh` -- new Stop hook that
+  after a `gh pr merge` signal in the session, surfaces up to three
+  memory / skill candidate proposals via systemMessage. Detectors:
+  repeated `.claude/scripts/<name>.sh` invocations
+  (>= `EXTRACT_PATTERN_REPEAT`, default 3), repeated `/tmp/*.sh`
+  ad-hoc runs, repeated `until/sleep` poll idioms. Does not write
+  memory itself — surfaces candidates so the user decides. Throttled
+  per (session, candidate set) hash. Disable with
+  `EXTRACT_PATTERN_DISABLE=1`. Closes #94.
 - `.claude/commands/verify.md` + `.claude/scripts/verify.sh` -- new
   `/verify` slash command and underlying script that runs the
   project's change-complete checklist (CLAUDE.md「變更完成

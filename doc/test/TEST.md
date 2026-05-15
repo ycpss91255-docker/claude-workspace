@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **501 tests** (497 smoke + 4 integration) plus shellcheck (25 hook
+Total: **533 tests** (529 smoke + 4 integration) plus shellcheck (28 hook
 scripts + 21 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -860,6 +860,71 @@ paths against a temp git repo seeded by `setup()`.
 | --continue-on-fail runs later phases despite hard failure | override short-circuit |
 | doc-scan flags AI attribution in changed files | doc-scan positive |
 | doc-scan passes when no AI attribution present | doc-scan negative |
+
+### test/smoke/check_git_push_diff_spec.bats (12)
+
+Covers `.claude/hooks/check_git_push_diff.sh` — PreToolUse Bash hook
+that inspects what a `git push` is about to upload and surfaces
+large-diff / generated-file / binary-blob warnings. Non-blocking.
+Fixture builds a bare origin + clone so `git push` flows resolve
+without network. Uses `CHECK_PUSH_FILE_THRESHOLD` to drive into the
+large-diff branch deterministically.
+
+| Test | Scenario |
+|------|----------|
+| silent on non-push git command | wrong subcommand |
+| silent on non-git command | non-trigger |
+| silent when CHECK_PUSH_DISABLE=1 | kill switch |
+| silent on --dry-run | dry-run skip |
+| silent on branch-delete push (remote :branch) | nothing to inspect |
+| silent on small diff below threshold (default 30) | threshold floor |
+| large diff above threshold fires | hard signal |
+| force-with-lease annotates large diff as likely rebase | flag-aware narration |
+| generated-file path fires | dist / lockfile heuristic |
+| binary blob fires | binary detection via `file --mime` |
+| silent when not in a git repo | defensive |
+| silent on empty tool_input | defensive |
+
+### test/smoke/session_summary_spec.bats (9)
+
+Covers `.claude/hooks/session_summary.sh` — Stop hook that appends a
+per-day activity log to `${SESSION_SUMMARY_LOG_DIR}/claude-session-<YYYY-MM-DD>.log`.
+Throttled via marker file. Tests stub the transcript JSONL inline and
+override the log dir via env.
+
+| Test | Scenario |
+|------|----------|
+| silent on stop_hook_active=true (re-entry guard) | parent decision=block |
+| silent when SESSION_SUMMARY_DISABLE=1 | kill switch |
+| silent on missing transcript_path | defensive |
+| silent on unreadable transcript_path | defensive |
+| silent on empty transcript (no activity to log) | early-return |
+| appends summary when bash + edit + PR URL present | happy path |
+| command mix groups git / gh / docker / make correctly | category counter |
+| throttle marker prevents double-write within same session | throttle |
+| different session_id writes a fresh entry | per-session boundary |
+
+### test/smoke/extract_pattern_proposal_spec.bats (11)
+
+Covers `.claude/hooks/extract_pattern_proposal.sh` — Stop hook that
+proposes 0–3 memory / skill candidates after a `gh pr merge` signal
+in the session transcript. Detectors: repeated `.claude/scripts/<name>.sh`
+invocations, repeated `/tmp/*.sh` ad-hoc runs, repeated `until/sleep`
+poll idioms.
+
+| Test | Scenario |
+|------|----------|
+| silent when no pr-merge signal in session | trigger gate |
+| silent when EXTRACT_PATTERN_DISABLE=1 | kill switch |
+| silent on stop_hook_active=true (re-entry guard) | parent decision=block |
+| silent on missing transcript_path | defensive |
+| silent when pr-merge present but no repeated patterns | nothing to surface |
+| fires on repeated .claude/scripts/<name>.sh invocation after pr merge | repeated-scripts detector |
+| fires on repeated /tmp/*.sh ad-hoc script after pr merge | ad-hoc /tmp detector |
+| fires on repeated until/sleep poll idiom after pr merge | poll-idiom detector |
+| caps candidates at 3 even when more present | output cap |
+| throttle marker prevents repeat proposal within same session | throttle |
+| honours EXTRACT_PATTERN_REPEAT override | env var override |
 
 ## Integration specs
 

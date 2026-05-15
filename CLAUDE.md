@@ -267,6 +267,9 @@ docker/
     │   ├── remind_main_sync.sh         # gh pr merge 前提醒 merge 後跑 git pull --ff-only origin main 保持本地 main 持續 ff-tracking origin/main HEAD
     │   ├── check_main_fresh_before_worktree.sh # git worktree add ... main 前 BLOCK：若 local main 落後 origin/main 就 deny + 提示先 pull,避免從 stale base 起 branch(refs PR #89 precedent)
     │   ├── remind_strategic_compact.sh # Stop hook：讀 transcript 偵測 task-boundary 訊號(gh pr merge / tool count >= 50)後 propose /compact,configurable via STRATEGIC_COMPACT_{DISABLE,TOOL_THRESHOLD};refs #92
+    │   ├── check_git_push_diff.sh       # PreToolUse on `git push`：surface large diff / generated-file / binary blob warnings, non-blocking; configurable via CHECK_PUSH_{DISABLE,FILE_THRESHOLD};refs #94
+    │   ├── session_summary.sh           # Stop hook：append per-day session activity log (PR URLs / files touched / bash command mix) under SESSION_SUMMARY_LOG_DIR (default ${TMPDIR});configurable via SESSION_SUMMARY_DISABLE;refs #94
+    │   ├── extract_pattern_proposal.sh  # Stop hook：after `gh pr merge` signal, surface up to 3 memory / skill candidate proposals based on session patterns (repeated scripts, /tmp ad-hoc, until/sleep poll idiom);configurable via EXTRACT_PATTERN_{DISABLE,REPEAT};refs #94
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   ├── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
