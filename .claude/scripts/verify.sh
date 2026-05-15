@@ -156,6 +156,7 @@ run_doc_scan() {
       */CLAUDE.md|*/.claude/commands/*.md|*/.claude/skills/*/SKILL.md) continue ;;
       */doc/test/TEST.md|*/doc/changelog/CHANGELOG.md) continue ;;
       */.claude/hooks/test/*) continue ;;
+      */.claude/instincts.yaml) continue ;;
     esac
     if file --mime "${abs}" 2>/dev/null | grep -qE 'charset=binary'; then
       continue

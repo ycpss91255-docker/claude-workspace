@@ -94,9 +94,20 @@ The squash-merge SHA is the commit you'll tag in step 6.
 ## 6. Annotated tag on the merge commit
 
 ```bash
-git tag -a vX.Y.Z -m "vX.Y.Z: <one-line summary referencing closed PRs/issues>"
-git push origin vX.Y.Z
+.claude/scripts/release-tag.sh vX.Y.Z -m "vX.Y.Z: <one-line summary referencing closed PRs/issues>"
+# X bump (vX.0.0) also requires explicit ACK env after user OK in chat:
+#   RELEASE_X_BUMP_ACK=vX.0.0 .claude/scripts/release-tag.sh vX.0.0 -m "..."
 ```
+
+The canonical script enforces (issue #106):
+
+- `.version` integrity (tag literal must equal `.version`).
+- RC tag with passing CI for Y bumps (`vX.Y.0`) and X bumps (`vX.0.0`).
+- X-bump ACK gate via `RELEASE_X_BUMP_ACK=<exact-tag>` env.
+- See `.claude/skills/semver-bump/SKILL.md` for the full workflow.
+
+The hook `enforce_semver_tag_via_script.sh` BLOCKs ad-hoc
+`git tag v*` / `git push.*v[0-9]` to force this routing.
 
 For RC tags, use `vX.Y.0-rcN`. RCs are auto-marked as GitHub prereleases
 because `release-worker.yaml` checks for `-` in the ref name.

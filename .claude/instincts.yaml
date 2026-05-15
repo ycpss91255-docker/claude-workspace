@@ -101,6 +101,17 @@
     - draft in zh-TW for user review, translate to English at submission
   refs: .claude/skills/gh-artifact-format/SKILL.md
 
+- name: semver-tag-via-script
+  trigger:
+    kind: bash_command
+  guidance:
+    - never raw `git tag v*` or `git push.*v[0-9]` -- BLOCKed by enforce_semver_tag_via_script.sh
+    - use the canonical script `.claude/scripts/release-tag.sh <tag> -m "<msg>"` instead
+    - X bump (vX.0.0) also requires `RELEASE_X_BUMP_ACK=<exact-tag>` env (set only after explicit user OK)
+    - Y bump (vX.Y.0) and X bump both require a prior vX.Y.0-rcN tag with CI all success/skipped
+    - Z bump (vX.Y.Z where Z>0) is bug fix only -- direct, no RC
+  refs: .claude/skills/semver-bump/SKILL.md
+
 - name: no-cd-git
   trigger:
     kind: bash_command
