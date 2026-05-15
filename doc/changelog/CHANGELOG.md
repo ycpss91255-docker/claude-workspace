@@ -6,6 +6,29 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/scripts/release-tag.sh` + `.claude/hooks/enforce_semver_tag_via_script.sh`
+  + `.claude/skills/semver-bump/SKILL.md` -- canonical script + boundary
+  hook + skill enforcing the project's semver workflow (issue #106):
+  - **X bump** (`vX.0.0` where X bumped from prev): requires explicit
+    user consent via `RELEASE_X_BUMP_ACK=<exact-tag>` env. Claude must
+    not set this on its own initiative; the value must come from a
+    user explicit OK in conversation.
+  - **Y bump** (`vX.Y.0` where Y bumped): requires a prior
+    `vX.Y.0-rcN` tag with CI all `success`/`skipped`. Y now covers
+    both feature changes AND breaking changes (the old "MAJOR = breaking"
+    rule is retired; breaking changes go to Y, X is purely ceremonial).
+  - **Z bump** (`vX.Y.Z` where Z>0): bug fix only. Direct tag, no RC,
+    no ACK.
+  - **RC tag itself** (`vX.Y.Z-rcN`): direct, no further checks.
+  - `.version` (when present) must equal the tag literal.
+  The hook BLOCKs raw `git tag v*` / `git push.*v[0-9]` / `git push --tags`
+  to force routing through the script. `check_tag_version_consistency.sh`
+  remains as a defensive second layer for `.version` integrity.
+  `/release` slash command updated to invoke `release-tag.sh`; CLAUDE.md
+  "version conventions" section rewritten to reflect the new X/Y/Z
+  semantics; `instincts.yaml` gets a `semver-tag-via-script` entry.
+
 ### Changed
 - `wait-pr-ci` skill (`.claude/scripts/wait-pr-ci.sh` +
   `wait-pr-ci-batch.sh` + `wait-tag-ci.sh`) now treats `SKIPPED`

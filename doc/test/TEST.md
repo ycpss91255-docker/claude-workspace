@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **518 tests** (514 smoke + 4 integration) plus shellcheck (25 hook
-scripts + 22 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **564 tests** (560 smoke + 4 integration) plus shellcheck (26 hook
+scripts + 23 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -468,6 +468,70 @@ printed by `batch-template-upgrade.sh` works for both scripts.
 | unknown flag exits 2 | flag validation |
 | empty repo in pair exits 2 | empty-repo guard |
 | empty PR in pair exits 2 | empty-pr guard |
+
+### test/smoke/enforce_semver_tag_via_script_spec.bats (21)
+
+Covers `.claude/hooks/enforce_semver_tag_via_script.sh` — the boundary
+guard that BLOCKs raw `git tag v*` / `git push.*v[0-9]` and forces the
+caller through `.claude/scripts/release-tag.sh` (issue #106).
+
+| Test | Scenario |
+|------|----------|
+| denies git tag -a vX.Y.Z | annotated tag deny |
+| denies git tag -a vX.Y.Z-rcN | RC tag deny (caller still must use script) |
+| denies lightweight git tag vX.Y.Z | lightweight tag deny |
+| denies git push origin vX.Y.Z | refspec push deny |
+| denies git push origin refs/tags/vX.Y.Z | full refspec deny |
+| denies git push --tags | bulk push deny |
+| denies git push origin --tags | bulk push with remote deny |
+| denies even when ACK env appears in command | ACK env on raw git still rejected |
+| silent for git tag listing (-l) | list form passes |
+| silent for git tag --list | list form passes |
+| silent for git tag with no args (list form) | bare list form passes |
+| silent for git tag -d \<tag\> (delete annotated) | delete passes |
+| silent for git tag --delete \<tag\> | delete passes |
+| silent for git push origin :v1.3.0 (refspec delete) | refspec delete passes |
+| silent for regular branch push (no v-tag refspec) | branch push passes |
+| silent for non-version tag (e.g. release-2026) | non-v tag passes |
+| silent for non-git command | non-git passes |
+| silent for invocation of .claude/scripts/release-tag.sh itself | canonical script invocation passes |
+| denies git -C \<dir\> tag vX.Y.Z (global -C flag) | -C global flag detected |
+| denies git tag -f vX.Y.Z (force re-tag) | -f flag detected |
+| silent on empty command (defensive) | empty input handled |
+
+### test/smoke/release_tag_spec.bats (25)
+
+Covers `.claude/scripts/release-tag.sh` — canonical primitive for cutting
+version tags with RC + ACK enforcement (issue #106). `gh` is stubbed via
+PATH; `git` operations run against a real temp repo seeded per test.
+
+| Test | Scenario |
+|------|----------|
+| --help exits 0 and prints usage | help path |
+| missing \<tag\> exits 2 | arg validation |
+| malformed tag (no v prefix) exits 2 | shape validation |
+| malformed tag (extra suffix) exits 2 | shape validation |
+| unknown flag exits 2 | flag validation |
+| duplicate tag arg exits 2 | arg duplicate guard |
+| exits 2 when .version mismatches the target tag | .version integrity |
+| passes when .version matches target tag (Z bump) | .version positive control |
+| no .version file -> rule N/A (Z bump still passes) | .version optional |
+| RC tag itself passes without RC / ACK checks | RC short-circuit |
+| RC tag passes even with no prev tag in repo | first-ever RC tag |
+| Z>0 patch tag passes without RC / ACK | Z bump path |
+| Z>>0 still passes (e.g. v1.3.42) | Z bump with high Z |
+| Y bump blocked with no RC tag in repo | RC missing |
+| Y bump passes with RC + all success CI | RC happy path |
+| Y bump passes with RC + mix success/skipped (issue #86 parity) | SKIPPED counts as success-equivalent |
+| Y bump blocked with RC + failing CI | RC failure |
+| Y bump blocked with RC + cancelled CI | RC cancelled |
+| Y bump picks latest passing RC when multiple RCs exist | rc1 -> rc2 ordering |
+| X bump blocked without ACK env | X consent gate |
+| X bump blocked with ACK value not matching tag literal | ACK literal-match |
+| X bump passes with ACK + RC + passing CI | X happy path |
+| X bump blocked even with ACK if RC CI fails | RC failure trumps ACK |
+| X bump blocked with ACK but no RC tag at all | RC missing trumps ACK |
+| --dry-run does not create any tag | dry-run preview |
 
 ### test/smoke/wait_tag_ci_spec.bats (11)
 
