@@ -44,11 +44,12 @@ Monitor(
 
 The script prints one snapshot block (`PR<n>: checks=... mergeable=...` + `---`) per state transition, exits 0 on `ALL_DONE`, exits 1 on `FAIL <pr>`. 45s default poll interval — override with `--interval <sec>`.
 
-**Per-repo `--check-filter`** (default matches base's `test` + `Integration ...`):
+**Per-repo `--check-filter`** (default matches `multi_run`'s `test` + `Integration ...` shape; `base` moved to `ci-rollup` post-#337):
 
 | Repo | Required checks | `--check-filter` |
 |---|---|---|
-| `base`, `multi_run` | `test` + `Integration E2E (...)` | (default) |
+| `base` (post-#337) | `ci-rollup` (self-test.yaml aggregator) | `'.name=="ci-rollup"'` |
+| `multi_run` | `test` + `Integration E2E (...)` | (default) |
 | `docker_harness` (this repo) | `bats + shellcheck + hadolint` (single-job test workflow) | `'.name=="bats + shellcheck + hadolint"'` |
 | Single-target container repos (`agent/*`, most `app/*`) | `call-docker-build / docker-build` | `'.name=="call-docker-build / docker-build"'` |
 | Multi-distro env repos (`env/ros_distro`, `env/ros2_distro`) | `ci-passed` (matrix aggregator) | `'.name=="ci-passed"'` |
@@ -132,7 +133,8 @@ The status guard is unconditional and applies on every poll. The `--min-checks <
 
 | Repo / filter | Suggested `--min-checks` |
 |---|---|
-| `base`, `multi_run` (default filter `test + Integration ...`) | `2` |
+| `base` (post-#337, single `ci-rollup`) | `1` (default; can omit) |
+| `multi_run` (default filter `test + Integration ...`) | `2` |
 | `docker_harness` (single `bats + shellcheck + hadolint`) | `1` (default; can omit) |
 | Single-target container repos (single `call-docker-build / docker-build`) | `1` (default) |
 | Multi-distro env / app repos (single aggregator: `ci-passed` / `ci-summary`) | `1` (default) |
@@ -143,11 +145,10 @@ For `wait-pr-ci-batch.sh`, `--min-checks` accepts the same two forms as `--check
 ```
 .claude/scripts/wait-pr-ci-batch.sh \
   base:42 ai_agent:39 ros_distro:3 ros1_bridge:56 \
-  --check-filter 'base=.name=="test" or (.name|startswith("Integration"))' \
+  --check-filter 'base=.name=="ci-rollup"' \
   --check-filter '.name=="call-docker-build / docker-build"' \
   --check-filter 'ros_distro=.name=="ci-passed"' \
-  --check-filter 'ros1_bridge=.name=="ci-summary"' \
-  --min-checks 'base=2'
+  --check-filter 'ros1_bridge=.name=="ci-summary"'
 ```
 
 ## Stale-rollup guards (force-push race)
