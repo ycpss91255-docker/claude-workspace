@@ -664,7 +664,8 @@ Status check 名稱依 repo 類型不同：
 
 | Repo 類型 | Status Check Context |
 |-----------|---------------------|
-| `template`、`multi_run` | `test` |
+| `template` (base) | `ci-rollup`（self-test.yaml aggregator，post-#337） |
+| `multi_run` | `test` |
 | `docker_harness`（本 repo） | `bats + shellcheck + hadolint`（單 job test workflow） |
 | 單 distro 容器 repo（多數 `agent/*`、`app/*`） | `call-docker-build / docker-build` |
 | Multi-distro env repo（`env/ros_distro`、`env/ros2_distro`） | `ci-passed`（matrix aggregator） |
