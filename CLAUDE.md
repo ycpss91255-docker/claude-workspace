@@ -286,6 +286,7 @@ docker/
     │   ├── check_no_off_task_suggestions.sh # Stop hook：transcript 掃 last assistant message 的 off-task 片語 (stop for dinner / take a break / need rest / do it tomorrow ...) 命中時 remind,never block,configurable via NO_OFF_TASK_REMIND_DISABLE;refs #109
     │   ├── remind_proactive_optimization.sh # Stop hook：task-boundary 訊號(gh pr merge / tool count >= 50)後若 session 未提任何 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition) 則 remind 配 [[proactive-optimization]] skill,configurable via PROACTIVE_OPTIMIZATION_REMIND_{DISABLE,THRESHOLD};refs #124
     │   ├── remind_skillification_candidates.sh # Stop hook：偵測 /tmp/*.sh 反覆呼叫 (>=3 次) 或 parser-fallback Bash pattern 重複 (>=3 次) 且 session 未提任何 skillification 候選時 remind 配 [[skillification-candidates]] skill,configurable via SKILLIFICATION_REMIND_DISABLE + SKILLIFICATION_{TMP,PARSER}_THRESHOLD;refs #125
+    │   ├── remind_parallel_when_bulk.sh # UserPromptSubmit hook：scan user prompt 偵測 bulk-work 訊號 (N >= 4 + plural noun / all|every + noun / 逗號分隔 4+ tokens / CJK 量詞) 且 prompt 未提 parallel/agent 時 remind 配 [[parallel-agents]] skill,configurable via PARALLEL_REMIND_{DISABLE,THRESHOLD};refs #126
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   ├── rebase-pr/SKILL.md          # PR 因 BEHIND/CONFLICTING 需 rebase 時的 one-shot 流程,配 rebase-pr.sh + wait-pr-ci FAIL hint,refs #87
@@ -295,7 +296,8 @@ docker/
     │   ├── strategic-compact/SKILL.md  # 何時手動 /compact (task boundary) vs 何時別 compact (mid-implementation),配 remind_strategic_compact.sh hook
     │   ├── wait-gh-state/SKILL.md      # 非 CI 的 GitHub state 監看 (issue close / release stable),sibling to wait-pr-ci;refs #115
     │   ├── proactive-optimization/SKILL.md # 任務 boundary 時主動提 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition),配 remind_proactive_optimization.sh Stop hook;refs #124
-    │   └── skillification-candidates/SKILL.md # 任務 wrap-up 時提 skillification 候選 (/tmp/*.sh re-use / parser-fallback / slash-command gap / bug-in-skill),配 remind_skillification_candidates.sh Stop hook;refs #125
+    │   ├── skillification-candidates/SKILL.md # 任務 wrap-up 時提 skillification 候選 (/tmp/*.sh re-use / parser-fallback / slash-command gap / bug-in-skill),配 remind_skillification_candidates.sh Stop hook;refs #125
+    │   └── parallel-agents/SKILL.md    # bulk workload (N>=4 獨立 items) 時用最多 3 個 parallel Agent 並行 (single response 內多 Agent 呼叫),配 remind_parallel_when_bulk.sh UserPromptSubmit hook;refs #126
     ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
@@ -952,6 +954,14 @@ Disable via `SKILLIFICATION_REMIND_DISABLE=1`，閾值可改
 - 例如：修改 17 個 repo 的 README → 啟動 3 個 Agent 各處理一批
 - 例如：批次 PR → 分批平行建立
 - 最大 3 個 Agent 同時運行
+
+執行細節（partitioning rubric、per-Agent prompt shape、何時不適用）見
+`.claude/skills/parallel-agents/SKILL.md`。配對的
+`remind_parallel_when_bulk.sh` UserPromptSubmit hook 會在 user prompt
+出現 bulk-work 訊號（N >= 4 + plural noun / all|every / 逗號分隔 4+
+tokens / CJK 量詞）且 prompt 未提 parallel/agent 時 emit 一條
+systemMessage 提醒。Disable via `PARALLEL_REMIND_DISABLE=1`，閾值可改
+`PARALLEL_REMIND_THRESHOLD`（default 4）。
 
 ## 新建容器流程
 
