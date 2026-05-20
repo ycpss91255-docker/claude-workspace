@@ -7,6 +7,15 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `CONTEXT.md` (new file at repo root, 13 sections) + ADR-00000003 --
+  the structural foundation for the CLAUDE.md slim refactor. Class C
+  (domain knowledge, 28 of 64 CLAUDE.md sections per the #116 master
+  table) is lifted verbatim into a single sectioned reference manual
+  alongside CLAUDE.md / ADRs. ADR records the rationale + three
+  rejected alternatives (`doc/claude/*.md` multi-file split from #112,
+  `@import` always-inline, `@import` on-demand). CLAUDE.md is NOT
+  modified by this PR -- the slim pass that deletes the migrated
+  content lands in Sub#11 of #116. Tier 1 of #116 -- refs #118.
 - `.claude/hooks/auto_allow_touch_ack.sh` +
   `.claude/scripts/lib/checkpoint.sh` + ADR-00000002 -- foundation for
   the `/tmp` checkpoint protocol that the four Tier 2 E2 enforcement
