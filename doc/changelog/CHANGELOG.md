@@ -7,6 +7,21 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/hooks/check_no_off_task_suggestions.sh` (Stop hook) +
+  `.claude/memory/feedback_no_off_task_suggestions.md` -- ban
+  Claude-initiated off-task suggestions in session output (user
+  breaks, meals, wellness, schedule management; refs #109). Scans the
+  last assistant text message of the transcript via regex
+  alternation; emits a remind `systemMessage` identifying the matched
+  phrase when hit and never blocks (the output has already been
+  emitted by the time Stop fires). Throttled once per session per
+  matched phrase via `$TMPDIR/claude-no-off-task-<session>-<hash>`.
+  Configurable via `NO_OFF_TASK_REMIND_DISABLE=1`. 11 new bats cases.
+  Note: the issue body's Layer B (CLAUDE.md "Text output" section
+  addition) is reinterpreted -- the "Text output" guidelines the issue
+  references live in Claude Code's built-in system prompt, not in
+  project `CLAUDE.md`. Layer A (memory entry, auto-loaded into
+  context) + Layer C (Stop hook signal) cover the rule.
 - `/adr <slug>` slash command + `.claude/scripts/new-adr.sh` +
   `.claude/hooks/remind_adr_on_design_decision.sh` (Stop hook) --
   Architecture Decision Record convention (issue #97). Captures
