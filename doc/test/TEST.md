@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **658 tests** (654 smoke + 4 integration) plus shellcheck (28 hook
-scripts + 27 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **672 tests** (668 smoke + 4 integration) plus shellcheck (29 hook
+scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -66,6 +66,24 @@ stdin and asserts one of three behaviours:
 | silent on non-rm command (ls -la) | matcher narrowed to rm |
 | silent on rmdir (different command) | exact `rm` match, not prefix |
 | silent on empty CLAUDE_PROJECT_DIR (defensive) | refuses to act without anchor |
+
+### test/smoke/auto_allow_touch_ack_spec.bats (14)
+| Test | Scenario |
+|------|----------|
+| allows touch /tmp/claude-checkpoint-foo.ack | minimal ack path → ALLOW |
+| allows touch /tmp/claude-checkpoint-make-upgrade-sess123-abc.ack (slug-session-hash shape) | full slug-session-hash naming → ALLOW |
+| allows touch $TMPDIR/claude-checkpoint-bar.ack (literal $TMPDIR token) | literal $TMPDIR (unexpanded in helper output) → ALLOW |
+| allows touch -- /tmp/claude-checkpoint-baz.ack (after -- separator) | `--` separator handling |
+| silent on touch /tmp/other.txt (not a checkpoint ack) | non-ack /tmp file → SILENT |
+| silent on touch /etc/shadow (outside TMPDIR + /tmp) | absolute outside → SILENT |
+| silent on touch /tmp/claude-checkpoint-foo.md (.md not .ack) | wrong extension → SILENT |
+| silent on touch /tmp/claude-checkpoint-.ack (empty slug rejected) | regex requires ≥1 slug char |
+| silent on non-touch command (ls /tmp/claude-checkpoint-foo.ack) | matcher narrowed to touch |
+| silent on touch /tmp/../etc/claude-checkpoint-x.ack (.. traversal) | path-traversal guard |
+| silent on touch /tmp/claude-checkpoint-a.ack && rm -rf / (command chain) | command-chain guard |
+| silent on touch /tmp/claude-checkpoint-a.ack /tmp/other.txt (multi-arg with non-ack) | multi-arg guard |
+| silent on touch /tmp/CLAUDE-CHECKPOINT-foo.ack (case-sensitive prefix) | regex is case-sensitive |
+| silent on empty command | empty input guard |
 
 ### test/smoke/check_changelog_drift_spec.bats (6)
 | Test | Scenario |

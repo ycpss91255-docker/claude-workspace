@@ -29,7 +29,7 @@ test: build  ## Run bats specs (smoke + integration) inside docker
 
 lint: build  ## Run shellcheck against all hook + helper scripts inside docker
 	docker run --rm --entrypoint sh $(IMAGE) -c \
-	  'shellcheck /work/.claude/hooks/*.sh /work/.claude/scripts/*.sh'
+	  'shellcheck /work/.claude/hooks/*.sh /work/.claude/scripts/*.sh /work/.claude/scripts/lib/*.sh'
 
 hadolint:  ## Lint .claude/test/Dockerfile with Hadolint
 	docker run --rm -i \
