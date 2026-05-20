@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- 4 historical-rationale ADRs (ADR-00000004 through ADR-00000007) --
+  formal records for D-class CLAUDE.md content (4 of 64 sections in the
+  #116 master table). Each follows the 5-section template (Date /
+  Status / Context / Decision / Alternatives / Consequences):
+  - ADR-00000004 `template-rename-to-base` -- why the GitHub repo
+    renamed from `template` to `base` + why local folder rename is
+    deferred to a separate PR.
+  - ADR-00000005 `prefer-make-over-raw-upgrade-sh` -- why
+    `make -f Makefile.ci upgrade VERSION=vX.Y.Z` is canonical and
+    `./.base/upgrade.sh` is fallback only. Cites #36 incident.
+  - ADR-00000006 `git-worktree-mandatory-for-branches` -- why all
+    non-main work lives in `worktree/<repo>-<N>/` and why main must
+    continuously ff-track `origin/main`. Cites PR #89 precedent.
+  - ADR-00000007 `slash-command-first-over-ad-hoc` -- why documented
+    slash commands / skills take precedence over raw git/gh/make
+    invocations. Cites #36 + `enforce_semver_tag_via_script.sh`
+    blocking enforcement.
+  CLAUDE.md is NOT modified by this PR; Sub#11 of #116 deletes the
+  prose that these ADRs replace. Tier 1 of #116 -- refs #119.
 - `CONTEXT.md` (new file at repo root, 13 sections) + ADR-00000003 --
   the structural foundation for the CLAUDE.md slim refactor. Class C
   (domain knowledge, 28 of 64 CLAUDE.md sections per the #116 master
