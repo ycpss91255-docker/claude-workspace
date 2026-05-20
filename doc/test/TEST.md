@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **709 tests** (705 smoke + 4 integration) plus shellcheck (31 hook
+Total: **716 tests** (712 smoke + 4 integration) plus shellcheck (31 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -862,17 +862,19 @@ stay silent.
 | strips single env-prefix and matches docker build | env-prefix tolerance |
 | strips multiple env-prefixes and matches docker build | multi env-prefix |
 
-### test/smoke/enforce_make_first_upgrade_spec.bats (12)
+### test/smoke/enforce_make_first_upgrade_spec.bats (19)
 
 Covers `.claude/hooks/enforce_make_first_upgrade.sh` — BLOCKING
-PreToolUse hook that DENIES direct `./.base/upgrade.sh` invocations
-when `Makefile.ci` has an `upgrade:` target, routing the agent
-through the canonical `make -f Makefile.ci upgrade VERSION=vX.Y.Z`
-wrapper (refs issue #36 incident + ADR-00000005). The deny can be
-lifted via the `/tmp` checkpoint protocol (ADR-00000002 / #117): the
-hook writes a checkpoint markdown + quotes the matching `touch
-<ack-file>` command in the reason; the second attempt of the same
-cmd hits `is_acked` and is allowed through.
+PreToolUse hook that DENIES three direct surfaces bypassing the
+make wrapper when `Makefile.ci` has an `upgrade:` target: (1)
+`./.base/upgrade.sh` variants, (2) `./template/upgrade.sh` legacy
+folder name, (3) `git subtree pull --prefix=.base|template`. All
+three skip the init.sh symlink resync + main.yaml `@tag` sed (refs
+issue #36 incident + ADR-00000005). The deny can be lifted via the
+`/tmp` checkpoint protocol (ADR-00000002 / #117): the hook writes
+a checkpoint markdown + quotes the matching `touch <ack-file>`
+command; the second attempt of the same cmd hits `is_acked` and is
+allowed through.
 
 | Test | Scenario |
 |------|----------|
@@ -880,6 +882,13 @@ cmd hits `is_acked` and is allowed through.
 | denies bare .base/upgrade.sh (no leading ./) | path-prefix variant |
 | denies absolute path .base/upgrade.sh | absolute-path variant |
 | deny reason mentions canonical make wrapper | reason content |
+| denies ./template/upgrade.sh (legacy folder name) | surface 2 trigger |
+| denies bare template/upgrade.sh (legacy, no leading ./) | surface 2 path-prefix variant |
+| denies git subtree pull --prefix=.base ... | surface 3 trigger |
+| denies git subtree pull --prefix=template ... (legacy prefix) | surface 3 legacy prefix |
+| denies git -C <repo> subtree pull --prefix=.base ... (via -C arg) | -C arg resolution |
+| silent on git subtree pull with unrelated --prefix=foo | scope discriminator |
+| silent on git subtree push --prefix=.base (push, not pull) | subcommand discriminator |
 | silent on make -f Makefile.ci upgrade (already going through wrapper) | wrapper path |
 | silent when Makefile.ci absent (no make wrapper available) | rule N/A |
 | silent when Makefile.ci has no upgrade target | rule N/A |

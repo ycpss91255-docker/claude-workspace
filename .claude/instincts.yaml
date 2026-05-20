@@ -128,10 +128,12 @@
   trigger:
     kind: bash_command
   guidance:
-    - never run `./.base/upgrade.sh` directly when `Makefile.ci` has an `upgrade:` target -- DENIED by enforce_make_first_upgrade.sh
-    - use the canonical wrapper `make -f Makefile.ci upgrade VERSION=vX.Y.Z` instead
-    - the make wrapper internally runs the same upgrade.sh PLUS the init.sh symlink resync + main.yaml @tag sed steps that direct .sh invocation skips (refs issue #36)
-    - lift the gate via the `/tmp` checkpoint protocol (ADR-00000002) -- the deny message quotes the matching `touch <ack-file>` command; re-issue the same upgrade.sh call after ack to proceed
+    - never bypass the make upgrade wrapper -- three surfaces DENIED by enforce_make_first_upgrade.sh
+    - surface 1 -- `./.base/upgrade.sh ...` (and absolute / relative variants)
+    - surface 2 -- `./template/upgrade.sh ...` (legacy local folder name; rename to .base/ pending)
+    - surface 3 -- `git subtree pull --prefix=.base|template ...` (raw subtree pull)
+    - use the canonical wrapper `make -f Makefile.ci upgrade VERSION=vX.Y.Z` instead -- runs the same upgrade.sh PLUS the init.sh symlink resync + main.yaml @tag sed steps that all three surfaces skip (refs issue #36)
+    - lift the gate via the `/tmp` checkpoint protocol (ADR-00000002) -- the deny message quotes the matching `touch <ack-file>` command; re-issue the same call after ack to proceed
   refs: ADR-00000005 prefer-make-over-raw-upgrade-sh
 
 - name: semver-tag-via-script
