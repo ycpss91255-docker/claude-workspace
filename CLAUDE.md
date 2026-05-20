@@ -273,6 +273,7 @@ docker/
     │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36；defensive 第二層,主要 gate 由 enforce_semver_tag_via_script.sh 接手）
     │   ├── enforce_semver_tag_via_script.sh # git tag/push v* 前 BLOCK：raw 命令一律拒絕,強制走 .claude/scripts/release-tag.sh canonical script(refs #106)
     │   ├── enforce_make_first_upgrade.sh # ./.base/upgrade.sh 前 BLOCK 並改走 make -f Makefile.ci upgrade(checkpoint ack 可解,refs #36 / ADR-00000002)
+    │   ├── enforce_batch_via_script.sh   # 跨 repo for-loop + mutation (git push|reset|tag|branch -D / gh issue|pr close|merge|comment --body) 前 BLOCK,改走 .claude/scripts/<name>.sh(checkpoint ack 可解,refs #121 / ADR-00000002)
     │   ├── check_prefer_dot_sh.sh       # docker build/run/exec/stop/compose 前：cwd 有對應 .sh wrapper 則 deny,沒有則 ask
     │   ├── remind_topics_yaml_on_new_repo.sh # gh repo create ycpss91255-docker/* 前提醒去 .github topics.yaml 加 repos.* 條目
     │   ├── check_readme_framework.sh    # Edit/Write 後掃下游 repo README.md (+ 3 翻譯) 是否符合 .base/README.md 框架(badge / 4 語言 link / TL;DR H2 / Smoke Tests link / 無 stale 路徑) — non-blocking warning
@@ -826,6 +827,12 @@ instincts.yaml 與 CLAUDE.md 之間目前**沒有自動同步**;兩邊都需要�
   叫同一支 .sh,但會幫忙跑 init.sh resync + main.yaml @tag sed)。要 lift
   gate 跑 `/tmp` checkpoint protocol(ADR-00000002):touch deny 訊息列的
   `<ack>` 檔再重發同一條指令即可
+- `enforce_batch_via_script.sh` — 跨 repo `for ... do ... done` 配合
+  mutating git/gh 操作(`git push|reset|tag|branch -D`、
+  `gh (issue|pr) close|merge`、`gh (issue|pr) comment --body`) 時
+  **BLOCK** 並要求改寫成 permanent `.claude/scripts/<name>.sh`。read-only
+  loop(`gh pr view`、`git log`、`grep`、`cat`)不擋。同樣靠 checkpoint
+  protocol lift:touch deny 訊息列的 `<ack>` 檔再重發同一條 loop
 - `check_prefer_dot_sh.sh` — `docker build/run/exec/stop` 與
   `docker compose <up|down|build|run|exec>` 前：cwd 有對應 `.sh` wrapper
   就 deny + 提示改用 wrapper(會帶 setup.sh 自動更新 .env / compose.yaml

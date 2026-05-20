@@ -6,6 +6,27 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/hooks/enforce_batch_via_script.sh` -- BLOCKING PreToolUse Bash
+  hook (refs #121, Tier 2 of #116 hook 2 of 4). DENIES ad-hoc cross-repo
+  for-loops performing state-changing operations (`git push|reset|tag|
+  branch -D`, or `gh issue|pr close|merge|comment --body`). The two
+  detection clauses (for-loop signature AND mutating op in the same
+  command) must both hold; standalone mutating commands and read-only
+  loops (`gh pr view`, `git log`, `grep`, `cat`) pass through silently;
+  invocations of `.claude/scripts/<name>.sh` are also exempt (the
+  permanent wrappers the hook nudges the agent TOWARD). Lift mechanism
+  re-uses the `/tmp` checkpoint protocol (ADR-00000002 / #117) -- the
+  deny message quotes the matching `touch <ack-file>` command, and a
+  second attempt of the same loop is allowed through (sha256(cmd) hash
+  isolation keeps unrelated loops from sharing acks). `.claude/settings.json`
+  registers the hook after `enforce_make_first_upgrade.sh`;
+  `.claude/instincts.yaml` gains a `batch-via-script` `bash_command`
+  instinct. 19 new bats cases; TEST.md total 676 -> 695; shellcheck hook
+  count 29 -> 30. Why: CLAUDE.md cross-repo mutation rule has been prose
+  only until now -- an N-iteration loop creates N user prompts and
+  induces yes-fatigue, effectively bypassing every ask rule downstream.
+
 ### Changed
 - `.claude/hooks/remind_make_first_upgrade.sh` (remind-only) replaced with
   `.claude/hooks/enforce_make_first_upgrade.sh` (BLOCKING). Direct
