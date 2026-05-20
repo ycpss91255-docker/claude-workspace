@@ -233,6 +233,8 @@ docker/
     │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
     │   ├── wait-pr-ci-batch.sh              # 多 repo 多 PR 同一個 Monitor 的 batch 版本（取代 N 個平行 Monitor stream）
     │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
+    │   ├── wait-issue-close.sh              # wait-gh-state 的 issue-close 版本（gh issue view --json state）;refs #115
+    │   ├── wait-release.sh                  # wait-gh-state 的 release-tag 版本（gh release list --json tagName + stable/rc 分類）;refs #115
     │   ├── migrate-local-to-setupconf.sh    # 一次性 setup.conf.local -> setup.conf 17 repo 遷移（template #201 / v0.16.0；下個版本後刪除）
     │   ├── batch-license-apache.sh           # 一次性 Apache 2.0 LICENSE + CI/License badge fresh add 13 repo fanout（org-wide license alignment）
     │   ├── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
@@ -283,7 +285,8 @@ docker/
     │   ├── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
     │   ├── gh-artifact-format/SKILL.md # gh issue/pr artifact 格式規範(issue title/body 5 sections/close 3 tiers/comment 3 categories/cross-ref keywords)配 enforce_gh_body_file.sh hook
     │   ├── semver-bump/SKILL.md        # 版本 tag 流程:X/Y/Z 分類 + RC 程序 + RELEASE_X_BUMP_ACK 使用,配 release-tag.sh + enforce_semver_tag_via_script.sh,refs #106
-    │   └── strategic-compact/SKILL.md  # 何時手動 /compact (task boundary) vs 何時別 compact (mid-implementation),配 remind_strategic_compact.sh hook
+    │   ├── strategic-compact/SKILL.md  # 何時手動 /compact (task boundary) vs 何時別 compact (mid-implementation),配 remind_strategic_compact.sh hook
+    │   └── wait-gh-state/SKILL.md      # 非 CI 的 GitHub state 監看 (issue close / release stable),sibling to wait-pr-ci;refs #115
     ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check

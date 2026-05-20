@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **633 tests** (629 smoke + 4 integration) plus shellcheck (28 hook
-scripts + 25 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **658 tests** (654 smoke + 4 integration) plus shellcheck (28 hook
+scripts + 27 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -1069,6 +1069,49 @@ marker. Configurable via `NO_OFF_TASK_REMIND_DISABLE=1`. Refs #109.
 | throttled: same phrase fires once per session | idempotency |
 | stop_hook_active=true skips | re-entry guard |
 | NO_OFF_TASK_REMIND_DISABLE=1 skips | kill switch |
+
+### test/smoke/wait_issue_close_spec.bats (12)
+
+Covers `.claude/scripts/wait-issue-close.sh` -- polls a GitHub issue
+until it transitions to CLOSED. `gh` stubbed via PATH override. Sibling
+to the `wait-pr-ci` family; new in #115.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --repo exits 2 | required-arg validation |
+| missing --issue exits 2 | required-arg validation |
+| non-numeric --issue exits 2 | arg validation |
+| unknown flag exits 2 | flag validation |
+| state=OPEN keeps polling and hits max-iterations 124 | poll loop + iter cap |
+| state=CLOSED exits 0 with snapshot | terminal-state success |
+| CLOSED with linked PRs shows linked= field | closedByPullRequestsReferences projection |
+| --on-close message printed on CLOSED | on-close emission |
+| --on-close not printed while OPEN | on-close gating |
+| stable OPEN across iterations emits one snapshot (dedup) | snapshot dedup |
+| transition OPEN -> CLOSED emits both snapshots and exits 0 | mid-poll transition |
+
+### test/smoke/wait_release_spec.bats (13)
+
+Covers `.claude/scripts/wait-release.sh` -- polls `gh release list`
+until a tag matching `--tag-pattern` (POSIX ERE) appears as stable (no
+`-rc` substring). Sibling to `wait-issue-close.sh`; new in #115.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| missing --repo exits 2 | required-arg validation |
+| missing --tag-pattern exits 2 | required-arg validation |
+| unknown flag exits 2 | flag validation |
+| empty release list keeps polling and hits max-iterations | empty list handling |
+| stable tag matching pattern exits 0 with classification | stable happy path |
+| rc tag matching loose pattern emits rc snapshot then keeps polling | rc emission + keep polling |
+| strict stable pattern excludes rc tag | tag-pattern filter |
+| stable preferred when both stable and older rc in list | stable wins over older rc |
+| --on-stable message printed after stable | on-stable emission |
+| --on-rc message printed for rc tag | on-rc emission |
+| rc dedup across iterations emits once | tag dedup |
+| non-matching tags are ignored | tag-pattern filter |
 
 ## Integration specs
 

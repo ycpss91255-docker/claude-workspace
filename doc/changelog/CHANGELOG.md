@@ -6,6 +6,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/skills/wait-gh-state/SKILL.md` + `.claude/scripts/wait-issue-close.sh`
+  + `.claude/scripts/wait-release.sh` -- sibling skill to `wait-pr-ci`
+  that watches non-CI GitHub state transitions (issue close, release
+  tag) via `Monitor`. Standardises a pattern hand-rolled four times in
+  one session (`base#367`, `base#368` close watchers + two release-
+  stable watchers in the `ros1_bridge#107` adoption work). Same exit
+  codes (0 = triggered, 2 = arg error, 124 = max-iter), same
+  per-transition snapshot + `---` output as the `wait-pr-ci` family.
+  `wait-release.sh` classifies each new tag as `rc` (substring `-rc`)
+  or `stable` and exits 0 on the first stable match; RC dedup keeps the
+  snapshot quiet across polls. 25 new bats cases (12 issue-close + 13
+  release). Refs #115.
+
 ### Fixed
 - `.claude/scripts/wait-pr-ci.sh` + `wait-pr-ci-batch.sh` -- detect
   `state=MERGED` / `state=CLOSED` as terminal states to close the
