@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **676 tests** (672 smoke + 4 integration) plus shellcheck (29 hook
+Total: **695 tests** (691 smoke + 4 integration) plus shellcheck (30 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -887,6 +887,41 @@ cmd hits `is_acked` and is allowed through.
 | silent on script with similar name (foo/upgrade.sh) | path-prefix discriminator |
 | silent on empty command | empty-input guard |
 | allows same command after ack file exists | ack-bypass |
+| ack for different command does NOT bypass deny | hash isolation |
+
+### test/smoke/enforce_batch_via_script_spec.bats (19)
+
+Covers `.claude/hooks/enforce_batch_via_script.sh` — BLOCKING
+PreToolUse hook that DENIES ad-hoc cross-repo for-loops performing
+state-changing operations (`git push|reset|tag|branch -D`, or
+`gh issue|pr close|merge|comment --body`). Routes the agent toward
+a permanent `.claude/scripts/<name>.sh` (one prompt for the whole
+batch instead of N prompts inducing yes-fatigue). Read-only loops
+(`gh pr view`, `git log`, `grep`, `cat`) and standalone (non-loop)
+mutating commands pass through silently. Lift mechanism is the same
+`/tmp` checkpoint protocol (ADR-00000002 / #117) used by
+[[enforce-make-first-upgrade]].
+
+| Test | Scenario |
+|------|----------|
+| denies for-loop with gh issue close | positive trigger + checkpoint side-effect |
+| denies for-loop with git push origin tag | mutating git verb in loop |
+| denies for-loop with git reset --hard | mutating git verb in loop |
+| denies for-loop with git branch -D | mutating git verb in loop |
+| denies for-loop with git tag (mutating) | tag create variant |
+| denies for-loop with gh pr merge | mutating gh verb in loop |
+| denies for-loop with gh issue comment --body | mutating gh comment variant |
+| deny reason mentions permanent script under .claude/scripts/ | reason content |
+| denies multi-line for-loop body | multi-line shape (newlines) |
+| silent on for-loop with read-only gh pr view | read-only loop allowed |
+| silent on for-loop with read-only git log | read-only loop allowed |
+| silent on for-loop with grep only | read-only loop allowed |
+| silent on standalone git push (no for-loop) | clause 1 missing |
+| silent on standalone gh issue close (no for-loop) | clause 1 missing |
+| silent when invoking permanent batch script directly | trust permanent wrapper |
+| silent on git tag delete (-d) inside for-loop | delete subcommand excluded |
+| silent on empty command | empty-input guard |
+| allows same for-loop after ack file exists | ack-bypass |
 | ack for different command does NOT bypass deny | hash isolation |
 
 ### test/smoke/check_no_stale_template_refs_spec.bats (12)
