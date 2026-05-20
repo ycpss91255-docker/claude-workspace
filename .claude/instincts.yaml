@@ -101,6 +101,18 @@
     - draft in zh-TW for user review, translate to English at submission
   refs: .claude/skills/gh-artifact-format/SKILL.md
 
+- name: worktree-for-branch
+  trigger:
+    kind: bash_command
+  guidance:
+    - never `git checkout -b|-B <branch>` in the main checkout -- DENIED by enforce_worktree_for_branch.sh
+    - non-main work must live in `<workspace>/worktree/<repo>-<N>/`; create via `git worktree add <path> -b <branch> main`
+    - the main checkout must continuously ff-track origin/main HEAD (PR #89 precedent: stale-base branch needed forced rebase)
+    - the hook detects worktrees via `git rev-parse --git-dir` vs `--git-common-dir` -- inside a worktree the two differ and the gate passes through
+    - `git switch -c <branch>` is out of scope for now; the rule still applies, just unguarded
+    - lift via `/tmp` checkpoint protocol (ADR-00000002) -- touch the ack file and re-issue
+  refs: ADR-00000006 git-worktree-mandatory-for-branches
+
 - name: batch-via-script
   trigger:
     kind: bash_command

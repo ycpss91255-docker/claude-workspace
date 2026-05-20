@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **695 tests** (691 smoke + 4 integration) plus shellcheck (30 hook
+Total: **709 tests** (705 smoke + 4 integration) plus shellcheck (31 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -923,6 +923,36 @@ mutating commands pass through silently. Lift mechanism is the same
 | silent on empty command | empty-input guard |
 | allows same for-loop after ack file exists | ack-bypass |
 | ack for different command does NOT bypass deny | hash isolation |
+
+### test/smoke/enforce_worktree_for_branch_spec.bats (14)
+
+Covers `.claude/hooks/enforce_worktree_for_branch.sh` — BLOCKING
+PreToolUse hook that DENIES `git checkout -b|-B <branch>` in the
+main checkout (where `--git-dir` == `--git-common-dir`). Routes
+the agent to `git worktree add <path> -b <branch> main` so the
+main checkout keeps ff-tracking origin/main HEAD (PR #89 precedent
++ ADR-00000006). Inside a worktree (`--git-dir` != `--git-common-dir`)
+the hook falls through silently. `git switch -c` is out of scope for
+now. Lift via the same `/tmp` checkpoint protocol (ADR-00000002 /
+#117) as [[enforce-make-first-upgrade]] /
+[[enforce-batch-via-script]].
+
+| Test | Scenario |
+|------|----------|
+| denies git checkout -b feat/x in main checkout | positive trigger + checkpoint side-effect |
+| denies git checkout -B feat/x (capital B) | -B variant |
+| denies git -C <main-path> checkout -b feat/x | -C arg resolution |
+| deny reason mentions git worktree add | reason content |
+| silent on git checkout -b inside a worktree | worktree pass-through (cwd) |
+| silent on git -C <worktree-path> checkout -b | worktree pass-through (-C) |
+| silent on git checkout main (switch existing branch, no -b) | non-create form |
+| silent on git checkout -- file.txt (path restore) | path-restore form |
+| silent on git checkout some-existing-branch | existing branch switch |
+| silent on unrelated commands (git status) | non-trigger |
+| silent on empty command | empty-input guard |
+| silent when cwd is not a git repo | repo discovery failure |
+| allows same checkout -b after ack file exists | ack-bypass |
+| ack for different branch does NOT bypass deny | hash isolation |
 
 ### test/smoke/check_no_stale_template_refs_spec.bats (12)
 | Test | Scenario |

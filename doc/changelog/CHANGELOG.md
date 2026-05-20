@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/hooks/enforce_worktree_for_branch.sh` -- BLOCKING PreToolUse
+  Bash hook (refs #122, Tier 2 of #116 hook 3 of 4). DENIES
+  `git checkout -b|-B <branch>` invocations targeting the main checkout
+  (where `git rev-parse --git-dir` equals `--git-common-dir`), routing
+  the agent to `git worktree add <workspace>/worktree/<repo>-<N> -b
+  <branch> main` so the main checkout keeps ff-tracking origin/main HEAD.
+  Inside a worktree the two git-dir values differ and the hook falls
+  through silently. `git checkout <existing-branch>`, `git checkout --
+  <file>`, and unrelated commands pass through. `git switch -c <branch>`
+  is out of scope for now (potential follow-up). Sibling guard
+  `check_main_fresh_before_worktree.sh` already covers the inverse
+  failure mode (worktree add from a stale main). Lift mechanism re-uses
+  the `/tmp` checkpoint protocol (ADR-00000002 / #117). 14 new bats
+  cases; TEST.md total 695 -> 709; shellcheck hook count 30 -> 31.
+  `.claude/instincts.yaml` gains a `worktree-for-branch` `bash_command`
+  instinct. Refs PR #89 (precedent incident where local main grew a
+  branch on a stale base and required a forced rebase) + ADR-00000006.
+
 - `.claude/hooks/enforce_batch_via_script.sh` -- BLOCKING PreToolUse Bash
   hook (refs #121, Tier 2 of #116 hook 2 of 4). DENIES ad-hoc cross-repo
   for-loops performing state-changing operations (`git push|reset|tag|
