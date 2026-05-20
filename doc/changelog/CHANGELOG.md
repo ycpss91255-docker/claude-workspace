@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/skills/skillification-candidates/SKILL.md` +
+  `.claude/hooks/remind_skillification_candidates.sh` -- skill + Stop
+  hook pair giving the CLAUDE.md "End-of-task: list skillification
+  candidates" rule an auto-invocation surface (refs #125, Tier 3 of
+  #116, skill 2 of 3). The skill describes the four candidate
+  categories with a "signal you saw it" column and an artifact-shape
+  column: (1) `/tmp/*.sh` re-use -> permanent `.claude/scripts/<name>.sh`;
+  (2) parser-fallback Bash repetition -> permanent script with atomic
+  flags; (3) slash-command gap -> sketch new `.claude/commands/<name>.md`;
+  (4) bug in existing skill -> one-line skill patch or follow-up issue.
+  The Stop hook covers categories 1 and 2 (the auto-detectable signals)
+  by scanning `transcript_path` JSONL for Bash invocations matching
+  `/tmp/[^/]+\.sh` paths or parser-fallback patterns (heredoc redirect,
+  `${var%suffix}` expansion, `<<<` herestring, `cd path && tool`,
+  `(cd path && ...)` subshell). Fires when either count >= its
+  threshold (defaults 3 each) AND the session has NOT already raised
+  a skillification candidate via the regex (skill-ify / skillification
+  / promote to .claude/scripts / new slash command / workflow gap;
+  case-insensitive). Throttled via TMPDIR marker. Configurable via
+  `SKILLIFICATION_REMIND_DISABLE=1`,
+  `SKILLIFICATION_TMP_THRESHOLD=<N>`,
+  `SKILLIFICATION_PARSER_THRESHOLD=<N>`. Categories 3 and 4 require
+  semantic understanding the hook does not have; the skill body covers
+  them so the agent surfaces them when it spots them. 16 new bats
+  cases; TEST.md total 729 -> 745; shellcheck hook count 32 -> 33.
+  CLAUDE.md tree listing + skillify prose section updated to point at
+  the skill and hook.
+
 - `.claude/skills/proactive-optimization/SKILL.md` +
   `.claude/hooks/remind_proactive_optimization.sh` -- skill + Stop hook
   pair giving the CLAUDE.md "## 主動優化建議" rule an auto-invocation

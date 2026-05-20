@@ -285,6 +285,7 @@ docker/
     │   ├── remind_adr_on_design_decision.sh # Stop hook：transcript 掃 rationale 關鍵字 (alternative/trade-off/rejected because/...) 達 threshold 且 session 無 doc/adr/ 寫入時提案 /adr,configurable via ADR_REMIND_{DISABLE,THRESHOLD};refs #97
     │   ├── check_no_off_task_suggestions.sh # Stop hook：transcript 掃 last assistant message 的 off-task 片語 (stop for dinner / take a break / need rest / do it tomorrow ...) 命中時 remind,never block,configurable via NO_OFF_TASK_REMIND_DISABLE;refs #109
     │   ├── remind_proactive_optimization.sh # Stop hook：task-boundary 訊號(gh pr merge / tool count >= 50)後若 session 未提任何 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition) 則 remind 配 [[proactive-optimization]] skill,configurable via PROACTIVE_OPTIMIZATION_REMIND_{DISABLE,THRESHOLD};refs #124
+    │   ├── remind_skillification_candidates.sh # Stop hook：偵測 /tmp/*.sh 反覆呼叫 (>=3 次) 或 parser-fallback Bash pattern 重複 (>=3 次) 且 session 未提任何 skillification 候選時 remind 配 [[skillification-candidates]] skill,configurable via SKILLIFICATION_REMIND_DISABLE + SKILLIFICATION_{TMP,PARSER}_THRESHOLD;refs #125
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   ├── rebase-pr/SKILL.md          # PR 因 BEHIND/CONFLICTING 需 rebase 時的 one-shot 流程,配 rebase-pr.sh + wait-pr-ci FAIL hint,refs #87
@@ -293,7 +294,8 @@ docker/
     │   ├── semver-bump/SKILL.md        # 版本 tag 流程:X/Y/Z 分類 + RC 程序 + RELEASE_X_BUMP_ACK 使用,配 release-tag.sh + enforce_semver_tag_via_script.sh,refs #106
     │   ├── strategic-compact/SKILL.md  # 何時手動 /compact (task boundary) vs 何時別 compact (mid-implementation),配 remind_strategic_compact.sh hook
     │   ├── wait-gh-state/SKILL.md      # 非 CI 的 GitHub state 監看 (issue close / release stable),sibling to wait-pr-ci;refs #115
-    │   └── proactive-optimization/SKILL.md # 任務 boundary 時主動提 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition),配 remind_proactive_optimization.sh Stop hook;refs #124
+    │   ├── proactive-optimization/SKILL.md # 任務 boundary 時主動提 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition),配 remind_proactive_optimization.sh Stop hook;refs #124
+    │   └── skillification-candidates/SKILL.md # 任務 wrap-up 時提 skillification 候選 (/tmp/*.sh re-use / parser-fallback / slash-command gap / bug-in-skill),配 remind_skillification_candidates.sh Stop hook;refs #125
     ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
     │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
     │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check
@@ -934,6 +936,14 @@ non-symlink 資料夾且內容跟 repo 一致就 rm + symlink；偵測新內容
 提案格式：列「候選名 / 結構（command + script / 純 skill 描述）/ 優先度」，
 讓使用者決定要不要動。**不要在工作中插話打斷流程**；也**不要每個任務都列**
 — 只在真的有 ≥1 個高價值候選時才列。
+
+執行細節（4 個 categories、offer 措辭、何時不該提）見
+`.claude/skills/skillification-candidates/SKILL.md`。配對的
+`remind_skillification_candidates.sh` Stop hook 會在 transcript 偵測
+到 `/tmp/*.sh` ≥3 次或 parser-fallback Bash pattern ≥3 次且
+session 未提任何 skillification 候選時 emit 一條 systemMessage。
+Disable via `SKILLIFICATION_REMIND_DISABLE=1`，閾值可改
+`SKILLIFICATION_{TMP,PARSER}_THRESHOLD`。
 
 ### 工作量大時使用平行 Agent
 

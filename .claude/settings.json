@@ -279,6 +279,11 @@
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/remind_proactive_optimization.sh",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/remind_skillification_candidates.sh",
+            "timeout": 15
           }
         ]
       }
