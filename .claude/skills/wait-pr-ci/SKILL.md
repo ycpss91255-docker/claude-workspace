@@ -188,6 +188,15 @@ gh pr comment <PR> --repo <OWNER>/<REPO> --body "@dependabot rebase"
 
 For non-bot PRs, rebase locally + force-push, then re-invoke.
 
+### Auto-merge terminal-state short-circuit (refs #113)
+
+When a PR is queued with `gh pr merge --auto`, GitHub completes the merge after CI passes but **stops recomputing `mergeable`** afterwards — the field stays at `UNKNOWN` indefinitely. Previously this hung the Monitor stream at the `checks=all-pass mergeable=UNKNOWN` snapshot until `--max-iterations` / `timeout_ms`. The polling scripts now read `.state` from the same `gh pr view --json` call and short-circuit:
+
+- `state=MERGED` -> snapshot line `state=MERGED (auto-merge completed)` + `ALL_DONE`
+- `state=CLOSED` without merge -> snapshot line `state=CLOSED without merge` + `FAIL <pr> (state=CLOSED without merge)`
+
+Mid-poll transitions (poll N: `OPEN` + `pending`; poll N+1: `MERGED`) also reach `ALL_DONE` cleanly without leaving an orphan `mergeable=UNKNOWN` line. Both `wait-pr-ci.sh` and `wait-pr-ci-batch.sh` apply the same logic; the batch script does it per pair.
+
 ## See also
 
 - `.claude/scripts/wait-pr-ci.sh` / `.claude/scripts/wait-pr-ci-batch.sh` / `.claude/scripts/wait-tag-ci.sh` — the polling implementations. `--help` prints usage.

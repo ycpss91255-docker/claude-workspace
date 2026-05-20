@@ -276,3 +276,49 @@ STUB_EOF
   assert_output --partial "ALL_DONE"
   refute_output --partial "[head-moved]"
 }
+
+@test "state=MERGED with mergeable=UNKNOWN exits 0 with ALL_DONE (auto-merge race)" {
+  # refs ycpss91255-docker/docker_harness#113. After `gh pr merge --auto`
+  # completes, GitHub stops recomputing `mergeable`, leaving it stuck at
+  # UNKNOWN. .state=MERGED is authoritative: short-circuit to ALL_DONE
+  # without waiting for `mergeable=MERGEABLE`.
+  stub_gh '{"state":"MERGED","mergeable":"UNKNOWN","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "PR1: state=MERGED (auto-merge completed)"
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "checks=all-pass"
+}
+
+@test "state=CLOSED without merge exits 1 with FAIL <pr>" {
+  # PR closed without merge -> terminal failure, not a retryable state.
+  stub_gh '{"state":"CLOSED","mergeable":"UNKNOWN","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 5 --interval 0 --max-iterations 3
+  assert_failure 1
+  assert_output --partial "PR5: state=CLOSED without merge"
+  assert_output --partial "FAIL 5 (state=CLOSED without merge)"
+}
+
+@test "state-transition mid-poll: OPEN/pending -> MERGED reaches ALL_DONE" {
+  # Poll 1: OPEN + still-pending CI. Poll 2: MERGED. Script must terminate
+  # cleanly without an orphan `mergeable=UNKNOWN` line lingering.
+  stub_gh_seq \
+    '{"state":"OPEN","mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","status":"IN_PROGRESS","conclusion":""}]}' \
+    '{"state":"MERGED","mergeable":"UNKNOWN","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "checks=pending"
+  assert_output --partial "PR1: state=MERGED"
+  assert_output --partial "ALL_DONE"
+}
+
+@test "absent .state field preserves backwards-compatible behaviour" {
+  # Existing stubs that omit .state -> jq returns "?" -> short-circuit
+  # case falls through to the original mergeable+rollup logic.
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "PR1: checks=all-pass mergeable=MERGEABLE"
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "state=MERGED"
+}

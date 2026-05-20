@@ -6,6 +6,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `.claude/scripts/wait-pr-ci.sh` + `wait-pr-ci-batch.sh` -- detect
+  `state=MERGED` / `state=CLOSED` as terminal states to close the
+  auto-merge race (refs #113). After `gh pr merge --auto` completes,
+  GitHub stops recomputing `mergeable`, leaving it stuck at `UNKNOWN`;
+  the previous gate `all-pass AND mergeable=MERGEABLE -> ALL_DONE`
+  hung the Monitor stream until `--max-iterations` / `timeout_ms`. The
+  `.state` field is now added to the `gh pr view --json` projection
+  and short-circuits the per-PR (or per-pair) loop: `MERGED` -> ready
+  with `state=MERGED (auto-merge completed)` snapshot line; `CLOSED`
+  without merge -> `FAIL <pr> (state=CLOSED without merge)`. Absent
+  `.state` (legacy mocks) falls through to the original mergeable +
+  rollup machinery, preserving backwards-compat. Mid-poll transitions
+  (poll 1 OPEN/pending -> poll 2 MERGED) also reach `ALL_DONE`
+  cleanly. 7 new bats cases (4 single-repo + 3 batch). Hit four times
+  in a session this week: `base#363`, `base#369`, `base#373`,
+  `docker_harness#104`.
+
 ### Added
 - `.claude/hooks/check_no_off_task_suggestions.sh` (Stop hook) +
   `.claude/memory/feedback_no_off_task_suggestions.md` -- ban
