@@ -101,6 +101,16 @@
     - draft in zh-TW for user review, translate to English at submission
   refs: .claude/skills/gh-artifact-format/SKILL.md
 
+- name: make-first-upgrade
+  trigger:
+    kind: bash_command
+  guidance:
+    - never run `./.base/upgrade.sh` directly when `Makefile.ci` has an `upgrade:` target -- DENIED by enforce_make_first_upgrade.sh
+    - use the canonical wrapper `make -f Makefile.ci upgrade VERSION=vX.Y.Z` instead
+    - the make wrapper internally runs the same upgrade.sh PLUS the init.sh symlink resync + main.yaml @tag sed steps that direct .sh invocation skips (refs issue #36)
+    - lift the gate via the `/tmp` checkpoint protocol (ADR-00000002) -- the deny message quotes the matching `touch <ack-file>` command; re-issue the same upgrade.sh call after ack to proceed
+  refs: ADR-00000005 prefer-make-over-raw-upgrade-sh
+
 - name: semver-tag-via-script
   trigger:
     kind: bash_command

@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **672 tests** (668 smoke + 4 integration) plus shellcheck (29 hook
+Total: **676 tests** (672 smoke + 4 integration) plus shellcheck (29 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -862,24 +862,32 @@ stay silent.
 | strips single env-prefix and matches docker build | env-prefix tolerance |
 | strips multiple env-prefixes and matches docker build | multi env-prefix |
 
-### test/smoke/remind_make_first_upgrade_spec.bats (8)
+### test/smoke/enforce_make_first_upgrade_spec.bats (12)
 
-Covers `.claude/hooks/remind_make_first_upgrade.sh` — non-blocking
-PreToolUse reminder that nags when the agent runs
-`./.base/upgrade.sh` directly while `Makefile.ci upgrade` is
-available. Enforces CLAUDE.md「升級一律 make 優先」at the hook layer
-(refs issue #36 Ask 2).
+Covers `.claude/hooks/enforce_make_first_upgrade.sh` — BLOCKING
+PreToolUse hook that DENIES direct `./.base/upgrade.sh` invocations
+when `Makefile.ci` has an `upgrade:` target, routing the agent
+through the canonical `make -f Makefile.ci upgrade VERSION=vX.Y.Z`
+wrapper (refs issue #36 incident + ADR-00000005). The deny can be
+lifted via the `/tmp` checkpoint protocol (ADR-00000002 / #117): the
+hook writes a checkpoint markdown + quotes the matching `touch
+<ack-file>` command in the reason; the second attempt of the same
+cmd hits `is_acked` and is allowed through.
 
 | Test | Scenario |
 |------|----------|
-| fires on ./.base/upgrade.sh when Makefile.ci has upgrade target | trigger path with VERSION arg |
-| fires on bare .base/upgrade.sh (no leading ./) | path-prefix variant |
-| fires on absolute path .base/upgrade.sh | absolute-path variant |
+| denies ./.base/upgrade.sh and writes checkpoint markdown | positive trigger + checkpoint side-effect |
+| denies bare .base/upgrade.sh (no leading ./) | path-prefix variant |
+| denies absolute path .base/upgrade.sh | absolute-path variant |
+| deny reason mentions canonical make wrapper | reason content |
+| silent on make -f Makefile.ci upgrade (already going through wrapper) | wrapper path |
 | silent when Makefile.ci absent (no make wrapper available) | rule N/A |
 | silent when Makefile.ci has no upgrade target | rule N/A |
-| silent on make -f Makefile.ci upgrade (already going through wrapper) | wrapper path |
-| silent on unrelated commands | non-trigger |
+| silent on unrelated commands (git status) | non-trigger |
 | silent on script with similar name (foo/upgrade.sh) | path-prefix discriminator |
+| silent on empty command | empty-input guard |
+| allows same command after ack file exists | ack-bypass |
+| ack for different command does NOT bypass deny | hash isolation |
 
 ### test/smoke/check_no_stale_template_refs_spec.bats (12)
 | Test | Scenario |

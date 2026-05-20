@@ -6,6 +6,23 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `.claude/hooks/remind_make_first_upgrade.sh` (remind-only) replaced with
+  `.claude/hooks/enforce_make_first_upgrade.sh` (BLOCKING). Direct
+  `./.base/upgrade.sh` invocation is now denied when the repo has a
+  `Makefile.ci` with an `upgrade:` target, routing the agent through the
+  canonical `make -f Makefile.ci upgrade VERSION=vX.Y.Z` wrapper that runs
+  the init.sh symlink resync + main.yaml `@tag` sed steps direct `.sh`
+  invocation skips (refs issue #36 incident + ADR-00000005). The deny can
+  be lifted via the `/tmp` checkpoint protocol (ADR-00000002 / #117): the
+  hook writes a five-section checkpoint markdown + quotes the matching
+  `touch <ack-file>` command; the second attempt of the same cmd is
+  allowed through (sha256(cmd) hash isolation keeps unrelated commands
+  from sharing acks). `.claude/settings.json` PreToolUse Bash chain swaps
+  the entry; `.claude/instincts.yaml` gains a `make-first-upgrade`
+  `bash_command` instinct. 12 new bats cases replace 8 old; TEST.md total
+  672 -> 676. Tier 2 of #116, hook 1 of 4 -- refs #120.
+
 ### Added
 - 4 historical-rationale ADRs (ADR-00000004 through ADR-00000007) --
   formal records for D-class CLAUDE.md content (4 of 64 sections in the
