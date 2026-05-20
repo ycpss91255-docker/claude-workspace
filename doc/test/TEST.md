@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **729 tests** (725 smoke + 4 integration) plus shellcheck (32 hook
+Total: **745 tests** (741 smoke + 4 integration) plus shellcheck (33 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -1196,6 +1196,38 @@ signal-set via TMPDIR marker. Configurable via
 | optimisation mention regex is case-insensitive | case folding |
 | silent on missing transcript_path | defensive |
 | skill-ify (with hyphen) suppresses the reminder | regex variant |
+
+### test/smoke/remind_skillification_candidates_spec.bats (16)
+
+Covers `.claude/hooks/remind_skillification_candidates.sh` -- Stop
+hook that emits a `systemMessage` when auto-detectable signals show
+ad-hoc patterns worth promoting (a `/tmp/*.sh` invoked >= threshold
+times, OR a parser-fallback Bash pattern repeated >= threshold times)
+AND no skillification candidate was already raised in the
+conversation. Throttled once per session per signal-set via TMPDIR
+marker. Configurable via `SKILLIFICATION_REMIND_DISABLE=1`,
+`SKILLIFICATION_TMP_THRESHOLD=<N>`,
+`SKILLIFICATION_PARSER_THRESHOLD=<N>`. Pairs with
+`.claude/skills/skillification-candidates/SKILL.md`. Refs #125.
+
+| Test | Scenario |
+|------|----------|
+| silent on empty transcript | edge case |
+| silent when no /tmp/*.sh and no parser-fallback patterns | no-trigger happy path |
+| silent with 2 /tmp/*.sh invocations (below default threshold 3) | sub-threshold |
+| fires after 3 /tmp/*.sh invocations | positive: tmp threshold |
+| fires after 3 parser-fallback heredoc-redirect patterns | positive: parser threshold (heredoc) |
+| fires after 3 cd-path-and-tool patterns | positive: parser threshold (cd+&&) |
+| silent when session already raised a skillification candidate | negative: prior mention |
+| silent when SKILLIFICATION_REMIND_DISABLE=1 | kill switch |
+| silent when stop_hook_active=true (re-entry guard) | parent-block guard |
+| custom SKILLIFICATION_TMP_THRESHOLD lowers the bar | env override |
+| custom SKILLIFICATION_PARSER_THRESHOLD lowers the bar | env override |
+| throttle: second fire with same signal-set is silent | idempotency |
+| mention-regex case-insensitive (SKILL-IFY uppercase) | case folding |
+| silent on missing transcript_path | defensive |
+| non-/tmp .sh invocation does NOT count toward /tmp threshold | path discriminator |
+| fires when BOTH signals cross threshold (reason lists both) | positive: combined signal |
 
 ### test/smoke/wait_issue_close_spec.bats (12)
 
