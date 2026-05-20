@@ -6,6 +6,26 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `.claude/skills/proactive-optimization/SKILL.md` +
+  `.claude/hooks/remind_proactive_optimization.sh` -- skill + Stop hook
+  pair giving the CLAUDE.md "## 主動優化建議" rule an auto-invocation
+  surface (refs #124, Tier 3 of #116, skill 1 of 3). The skill describes
+  the four optimisation-candidate categories (workflow ergonomics,
+  cross-repo inconsistency, doc drift, manual repetition), the offer
+  phrasing (one-paragraph question, not a unilateral fix), and the
+  when-not-to-offer cases. The Stop hook fires once-per-session per
+  signal-set when (a) a task boundary signal holds (`gh pr merge`
+  invoked OR tool-call count >= `PROACTIVE_OPTIMIZATION_REMIND_THRESHOLD`,
+  default 50) AND (b) the session has NOT already mentioned an
+  optimisation candidate via the regex (optimisation / automate /
+  scripted / DRY / redundant / skill candidate / skill-ify etc.,
+  case-insensitive). Throttled via TMPDIR marker, configurable via
+  `PROACTIVE_OPTIMIZATION_REMIND_DISABLE=1`. 13 new bats cases; TEST.md
+  total 716 -> 729; shellcheck hook count 31 -> 32. CLAUDE.md tree
+  listing + "## 主動優化建議" prose section updated to point at the
+  skill and hook.
+
 ### Changed
 - `.claude/hooks/enforce_make_first_upgrade.sh` -- scope expanded to
   cover three surfaces instead of one (#120 follow-up per the #123
