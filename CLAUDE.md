@@ -245,7 +245,9 @@ docker/
     │   ├── instinct-query.sh                 # 查詢 .claude/instincts.yaml — `instinct-query.sh <kind> [path]` 印出符合 trigger 的 instincts (5 kinds: file_edit / git_commit / gh_pr_create / gh_issue_create / bash_command)，hooks/skills 用來取代 grep CLAUDE.md prose;refs #95
     │   ├── release-tag.sh                    # canonical primitive for cutting version tags;decision tree (RC / Z / Y / X bump) + .version integrity + RC CI 查詢 + RELEASE_X_BUMP_ACK 檢查;搭配 enforce_semver_tag_via_script.sh 強制 routing,refs #106
     │   ├── new-adr.sh                         # /adr 的實作:auto-number 8 位數補零,從 doc/adr/[0-9]*.md 掃 max+1,渲染 5-section 模板 (Date/Status/Context/Decision/Alternatives/Consequences),refs #97
-    │   └── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
+    │   ├── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
+    │   └── lib/
+    │       └── checkpoint.sh                  # /tmp checkpoint protocol helper — write_checkpoint + is_acked,Tier 2 E2 hook 共享 deny/ack 契約,refs ADR-00000002 / #117
     ├── memory/               # Claude Code per-project memory（auto-loaded via symlink）
     │   ├── MEMORY.md         # 入口索引(被 Claude Code 自動讀進 system prompt 開頭)
     │   ├── feedback_*.md     # 個別 feedback / workflow rule（每檔有 name + description + type frontmatter）
@@ -267,6 +269,7 @@ docker/
     │   ├── enforce_gh_body_file.sh     # gh issue/pr create/edit/comment/close/review 前 BLOCK 違反 body-file 規律的 8 種 pattern(配合 [[gh-artifact-format]] skill,refs #64)
     │   ├── remind_test_tools_smoke_sync.sh # Dockerfile.test-tools 改動但同層 release-test-tools.yaml 未同步時提醒
     │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
+    │   ├── auto_allow_touch_ack.sh       # touch $TMPDIR/claude-checkpoint-*.ack 自動 allow（/tmp checkpoint 協定一鍵 ack,refs ADR-00000002 / #117）
     │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36；defensive 第二層,主要 gate 由 enforce_semver_tag_via_script.sh 接手）
     │   ├── enforce_semver_tag_via_script.sh # git tag/push v* 前 BLOCK：raw 命令一律拒絕,強制走 .claude/scripts/release-tag.sh canonical script(refs #106)
     │   ├── remind_make_first_upgrade.sh # ./.base/upgrade.sh 前提醒改用 make -f Makefile.ci upgrade（refs #36）

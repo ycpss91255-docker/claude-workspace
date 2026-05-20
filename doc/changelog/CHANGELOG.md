@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/hooks/auto_allow_touch_ack.sh` +
+  `.claude/scripts/lib/checkpoint.sh` + ADR-00000002 -- foundation for
+  the `/tmp` checkpoint protocol that the four Tier 2 E2 enforcement
+  hooks (`enforce_make_first_upgrade` / `enforce_batch_via_script` /
+  `enforce_worktree_for_branch` / `enforce_slash_command_first`) will
+  share. PreToolUse Bash hook auto-allows
+  `touch $TMPDIR/claude-checkpoint-<slug>-<session>-<hash>.ack` (the
+  one-click ack the protocol writes into its checkpoint markdown);
+  helper module exports `write_checkpoint <slug> <cmd> <reason>
+  <canonical> <ack_hint>` (renders 5-section markdown) and
+  `is_acked <slug> <cmd>` (short-circuits on second attempt). ADR
+  records the design + three rejected alternatives (raw deny / state
+  file in `.claude/state/` / always-prompt). 14 new bats cases
+  (positive / negative / boundary). Tier 0 of #116 -- refs #117.
 - `.claude/skills/wait-gh-state/SKILL.md` + `.claude/scripts/wait-issue-close.sh`
   + `.claude/scripts/wait-release.sh` -- sibling skill to `wait-pr-ci`
   that watches non-CI GitHub state transitions (issue close, release
