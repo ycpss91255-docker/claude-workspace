@@ -189,6 +189,7 @@ main() {
     local out=""
     local all_ready=1
     local fail_pair=""
+    local fail_reason=""
 
     for p in "${norm_pairs[@]}"; do
       repo="${p%:*}"
@@ -196,7 +197,7 @@ main() {
 
       local s
       s=$(gh pr view "${pr}" --repo "${repo}" \
-            --json mergeable,statusCheckRollup,headRefOid 2>/dev/null \
+            --json mergeable,statusCheckRollup,headRefOid,state 2>/dev/null \
           || echo '{}')
 
       # headRefOid stale-rollup guard, same as wait-pr-ci.sh.
@@ -210,6 +211,24 @@ main() {
           "${repo}" "${pr}" "${prev_oid:0:7}" "${current_oid:0:7}"
       fi
       head_oid_by_pair["${p}"]="${current_oid}"
+
+      # Terminal-state short circuit (refs #113). See wait-pr-ci.sh for
+      # the full rationale; same shape applied per-pair.
+      local pr_state
+      pr_state=$(jq -r '.state // "?"' <<< "${s}")
+      case "${pr_state}" in
+        MERGED)
+          out="${out}${repo}#${pr}: state=MERGED (auto-merge completed)"$'\n'
+          continue
+          ;;
+        CLOSED)
+          out="${out}${repo}#${pr}: state=CLOSED without merge"$'\n'
+          fail_pair="${repo}#${pr}"
+          fail_reason="closed"
+          all_ready=0
+          continue
+          ;;
+      esac
 
       local short="${repo##*/}"
       local pair_filter="${check_filter}"
@@ -275,7 +294,14 @@ main() {
     prev="${out}"
 
     if [[ -n "${fail_pair}" ]]; then
-      printf 'FAIL %s\n' "${fail_pair}"
+      case "${fail_reason:-}" in
+        closed)
+          printf 'FAIL %s (state=CLOSED without merge)\n' "${fail_pair}"
+          ;;
+        *)
+          printf 'FAIL %s\n' "${fail_pair}"
+          ;;
+      esac
       exit 1
     fi
 

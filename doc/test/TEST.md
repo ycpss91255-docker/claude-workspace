@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **626 tests** (622 smoke + 4 integration) plus shellcheck (28 hook
+Total: **633 tests** (629 smoke + 4 integration) plus shellcheck (28 hook
 scripts + 25 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -312,7 +312,7 @@ threshold for short inline bodies.
 | rule 2: gh issue comment --body "<exactly 80 chars>" allowed | boundary lower side → SILENT |
 | rule 2: gh issue comment --body "<81 chars>" denied | boundary upper side → DENY |
 
-### test/smoke/wait_pr_ci_spec.bats (24)
+### test/smoke/wait_pr_ci_spec.bats (28)
 
 Covers `.claude/scripts/wait-pr-ci.sh` (the PR-scoped polling loop extracted
 out of the wait-pr-ci skill so the Monitor body becomes a single command, no
@@ -345,8 +345,12 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | headRefOid change between polls emits [head-moved] and forces pending | headRefOid guard (issue #60) |
 | stable headRefOid across polls preserves ALL_DONE path | negative control for headRefOid guard |
 | JSON without headRefOid preserves backwards-compatible behaviour | mocks without headRefOid keep working |
+| state=MERGED with mergeable=UNKNOWN exits 0 with ALL_DONE | auto-merge race short-circuit (issue #113) |
+| state=CLOSED without merge exits 1 with FAIL <pr> | terminal failure (issue #113) |
+| state-transition mid-poll OPEN/pending -> MERGED reaches ALL_DONE | mid-poll race (issue #113) |
+| absent .state field preserves backwards-compatible behaviour | legacy stubs without .state keep working |
 
-### test/smoke/wait_pr_ci_batch_spec.bats (31)
+### test/smoke/wait_pr_ci_batch_spec.bats (34)
 
 Covers `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo flavour for
 `/batch-template-upgrade` follow-up. Same Monitor pattern + output
@@ -386,6 +390,9 @@ and aggregates all PRs into one stream.
 | headRefOid change between polls emits [head-moved] (batch) | headRefOid guard per-pair (issue #60) |
 | stable headRefOid across polls preserves ALL_DONE path (batch) | negative control for headRefOid guard |
 | JSON without headRefOid preserves backwards-compatible behaviour (batch) | mocks without headRefOid keep working |
+| all pairs state=MERGED exits 0 with ALL_DONE (batch) | auto-merge race short-circuit per-pair (issue #113) |
+| one pair state=CLOSED in batch exits 1 with FAIL (batch) | terminal failure per-pair (issue #113) |
+| absent .state field preserves backwards-compatible behaviour (batch) | legacy stubs without .state keep working |
 
 ### test/smoke/fix_dockerfile_lint_lib_spec.bats (6)
 

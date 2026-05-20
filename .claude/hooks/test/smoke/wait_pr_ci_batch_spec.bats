@@ -353,3 +353,31 @@ STUB_EOF
   assert_output --partial "ALL_DONE"
   refute_output --partial "[head-moved]"
 }
+
+@test "all pairs state=MERGED exits 0 with ALL_DONE (batch)" {
+  # refs ycpss91255-docker/docker_harness#113.
+  stub_gh '{"state":"MERGED","mergeable":"UNKNOWN","statusCheckRollup":[{"name":"call-docker-build / docker-build","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 claude_code:2 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ycpss91255-docker/ai_agent#1: state=MERGED (auto-merge completed)"
+  assert_output --partial "ycpss91255-docker/claude_code#2: state=MERGED (auto-merge completed)"
+  assert_output --partial "ALL_DONE"
+}
+
+@test "one pair state=CLOSED in batch exits 1 with FAIL (batch)" {
+  stub_gh '{"state":"CLOSED","mergeable":"UNKNOWN","statusCheckRollup":[{"name":"call-docker-build / docker-build","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 3
+  assert_failure 1
+  assert_output --partial "ycpss91255-docker/ai_agent#1: state=CLOSED without merge"
+  assert_output --partial "FAIL ycpss91255-docker/ai_agent#1 (state=CLOSED without merge)"
+}
+
+@test "absent .state field preserves backwards-compatible behaviour (batch)" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"call-docker-build / docker-build","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 --interval 0 --max-iterations 3 \
+    --check-filter '.name=="call-docker-build / docker-build"'
+  assert_success
+  assert_output --partial "ycpss91255-docker/ai_agent#1: checks=all-pass mergeable=MERGEABLE"
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "state=MERGED"
+}

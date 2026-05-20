@@ -125,7 +125,7 @@ main() {
     for pr in "${prs[@]}"; do
       local s
       s=$(gh pr view "${pr}" --repo "${repo}" \
-            --json mergeable,statusCheckRollup,headRefOid 2>/dev/null \
+            --json mergeable,statusCheckRollup,headRefOid,state 2>/dev/null \
           || echo '{}')
 
       # headRefOid stale-rollup guard. Compare PR head against the
@@ -144,6 +144,28 @@ main() {
           "${pr}" "${prev_oid:0:7}" "${current_oid:0:7}"
       fi
       head_oid_by_pr["${pr}"]="${current_oid}"
+
+      # Terminal-state short circuit (refs #113). After `gh pr merge
+      # --auto` fires, GitHub stops recomputing `mergeable`, leaving it
+      # stuck at UNKNOWN. The .state field is authoritative: MERGED is
+      # done; CLOSED without merge is a failure. Skip the rest of the
+      # rollup parsing for this PR once state is terminal. Absent .state
+      # (e.g. legacy mocks) falls through to the existing machinery.
+      local pr_state
+      pr_state=$(jq -r '.state // "?"' <<< "${s}")
+      case "${pr_state}" in
+        MERGED)
+          out="${out}PR${pr}: state=MERGED (auto-merge completed)"$'\n'
+          continue
+          ;;
+        CLOSED)
+          out="${out}PR${pr}: state=CLOSED without merge"$'\n'
+          fail_pr="${pr}"
+          fail_reason="closed"
+          all_ready=0
+          continue
+          ;;
+      esac
 
       # Two guards above the original `all(.conclusion == "SUCCESS")` to fix
       # premature ALL_DONE seen in practice (refs ycpss91255-docker/docker_harness#XX):
@@ -218,6 +240,9 @@ main() {
         conflict)
           printf 'FAIL %s (mergeable=CONFLICTING). Rebase:\n  .claude/scripts/rebase-pr.sh %s --repo %s\nSee .claude/skills/rebase-pr/SKILL.md.\n' \
             "${fail_pr}" "${fail_pr}" "${repo}"
+          ;;
+        closed)
+          printf 'FAIL %s (state=CLOSED without merge)\n' "${fail_pr}"
           ;;
         *)
           printf 'FAIL %s\n' "${fail_pr}"
