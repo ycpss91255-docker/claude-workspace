@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **615 tests** (611 smoke + 4 integration) plus shellcheck (27 hook
+Total: **626 tests** (622 smoke + 4 integration) plus shellcheck (28 hook
 scripts + 25 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -1038,6 +1038,30 @@ both glob + not_glob).
 | guidance bullets are printed indented | output shape |
 | refs line printed when present, omitted when absent | optional field |
 | missing INSTINCTS_FILE exits 2 | resolution failure |
+
+### test/smoke/check_no_off_task_suggestions_spec.bats (11)
+
+Covers `.claude/hooks/check_no_off_task_suggestions.sh` -- Stop hook
+that scans the LAST assistant text message of the transcript for
+off-task-suggestion phrases (user breaks, meals, wellness, schedule
+management). Matched phrases trigger a remind `systemMessage`; the
+hook never blocks (output has already been emitted by the time Stop
+fires). Throttled once per session per matched phrase via TMPDIR
+marker. Configurable via `NO_OFF_TASK_REMIND_DISABLE=1`. Refs #109.
+
+| Test | Scenario |
+|------|----------|
+| silent on empty transcript | edge case |
+| silent on clean technical message | no-match happy path |
+| fires on 'stop for dinner?' | meal phrase |
+| fires on 'take a break?' | break phrase |
+| fires on 'need some rest?' | wellness phrase |
+| fires on 'do it tomorrow?' | schedule phrase |
+| case-insensitive match ('Stop For Dinner') | case folding |
+| scans only LAST assistant message (earlier hits ignored) | last-message scope |
+| throttled: same phrase fires once per session | idempotency |
+| stop_hook_active=true skips | re-entry guard |
+| NO_OFF_TASK_REMIND_DISABLE=1 skips | kill switch |
 
 ## Integration specs
 

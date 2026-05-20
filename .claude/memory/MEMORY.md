@@ -13,3 +13,4 @@
 - [Code-change 請求自動套 /pr](feedback_auto_invoke_pr.md) — user 用自然語言描述「處理/修/加」code 變更時，主動 Skill 呼叫 /pr，不要 ad-hoc Edit+commit
 - [Issue/PR body 先中文 draft 再翻英文](feedback_bilingual_issue_pr_draft.md) — gh issue/pr create body 先寫 zh-TW 給 user review，approve 後再翻成英文 submit（CJK hook 仍會擋直接送中文）
 - [多步討論用 Plan mode](feedback_plan_mode_for_discussions.md) — 多步驟提案 / 草稿 review 走 ExitPlanMode，不要在 chat 裡 inline dump；單行確認 / 是非題仍走 chat
+- [禁止 off-task 建議](feedback_no_off_task_suggestions.md) — Claude 不主動建議使用者休息、用餐、保健、改天再做；end-of-turn 只列具體技術 follow-up，refs #109
