@@ -6,6 +6,25 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- `.claude/hooks/enforce_make_first_upgrade.sh` -- scope expanded to
+  cover three surfaces instead of one (#120 follow-up per the #123
+  close-comment promise). New detection patterns:
+  - `./template/upgrade.sh ...` (legacy local folder name; the GitHub
+    repo was renamed `template -> base` but some checkouts retain the
+    old folder layout).
+  - `git subtree pull --prefix=.base ...` / `--prefix=template ...`
+    (raw subtree pull -- skips the same init.sh + main.yaml @tag steps
+    as the raw `.sh` form).
+  All three surfaces share the same canonical (`make -f Makefile.ci
+  upgrade VERSION=vX.Y.Z`), reason, checkpoint slug, and ack-bypass
+  path. `git subtree push` and `git subtree pull --prefix=foo` (other
+  prefixes) pass through silently. CLAUDE.md tree + hook supplement
+  section + `.claude/instincts.yaml > make-first-upgrade` updated.
+  TEST.md total 709 -> 716 (7 new bats cases across the two new
+  surfaces and their discriminators); shellcheck hook count unchanged
+  (no new files).
+
 ### Added
 - `.claude/hooks/enforce_worktree_for_branch.sh` -- BLOCKING PreToolUse
   Bash hook (refs #122, Tier 2 of #116 hook 3 of 4). DENIES

@@ -1,44 +1,45 @@
 #!/usr/bin/env bash
 # enforce_make_first_upgrade.sh -- Claude Code PreToolUse hook (matcher: Bash).
 #
-# DENIES direct `./.base/upgrade.sh` invocations when the repo root has a
-# `Makefile.ci` with an `upgrade:` target, routing the agent through the
-# canonical `make -f Makefile.ci upgrade VERSION=vX.Y.Z` wrapper. The make
-# wrapper internally calls the same upgrade.sh, but also runs the init.sh
-# resync + `main.yaml @tag` sed steps that direct .sh invocation skips
-# (refs issue #36 -- the template v0.18.x incident where the missed sed
-# left downstream `make upgrade-check` permanently reporting "upgrade
-# available").
+# DENIES direct invocations that bypass the `make -f Makefile.ci upgrade`
+# wrapper when the repo root has a `Makefile.ci` with an `upgrade:` target.
+# Three matching surfaces all skip the init.sh symlink resync + main.yaml
+# `@tag` sed that the make wrapper performs (refs issue #36 -- the
+# template v0.18.x incident where the missed sed left downstream
+# `make upgrade-check` permanently reporting "upgrade available"):
+#
+#   1. `./.base/upgrade.sh ...` and absolute / relative variants
+#   2. `./template/upgrade.sh ...` (legacy local folder name; the GitHub
+#      repo was renamed `template -> base`, but some checkouts retain
+#      the old folder name)
+#   3. `git subtree pull --prefix=.base ...` or `--prefix=template ...`
+#      (the raw subtree pull skips the same wrapper steps)
 #
 # Lift mechanism: the `/tmp` checkpoint protocol (ADR-00000002 / #117).
-# On deny, this hook writes a five-section markdown checkpoint via
-# `write_checkpoint enforce-make-first-upgrade <cmd> ...` to
+# On deny, write_checkpoint renders a five-section markdown to
 # $TMPDIR/claude-checkpoint-enforce-make-first-upgrade-<session>-<hash>.md
-# and quotes the matching `touch <ack>` command in the deny reason. If
-# the agent (with user consent) runs that touch, the second attempt of
-# the same cmd hits `is_acked` and is allowed through with a
-# "previously acked" reason.
+# and quotes the matching `touch <ack>` command. A second attempt of the
+# same command hits is_acked and is allowed through.
 #
 # Silent (pass-through) when:
-#   - command does not match the upgrade.sh shape
-#   - cwd has no Makefile.ci (no make wrapper available, .sh is the
-#     correct choice)
+#   - command does not match any of the three surfaces above
+#   - cwd has no Makefile.ci (no make wrapper available, raw call is OK)
 #   - Makefile.ci has no `upgrade:` target (rule N/A)
 #   - the agent is already going through `make -f Makefile.ci upgrade ...`
 #
-# Refs: issue #120 (this hook), #117 (checkpoint helper), #36 (incident),
+# Refs: issue #120 (original) + #120 follow-up (this expansion + #123
+#       close-comment promise), #117 (checkpoint helper), #36 (incident),
 #       #116 Tier 2 (umbrella).
 
 set -uo pipefail
 
-# Resolve checkpoint helper relative to this hook file.
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${HOOK_DIR}/../scripts/lib/checkpoint.sh"
 
 readonly HOOK_SLUG="enforce-make-first-upgrade"
 readonly CANONICAL='make -f Makefile.ci upgrade VERSION=vX.Y.Z'
-readonly REASON='Direct ./.base/upgrade.sh skips the init.sh symlink resync + main.yaml @tag sed that the make wrapper performs (refs issue #36).'
+readonly REASON='Direct invocation skips the init.sh symlink resync + main.yaml @tag sed that the make wrapper performs (refs issue #36).'
 
 main() {
   local input cmd cwd work_dir repo_root makefile version_arg ack_path
@@ -49,13 +50,23 @@ main() {
 
   [[ -z "${cmd}" ]] && return 0
 
-  # Match upgrade.sh invocations: `./.base/upgrade.sh`, `.base/upgrade.sh`,
-  # or absolute `/...../.base/upgrade.sh`. Reject `make` wrapper traffic.
-  [[ "${cmd}" =~ (^|[[:space:]\;\&\|])(\./)?(.*/)?.base/upgrade\.sh([[:space:]]|$) ]] || return 0
+  # Trigger detection -- three surfaces, all routed to `make upgrade`.
+  local matched=0
+  # Surface 1+2: <prefix>/.base/upgrade.sh or <prefix>/template/upgrade.sh
+  if [[ "${cmd}" =~ (^|[[:space:]\;\&\|])(\./)?(.*/)?(\.base|template)/upgrade\.sh([[:space:]]|$) ]]; then
+    matched=1
+  # Surface 3: git subtree pull --prefix=.base or --prefix=template
+  elif [[ "${cmd}" =~ git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?subtree[[:space:]]+pull[[:space:]] ]] \
+       && [[ "${cmd}" =~ --prefix=(\.base|template)([[:space:]]|$) ]]; then
+    matched=1
+  fi
+  (( matched )) || return 0
 
   # Resolve work dir.
   work_dir=""
-  if [[ "${cmd}" =~ cd[[:space:]]+([^[:space:]\&\;]+)[[:space:]]*\&\& ]]; then
+  if [[ "${cmd}" =~ git[[:space:]]+-C[[:space:]]+([^[:space:]]+) ]]; then
+    work_dir="${BASH_REMATCH[1]}"
+  elif [[ "${cmd}" =~ cd[[:space:]]+([^[:space:]\&\;]+)[[:space:]]*\&\& ]]; then
     work_dir="${BASH_REMATCH[1]}"
   fi
   [[ -z "${work_dir}" ]] && work_dir="${cwd}"
@@ -80,14 +91,13 @@ main() {
     return 0
   fi
 
-  # Extract optional version arg for the canonical hint.
+  # Extract optional version arg for the canonical hint (upgrade.sh form only).
   version_arg=""
-  if [[ "${cmd}" =~ .base/upgrade\.sh[[:space:]]+(v[0-9][0-9.]*(-[A-Za-z0-9.]+)?) ]]; then
-    version_arg=" VERSION=${BASH_REMATCH[1]}"
+  if [[ "${cmd}" =~ (\.base|template)/upgrade\.sh[[:space:]]+(v[0-9][0-9.]*(-[A-Za-z0-9.]+)?) ]]; then
+    version_arg=" VERSION=${BASH_REMATCH[2]}"
   fi
   local canonical_with_version="make -f Makefile.ci upgrade${version_arg}"
 
-  # Write the checkpoint and quote it in the deny reason.
   local md_path
   md_path="$(write_checkpoint \
     "${HOOK_SLUG}" \
@@ -97,7 +107,7 @@ main() {
     "Canonical wrapper: ${CANONICAL}")"
 
   local deny_msg
-  deny_msg="make-first-upgrade gate (issue #36): direct ./.base/upgrade.sh is denied.
+  deny_msg="make-first-upgrade gate (issue #36): direct base/template upgrade path is denied.
 Use the canonical wrapper:
   ${canonical_with_version}
 Why: ${REASON}

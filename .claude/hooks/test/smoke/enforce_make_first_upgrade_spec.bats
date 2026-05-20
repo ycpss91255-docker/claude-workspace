@@ -23,7 +23,7 @@ setup() {
   git init -q -b main
   git config user.email t@t
   git config user.name t
-  mkdir -p .base
+  mkdir -p .base template
   cat > Makefile.ci <<'EOF'
 .PHONY: upgrade
 
@@ -34,7 +34,11 @@ EOF
 #!/usr/bin/env bash
 echo "stub upgrade.sh"
 EOF
-  chmod +x .base/upgrade.sh
+  cat > template/upgrade.sh <<'EOF'
+#!/usr/bin/env bash
+echo "stub legacy template/upgrade.sh"
+EOF
+  chmod +x .base/upgrade.sh template/upgrade.sh
   git add -A >/dev/null
   git commit -q -m init >/dev/null
   cd - >/dev/null
@@ -93,6 +97,57 @@ ack_path_for() {
     echo "expected reason to mention make wrapper, got: ${reason}" >&2
     return 1
   }
+}
+
+# ---- positive (expanded scope): legacy template/upgrade.sh ----
+
+@test "denies ./template/upgrade.sh (legacy folder name)" {
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"./template/upgrade.sh v0.18.2\"},\"cwd\":\"${REPO}\"}"
+  assert_permission_decision "deny"
+}
+
+@test "denies bare template/upgrade.sh (legacy, no leading ./)" {
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"template/upgrade.sh\"},\"cwd\":\"${REPO}\"}"
+  assert_permission_decision "deny"
+}
+
+# ---- positive (expanded scope): raw git subtree pull ----
+
+@test "denies git subtree pull --prefix=.base ..." {
+  local cmd="git subtree pull --prefix=.base ycpss91255-docker/base.git v0.18.2 --squash"
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"${cmd}\"},\"cwd\":\"${REPO}\"}"
+  assert_permission_decision "deny"
+}
+
+@test "denies git subtree pull --prefix=template ... (legacy prefix)" {
+  local cmd="git subtree pull --prefix=template ycpss91255-docker/base.git v0.18.2 --squash"
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"${cmd}\"},\"cwd\":\"${REPO}\"}"
+  assert_permission_decision "deny"
+}
+
+@test "denies git -C <repo> subtree pull --prefix=.base ... (via -C arg)" {
+  local cmd="git -C ${REPO} subtree pull --prefix=.base ycpss91255-docker/base.git v0.18.2 --squash"
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"${cmd}\"},\"cwd\":\"/tmp\"}"
+  assert_permission_decision "deny"
+}
+
+@test "silent on git subtree pull with unrelated --prefix=foo" {
+  local cmd="git subtree pull --prefix=foo some-remote main --squash"
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"${cmd}\"},\"cwd\":\"${REPO}\"}"
+  assert_silent
+}
+
+@test "silent on git subtree push --prefix=.base (push, not pull)" {
+  local cmd="git subtree push --prefix=.base origin some-branch"
+  run "$(hook enforce_make_first_upgrade.sh)" \
+    <<< "{\"tool_input\":{\"command\":\"${cmd}\"},\"cwd\":\"${REPO}\"}"
+  assert_silent
 }
 
 # ---- negative: silent when not applicable ----
