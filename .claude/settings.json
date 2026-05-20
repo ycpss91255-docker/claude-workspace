@@ -274,6 +274,11 @@
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check_no_off_task_suggestions.sh",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/remind_proactive_optimization.sh",
+            "timeout": 15
           }
         ]
       }

@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **716 tests** (712 smoke + 4 integration) plus shellcheck (31 hook
+Total: **729 tests** (725 smoke + 4 integration) plus shellcheck (32 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -1169,6 +1169,33 @@ marker. Configurable via `NO_OFF_TASK_REMIND_DISABLE=1`. Refs #109.
 | throttled: same phrase fires once per session | idempotency |
 | stop_hook_active=true skips | re-entry guard |
 | NO_OFF_TASK_REMIND_DISABLE=1 skips | kill switch |
+
+### test/smoke/remind_proactive_optimization_spec.bats (13)
+
+Covers `.claude/hooks/remind_proactive_optimization.sh` -- Stop hook
+that emits a `systemMessage` at a task boundary (`gh pr merge` invoked
+OR tool-call count >= threshold) when the session has NOT already
+mentioned an optimisation candidate. Throttled once per session per
+signal-set via TMPDIR marker. Configurable via
+`PROACTIVE_OPTIMIZATION_REMIND_DISABLE=1` and
+`PROACTIVE_OPTIMIZATION_REMIND_THRESHOLD=<N>`. Pairs with
+`.claude/skills/proactive-optimization/SKILL.md`. Refs #124.
+
+| Test | Scenario |
+|------|----------|
+| silent on empty transcript | edge case |
+| silent when no boundary signal (low tool count, no gh pr merge) | no-trigger happy path |
+| fires after gh pr merge invocation with no prior optimisation mention | positive: PR-merge boundary |
+| silent when session already raised an optimisation candidate | negative: prior mention |
+| silent when PROACTIVE_OPTIMIZATION_REMIND_DISABLE=1 | kill switch |
+| silent when stop_hook_active=true (re-entry guard) | parent-block guard |
+| fires when tool-count crosses default threshold without gh pr merge | positive: tool-count boundary |
+| silent when tool-count below default threshold | sub-threshold |
+| custom threshold via PROACTIVE_OPTIMIZATION_REMIND_THRESHOLD | env override |
+| throttle: second fire with same signal-set is silent | idempotency |
+| optimisation mention regex is case-insensitive | case folding |
+| silent on missing transcript_path | defensive |
+| skill-ify (with hyphen) suppresses the reminder | regex variant |
 
 ### test/smoke/wait_issue_close_spec.bats (12)
 
