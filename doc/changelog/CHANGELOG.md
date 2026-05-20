@@ -7,6 +7,35 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/skills/parallel-agents/SKILL.md` +
+  `.claude/hooks/remind_parallel_when_bulk.sh` -- skill +
+  UserPromptSubmit hook pair giving the CLAUDE.md "Use parallel Agents
+  for large workloads" rule an auto-invocation surface (refs #126,
+  Tier 3 of #116, skill 3 of 3). The skill describes when to dispatch
+  parallel Agents (N >= 4 independent items, no sequential dependency,
+  no shared-state mutation), when NOT (small N, sequential, bespoke
+  per-item, batch-script territory), the cap (max 3), how to dispatch
+  (multiple Agent tool calls in one response), and the per-Agent
+  prompt shape (target list / task / output shape / length cap).
+  The UserPromptSubmit hook scans the prompt text for bulk indicators
+  via three patterns: (A) numeric `N >= PARALLEL_REMIND_THRESHOLD`
+  (default 4) followed by a plural noun from the bulk list (repos /
+  PRs / pull requests / issues / files / workflows / tests / hooks /
+  directories / branches / repositories); (B) `all`/`every`/`each` +
+  plural noun, plus CJK quantifier variant (全部/所有/每個 + bulk
+  noun); (C) explicit comma-separated list of >= threshold
+  repo-shaped tokens. Suppressed when the prompt already mentions
+  `parallel`, `concurrent`, `subagent`, `平行`, `並行`, `spawn agents`,
+  or `dispatch agents`. Defensive false-positive guards: version-
+  shaped numbers like `v0.32.0` and ordinal phrasing like `the 4th
+  issue` do not match. Throttled via TMPDIR marker. Configurable via
+  `PARALLEL_REMIND_DISABLE=1` and `PARALLEL_REMIND_THRESHOLD=<N>`.
+  Introduces the first `UserPromptSubmit` chain in `.claude/settings.json`
+  (previously only `PreToolUse`, `PostToolUse`, `Stop`). 18 new bats
+  cases; TEST.md total 745 -> 763; shellcheck hook count 33 -> 34.
+  CLAUDE.md tree listing + "工作量大時使用平行 Agent" prose section
+  updated to point at the skill and hook.
+
 - `.claude/skills/skillification-candidates/SKILL.md` +
   `.claude/hooks/remind_skillification_candidates.sh` -- skill + Stop
   hook pair giving the CLAUDE.md "End-of-task: list skillification

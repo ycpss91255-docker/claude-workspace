@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **745 tests** (741 smoke + 4 integration) plus shellcheck (33 hook
+Total: **763 tests** (759 smoke + 4 integration) plus shellcheck (34 hook
 scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
@@ -1228,6 +1228,40 @@ marker. Configurable via `SKILLIFICATION_REMIND_DISABLE=1`,
 | silent on missing transcript_path | defensive |
 | non-/tmp .sh invocation does NOT count toward /tmp threshold | path discriminator |
 | fires when BOTH signals cross threshold (reason lists both) | positive: combined signal |
+
+### test/smoke/remind_parallel_when_bulk_spec.bats (18)
+
+Covers `.claude/hooks/remind_parallel_when_bulk.sh` -- UserPromptSubmit
+hook that emits a `systemMessage` when the user prompt has a bulk-work
+indicator (numeric N >= threshold + plural noun, `all`/`every` + plural
+noun, explicit comma-separated list with >= threshold tokens, or CJK
+quantifier 全部/所有/每個 + bulk noun) AND the prompt does not
+already mention parallel-Agent dispatch (`parallel`, `concurrent`,
+`subagent`, `平行`, `Agent`). Throttled once per session per matched
+signal via TMPDIR marker. Configurable via `PARALLEL_REMIND_DISABLE=1`
+and `PARALLEL_REMIND_THRESHOLD=<N>` (default 4). Pairs with
+`.claude/skills/parallel-agents/SKILL.md`. Refs #126.
+
+| Test | Scenario |
+|------|----------|
+| silent on empty prompt | edge case |
+| silent on small N (3 repos, below default threshold 4) | sub-threshold |
+| fires on numeric N=11 repos | positive: numeric pattern A |
+| fires on numeric N=4 PRs (boundary inclusive) | positive: threshold boundary |
+| fires on 'all repos' (quantifier without explicit N) | positive: quantifier pattern B |
+| fires on 'every PR' | positive: quantifier variant |
+| fires on comma-list of >=4 repo-shaped tokens | positive: comma-list pattern C |
+| silent on comma-list of only 3 tokens | sub-threshold (comma) |
+| silent when prompt already mentions parallel | suppression |
+| silent when prompt mentions 'subagent' | suppression alt-form |
+| silent on PARALLEL_REMIND_DISABLE=1 | kill switch |
+| custom PARALLEL_REMIND_THRESHOLD raises the bar | env override (numeric) |
+| custom PARALLEL_REMIND_THRESHOLD also affects comma-list | env override (comma) |
+| throttle: same signal fires once per session | idempotency |
+| case-insensitive: 'ALL REPOS' fires | case folding |
+| ordinal numbers do NOT trigger (the 4th issue) | false-positive guard |
+| version-shaped numbers do NOT trigger (v0.32.0) | false-positive guard |
+| CJK quantifier 所有 repo fires | CJK quantifier pattern |
 
 ### test/smoke/wait_issue_close_spec.bats (12)
 
