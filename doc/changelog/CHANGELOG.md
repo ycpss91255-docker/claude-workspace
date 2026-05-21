@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `.claude/scripts/check-claude-md-ceiling.sh` -- CI lint that asserts
+  a markdown file (default `CLAUDE.md`) stays under hard line and
+  `^##` section ceilings (defaults `MAX_LINES=240` / `MAX_SECTIONS=20`,
+  env-overridable). Exits 1 with `FAIL: ...` to stderr on violation,
+  exits 0 with a one-line summary on pass, exits 2 when the file does
+  not exist. Ships in #127 PR-A as the tool for the slim; PR-B wires
+  it into `make -C .claude/test check` once the post-slim CLAUDE.md
+  actually fits the ceilings. Splitting the tool from the gate avoids
+  a CI-red window between landing the gate and complying with it
+  (refs #127, Tier 4 of #116).
+- `.claude/hooks/test/smoke/check_claude_md_ceiling_spec.bats` (7
+  cases): `--help` exits 0 with usage; missing file exits 2; within
+  default ceilings (240/20) exits 0; lines exceed default exits 1
+  with `FAIL` message; sections exceed default exits 1; `MAX_LINES`
+  env override (tighter) triggers FAIL; `MAX_SECTIONS` env override
+  (tighter) triggers FAIL. TEST.md total 763 -> 770; helper-script
+  shellcheck count 28 -> 29.
+
 - `.claude/skills/parallel-agents/SKILL.md` +
   `.claude/hooks/remind_parallel_when_bulk.sh` -- skill +
   UserPromptSubmit hook pair giving the CLAUDE.md "Use parallel Agents
