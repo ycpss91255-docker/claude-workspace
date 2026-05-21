@@ -15,8 +15,8 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **763 tests** (759 smoke + 4 integration) plus shellcheck (34 hook
-scripts + 28 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **770 tests** (766 smoke + 4 integration) plus shellcheck (34 hook
+scripts + 29 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`).
 
@@ -804,6 +804,25 @@ under hooks/) so they don't false-positive.
 | extra entry in tree (missing from fs) exits 1 with - entry | drift: tree has more |
 | folded subdir (test/) is honoured — no false positive | placeholder honoured |
 | drift in two dirs reports both | multi-dir drift |
+
+### test/smoke/check_claude_md_ceiling_spec.bats (7)
+
+Covers `.claude/scripts/check-claude-md-ceiling.sh` — CI lint that
+asserts a markdown file (default CLAUDE.md) stays under hard line-count
+and `^##` section-count ceilings (defaults 240 / 20, env-overridable
+via `MAX_LINES` / `MAX_SECTIONS`). Ships with the script alone in #127
+PR-A; PR-B wires it into `make -C .claude/test check` after the slim
+makes CLAUDE.md fit the ceilings.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path; usage prints both env-var names |
+| missing file exits 2 | required-file validation |
+| within default ceilings (240/20) exits 0 | happy path |
+| lines exceed default ceiling exits 1 | line ceiling violation |
+| sections exceed default ceiling exits 1 | section ceiling violation |
+| MAX_LINES env override (tighter) triggers FAIL | env override respected for lines |
+| MAX_SECTIONS env override (tighter) triggers FAIL | env override respected for sections |
 
 ### test/smoke/check_tag_version_consistency_spec.bats (15)
 
