@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # check-claude-md-tree.sh
 #
-# Audit the `.claude/` tree listing in CLAUDE.md against the actual
-# filesystem under `.claude/`. Designed for CI lint — exits non-zero on
-# drift so the build fails.
+# Audit the `.claude/` tree listing in a markdown file against the
+# actual filesystem under `.claude/`. Designed for CI lint — exits
+# non-zero on drift so the build fails.
+#
+# Default file: CLAUDE.md. Post-#127 the make target
+# (`make -C .claude/test tree-check`) passes CONTEXT.md instead,
+# because the tree listing moved there in the CLAUDE.md slim.
 #
 # Compares direct children of:
 #   - .claude/commands/
@@ -24,14 +28,17 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<EOF
-Usage: $0 [path/to/CLAUDE.md]
+Usage: $0 [path/to/markdown-file]
 
-Audit the \`.claude/\` tree listing in CLAUDE.md against the actual
-filesystem. If no path is given, defaults to \`\${CLAUDE_PROJECT_DIR:-cwd}/CLAUDE.md\`.
+Audit the \`.claude/\` tree listing in a markdown file against the
+actual filesystem. If no path is given, defaults to
+\`\${CLAUDE_PROJECT_DIR:-cwd}/CLAUDE.md\`. Post-#127 the make target
+\`make -C .claude/test tree-check\` passes CONTEXT.md (where the
+tree listing now lives after the CLAUDE.md slim).
 
 Exit codes:
   0  Tree aligned with filesystem
-  1  Drift detected (entries missing from or extra in the CLAUDE.md tree)
+  1  Drift detected (entries missing from or extra in the markdown tree)
   2  Usage / parse error
 EOF
 }

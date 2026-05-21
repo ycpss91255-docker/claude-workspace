@@ -37,10 +37,13 @@ hadolint:  ## Lint .claude/test/Dockerfile with Hadolint
 	  $(HADOLINT_IMAGE) \
 	  hadolint --config /.hadolint.yaml - < $(CURDIR)/Dockerfile
 
-tree-check:  ## Audit CLAUDE.md `.claude/` tree listing vs filesystem (host bash+python3, no docker)
-	$(REPO_ROOT)/.claude/scripts/check-claude-md-tree.sh $(REPO_ROOT)/CLAUDE.md
+tree-check:  ## Audit CONTEXT.md `.claude/` tree listing vs filesystem (host bash+python3, no docker; pre-#127 audited CLAUDE.md)
+	$(REPO_ROOT)/.claude/scripts/check-claude-md-tree.sh $(REPO_ROOT)/CONTEXT.md
 
-check: lint hadolint test tree-check  ## Full CI gate: shellcheck + Hadolint + bats + tree audit
+ceiling-check:  ## Audit CLAUDE.md line / `^##` ceilings (refs #127; defaults 240 / 20, env-overridable via MAX_LINES / MAX_SECTIONS)
+	$(REPO_ROOT)/.claude/scripts/check-claude-md-ceiling.sh $(REPO_ROOT)/CLAUDE.md
+
+check: lint hadolint test tree-check ceiling-check  ## Full CI gate: shellcheck + Hadolint + bats + tree audit + ceiling audit
 
 clean:  ## Remove the test image
 	docker image rm $(IMAGE) 2>/dev/null || true
