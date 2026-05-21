@@ -17,12 +17,15 @@ make -C .claude/test check       # lint + hadolint + test (full CI gate)
 
 Total: **770 tests** (766 smoke + 4 integration) plus shellcheck (34 hook
 scripts + 29 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
-plus a CLAUDE.md `.claude/` tree audit (`make tree-check` —
-`.claude/scripts/check-claude-md-tree.sh`).
+plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
+`.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
+CLAUDE.md) plus a CLAUDE.md ceiling audit (`make ceiling-check`
+— `.claude/scripts/check-claude-md-ceiling.sh`; defaults 240
+lines / 20 `^##` sections).
 
 ## 4-category coverage
 
-Per CLAUDE.md「測試分類（TDD 必須涵蓋的 4 個面向）」:
+Per CONTEXT.md §11 (TDD 4-category matrix; pre-#127 lived in CLAUDE.md):
 
 | # | Category | Where | What it covers |
 |---|----------|-------|----------------|

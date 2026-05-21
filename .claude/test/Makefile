@@ -37,8 +37,8 @@ hadolint:  ## Lint .claude/test/Dockerfile with Hadolint
 	  $(HADOLINT_IMAGE) \
 	  hadolint --config /.hadolint.yaml - < $(CURDIR)/Dockerfile
 
-tree-check:  ## Audit CLAUDE.md `.claude/` tree listing vs filesystem (host bash+python3, no docker)
-	$(REPO_ROOT)/.claude/scripts/check-claude-md-tree.sh $(REPO_ROOT)/CLAUDE.md
+tree-check:  ## Audit CONTEXT.md `.claude/` tree listing vs filesystem (host bash+python3, no docker; pre-#127 audited CLAUDE.md)
+	$(REPO_ROOT)/.claude/scripts/check-claude-md-tree.sh $(REPO_ROOT)/CONTEXT.md
 
 check: lint hadolint test tree-check  ## Full CI gate: shellcheck + Hadolint + bats + tree audit
 

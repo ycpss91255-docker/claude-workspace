@@ -6,6 +6,46 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **CLAUDE.md slim (closes #127, closes #116 umbrella)**: shrunk
+  from ~965 lines / 20 top-level `##` (64 incl. `###`/`####`) to
+  109 lines / 7 top-level `##`. Per the 64-section A / B / C / D /
+  E1 / E2 / F disposition from #108 close comment:
+  - **A (6)** style rules deleted -- hooks enforce
+    (`check_no_emoji.sh` / `check_no_ai_attribution.sh` /
+    `check_no_coverage_excl.sh`).
+  - **B (13)** collapsed into a single `## Workflows` bullet list,
+    each row pointing at the owning `[[skill]]` or `/cmd` (no
+    orphan prose).
+  - **C (28)** moved to `CONTEXT.md` -- most already landed in
+    Sub#2 (#118); this PR adds the `.claude/` tree to
+    `CONTEXT.md §2.1` and three new sections (`§14. Sandbox
+    baseline`, `§15. Bash command shape -- parser limits`,
+    `§16. Per-project memory`).
+  - **D (4)** stay in `doc/adr/00000004..00000007.md` from Sub#3
+    (#119); prose deleted from CLAUDE.md.
+  - **E1 (3)** deleted -- `[[proactive-optimization]]` (#124 /
+    #140), `[[skillification-candidates]]` (#125 / #141),
+    `[[parallel-agents]]` (#126 / #142) skills + Stop /
+    UserPromptSubmit hooks carry the rules.
+  - **E2 (4)** deleted -- `enforce_make_first_upgrade.sh`
+    (#120 / #139), `enforce_batch_via_script.sh` (#121),
+    `enforce_worktree_for_branch.sh` (#122) hooks +
+    `/tmp/claude-checkpoint-*` ACK protocol (ADR-00000002 /
+    #117) carry the rules.
+  - **F (6)** retained in CLAUDE.md: 專案概述 / 檔案命名慣例 /
+    目錄結構 (pointer to CONTEXT.md §2.1) / 常用指令 (now
+    make-first) / 標準容器結構 (pointer to CONTEXT.md §2.2) /
+    Git 設定.
+- `.claude/scripts/check-claude-md-tree.sh` docstring + `--help`
+  reflect that the make target now passes `CONTEXT.md` (where the
+  `.claude/` tree listing lives post-#127). Script logic
+  unchanged; defaults to `CLAUDE.md` if invoked without arg.
+- `.claude/test/Makefile`: `tree-check` target now invokes the
+  script against `CONTEXT.md` instead of `CLAUDE.md`;
+  `ceiling-check` target added and wired into the `check` chain
+  so CLAUDE.md drift over 240 lines / 20 `^##` sections fails CI.
+
 ### Added
 - `.claude/scripts/check-claude-md-ceiling.sh` -- CI lint that asserts
   a markdown file (default `CLAUDE.md`) stays under hard line and

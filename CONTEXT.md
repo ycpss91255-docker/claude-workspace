@@ -56,12 +56,116 @@ docker/
 ├── template/                 # 本地 checkout of ycpss91255-docker/base（資料夾名沿用 GitHub rename 前的舊名 `template`；可選擇性重命名為 `base`）
 ├── multi_run/                # 多容器啟動工具（獨立 repo）
 ├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
-└── .github/workflows/        # docker_harness 自身 CI（test.yaml）
+├── .github/workflows/        # docker_harness 自身 CI（test.yaml）
+└── .claude/                  # Claude Code 設定
+    ├── commands/             # 自訂 slash commands
+    │   ├── audit.md                   # /audit — 跨 repo 健康檢查
+    │   ├── batch-pr.md                # /batch-pr — 批次跨 repo PR（通用）
+    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級下游 template tag（active list 目前 = env/ros_distro + env/ros2_distro,其餘 11 個 repo 在 DEFAULT_REPOS 內 comment-out 待 follow-up）
+    │   ├── doc-sync.md                # /doc-sync — 變更完成 checklist 對齊檢查
+    │   ├── issue-check.md             # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
+    │   ├── issue-fix.md               # /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N] — auto-fix 一個或全部 open issue（合理才修，不合理留 comment）
+    │   ├── new-repo.md                # /new-repo — 建立新 Docker repo
+    │   ├── pr.md                      # /pr — Bug fix / 新功能 PR 流程
+    │   ├── release.md                 # /release — Tag 與 release 流程
+    │   ├── safe-delete.md             # /safe-delete — 用 trash 取代 rm
+    │   ├── adr.md                     # /adr <slug> — 建立新 ADR (Architecture Decision Record),配 new-adr.sh + remind_adr_on_design_decision.sh Stop hook,refs #97
+    │   └── verify.md                  # /verify — 變更完成 checklist 一次跑完 (shellcheck/hadolint/bats/tree/test-md/doc-scan/diff-stats)
+    ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
+    │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
+    │   ├── batch-rename-template-to-base.sh # 一次性 #263 Phase 6 fanout：13 下游 git rm template/ + git subtree add --prefix=.base ycpss91255-docker/base.git vX.Y.Z + Dockerfile/main.yaml/README sed
+    │   ├── batch-sensor-app-v0.27.sh        # 一次性 #263 sensor-app 5 repo fanout（realsense_humble/noetic、sick_humble/noetic、urg_node_noetic）：rename + Dockerfile 對齊 v0.27 layered config + SETUP_DIR (#254/#261)
+    │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
+    │   ├── batch-gitignore-fix.sh           # 一次性 .gitignore `.claude/` -> `.claude` 17 repo fanout（PR #21）
+    │   ├── batch-gitignore-add-line.sh      # 通用 .gitignore 追加任意行的 17 repo fanout（PR #23）
+    │   ├── batch-pr-merge.sh                # 批次 squash-merge 多個 <repo>:<pr>（接 short / full repo 名都可）
+    │   ├── batch-pr-close.sh                # 批次 close 多個 <repo>:<pr>，--reason 必填（superseded-by 場景，例如 hotfix 後重 fanout 取代既有批次 PR）
+    │   ├── check-template-versions.sh       # HTTPS curl 13 repo `.base/.version` 對齊檢查（release 後驗證）
+    │   ├── fix-compose-copy-line.sh         # 一次性 compose.yaml COPY 路徑修正
+    │   ├── fix-dockerfile-lint-lib.sh        # 通用：對 --branch 指定的 chore 分支批次 patch downstream Dockerfile 加 `COPY .base/script/docker/lib /lint/lib`（#284 sub-libs split 後 fanout 必須跑，idempotent）
+    │   ├── fix-dockerfile-copy-script.sh     # 通用：對 --branch 指定的 chore 分支批次 patch downstream Dockerfile 把 `COPY *.sh /lint/` 改成 `COPY script/*.sh /lint/`（base#330 / v0.31.0 wrapper consolidation 後 root 沒有 *.sh,active 2 個下游 fanout 必須跑,idempotent）
+    │   ├── check-claude-md-tree.sh          # CI lint：parse this file 的 .claude/ tree vs filesystem，drift 就 exit 1 (post-#127: make tree-check passes CONTEXT.md as arg)
+    │   ├── check-claude-md-ceiling.sh        # CI lint：assert CLAUDE.md 行數 + ^## 數在 ceiling 內 (defaults 240 / 20, env-overridable);refs #127
+    │   ├── rebase-pr.sh                      # one-shot rebase + force-push for a PR whose base moved (BEHIND/CONFLICTING);auto-resolve worktree by branch via $WORKSPACE_DIR scan,refs #87
+    │   ├── wait-pr-ci.sh                    # wait-pr-ci skill 的 PR-scoped polling loop（避開 Monitor parser warning）
+    │   ├── wait-pr-ci-batch.sh              # 多 repo 多 PR 同一個 Monitor 的 batch 版本（取代 N 個平行 Monitor stream）
+    │   ├── wait-tag-ci.sh                   # 同 skill 的 tag/branch-scoped 版本（gh run list --branch <tag>）
+    │   ├── wait-issue-close.sh              # wait-gh-state 的 issue-close 版本（gh issue view --json state）;refs #115
+    │   ├── wait-release.sh                  # wait-gh-state 的 release-tag 版本（gh release list --json tagName + stable/rc 分類）;refs #115
+    │   ├── migrate-local-to-setupconf.sh    # 一次性 setup.conf.local -> setup.conf 17 repo 遷移（template #201 / v0.16.0；下個版本後刪除）
+    │   ├── batch-license-apache.sh           # 一次性 Apache 2.0 LICENSE + CI/License badge fresh add 13 repo fanout（org-wide license alignment）
+    │   ├── run-bats-in-compose.sh           # docker compose 跑 bats 包裝，避開 docker compose ... bash -c '...' 的 parser fallback
+    │   ├── ci-wall-time-compare.sh          # diff CI 兩個 run id 的 per-job wall time + overall,輸出 markdown 表(CI-perf PR 用,refs #77 sub-2)
+    │   ├── batch-open-archive-rename-issues.sh # 開 11 張下游 follow-up issue：7 archive(4 agent + ros1_bridge / sick_humble / sick_noetic) + 4 rename + template->.base 遷移(urg_node_*, realsense_*),idempotent 跳過 title 相同既有 issue
+    │   ├── setup-memory-link.sh             # 新 clone / 換機器:建 symlink ~/.claude/projects/<encoded>/memory -> <workspace>/.claude/memory,讓 per-project memory portable + git-tracked。idempotent
+    │   ├── verify.sh                         # /verify 的實作:依序跑 shellcheck/hadolint/bats/tree-audit/TEST.md drift/doc-scan/diff-stats,hard-fail 阻擋,輸出 markdown summary
+    │   ├── instinct-query.sh                 # 查詢 .claude/instincts.yaml — `instinct-query.sh <kind> [path]` 印出符合 trigger 的 instincts (5 kinds: file_edit / git_commit / gh_pr_create / gh_issue_create / bash_command)，hooks/skills 用來取代 grep CLAUDE.md prose;refs #95
+    │   ├── release-tag.sh                    # canonical primitive for cutting version tags;decision tree (RC / Z / Y / X bump) + .version integrity + RC CI 查詢 + RELEASE_X_BUMP_ACK 檢查;搭配 enforce_semver_tag_via_script.sh 強制 routing,refs #106
+    │   ├── new-adr.sh                         # /adr 的實作:auto-number 8 位數補零,從 doc/adr/[0-9]*.md 掃 max+1,渲染 5-section 模板 (Date/Status/Context/Decision/Alternatives/Consequences),refs #97
+    │   ├── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
+    │   └── lib/
+    │       └── checkpoint.sh                  # /tmp checkpoint protocol helper — write_checkpoint + is_acked,Tier 2 E2 hook 共享 deny/ack 契約,refs ADR-00000002 / #117
+    ├── memory/               # Claude Code per-project memory（auto-loaded via symlink）
+    │   ├── MEMORY.md         # 入口索引(被 Claude Code 自動讀進 system prompt 開頭)
+    │   ├── feedback_*.md     # 個別 feedback / workflow rule（每檔有 name + description + type frontmatter）
+    │   └── project_*.md      # 專案性 context（如 ros1_bridge_jetson）
+    ├── hooks/                # PostToolUse / PreToolUse / Stop / UserPromptSubmit hooks
+    │   ├── check_no_emoji.sh           # Edit/Write 後掃 emoji
+    │   ├── check_no_coverage_excl.sh   # Edit/Write 後掃 LCOV_EXCL_* 等覆蓋率忽略註解
+    │   ├── check_no_ai_attribution.sh  # Edit/Write 後掃 Co-Authored-By/Generated with Claude
+    │   ├── check_changelog_drift.sh    # git commit 前比對 staged code vs CHANGELOG.md
+    │   ├── remind_readme_on_core_script.sh # git commit 前提醒 base 核心 .sh 改動是否同步 README
+    │   ├── check_test_md_drift.sh      # *.bats / TEST.md 後比對測試數
+    │   ├── remind_tdd_categories.sh    # 動到 .sh/Dockerfile/compose 等時提醒 4 類測試
+    │   ├── remind_pr_wait_ci.sh        # gh pr create 前提醒用 /wait-pr-ci skill
+    │   ├── remind_no_ai_attribution.sh # git commit / gh pr create 前掃 inline 歸屬字串
+    │   ├── remind_subtree_init.sh      # git subtree pull .base 前提醒跑 init.sh
+    │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker (wrapper list 可被 .claude/lint_wrappers.txt override)
+    │   ├── remind_no_heredoc_redirect.sh # cat <<EOF > file 時提醒用 Write 工具
+    │   ├── remind_no_chinese_in_git_artifacts.sh # git commit / gh PR / issue title|body|comment 前 BLOCK CJK 與全形字符
+    │   ├── enforce_gh_body_file.sh     # gh issue/pr create/edit/comment/close/review 前 BLOCK 違反 body-file 規律的 8 種 pattern(配合 [[gh-artifact-format]] skill,refs #64)
+    │   ├── remind_test_tools_smoke_sync.sh # Dockerfile.test-tools 改動但同層 release-test-tools.yaml 未同步時提醒
+    │   ├── auto_allow_rm_in_workspace.sh # rm <workspace+/tmp 內 path> 自動 allow（避開 Bash(rm:*) ask yes-fatigue）
+    │   ├── auto_allow_touch_ack.sh       # touch $TMPDIR/claude-checkpoint-*.ack 自動 allow（/tmp checkpoint 協定一鍵 ack,refs ADR-00000002 / #117）
+    │   ├── check_tag_version_consistency.sh # git tag/push v* 前 BLOCK：repo root 有 .version 且不等於 tag 則 deny（refs #36；defensive 第二層,主要 gate 由 enforce_semver_tag_via_script.sh 接手）
+    │   ├── enforce_semver_tag_via_script.sh # git tag/push v* 前 BLOCK：raw 命令一律拒絕,強制走 .claude/scripts/release-tag.sh canonical script(refs #106)
+    │   ├── enforce_make_first_upgrade.sh # 三個 surface (./.base/upgrade.sh / ./template/upgrade.sh / git subtree pull --prefix=.base|template) 前 BLOCK,改走 make -f Makefile.ci upgrade(checkpoint ack 可解,refs #36 / ADR-00000002)
+    │   ├── enforce_batch_via_script.sh   # 跨 repo for-loop + mutation (git push|reset|tag|branch -D / gh issue|pr close|merge|comment --body) 前 BLOCK,改走 .claude/scripts/<name>.sh(checkpoint ack 可解,refs #121 / ADR-00000002)
+    │   ├── enforce_worktree_for_branch.sh # 主 checkout 內 git checkout -b|-B 前 BLOCK,要求改走 git worktree add <path> -b <branch> main(內部 worktree 自動放行,checkpoint ack 可解,refs #122 / PR #89 / ADR-00000006)
+    │   ├── check_prefer_dot_sh.sh       # docker build/run/exec/stop/compose 前：cwd 有對應 .sh wrapper 則 deny,沒有則 ask
+    │   ├── remind_topics_yaml_on_new_repo.sh # gh repo create ycpss91255-docker/* 前提醒去 .github topics.yaml 加 repos.* 條目
+    │   ├── check_readme_framework.sh    # Edit/Write 後掃下游 repo README.md (+ 3 翻譯) 是否符合 .base/README.md 框架(badge / 4 語言 link / TL;DR H2 / Smoke Tests link / 無 stale 路徑) — non-blocking warning
+    │   ├── check_no_stale_template_refs.sh # Edit/Write 後掃 .base/ 下 .sh/Makefile/Dockerfile 是否殘留 template/<path> 引用(rename 後遺漏,refs base#282)
+    │   ├── remind_main_sync.sh         # gh pr merge 前提醒 merge 後跑 git pull --ff-only origin main 保持本地 main 持續 ff-tracking origin/main HEAD
+    │   ├── check_main_fresh_before_worktree.sh # git worktree add ... main 前 BLOCK：若 local main 落後 origin/main 就 deny + 提示先 pull,避免從 stale base 起 branch(refs PR #89 precedent)
+    │   ├── remind_strategic_compact.sh # Stop hook：讀 transcript 偵測 task-boundary 訊號(gh pr merge / tool count >= 50)後 propose /compact,configurable via STRATEGIC_COMPACT_{DISABLE,TOOL_THRESHOLD};refs #92
+    │   ├── remind_adr_on_design_decision.sh # Stop hook：transcript 掃 rationale 關鍵字 (alternative/trade-off/rejected because/...) 達 threshold 且 session 無 doc/adr/ 寫入時提案 /adr,configurable via ADR_REMIND_{DISABLE,THRESHOLD};refs #97
+    │   ├── check_no_off_task_suggestions.sh # Stop hook：transcript 掃 last assistant message 的 off-task 片語 (stop for dinner / take a break / need rest / do it tomorrow ...) 命中時 remind,never block,configurable via NO_OFF_TASK_REMIND_DISABLE;refs #109
+    │   ├── remind_proactive_optimization.sh # Stop hook：task-boundary 訊號(gh pr merge / tool count >= 50)後若 session 未提任何 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition) 則 remind 配 [[proactive-optimization]] skill,configurable via PROACTIVE_OPTIMIZATION_REMIND_{DISABLE,THRESHOLD};refs #124
+    │   ├── remind_skillification_candidates.sh # Stop hook：偵測 /tmp/*.sh 反覆呼叫 (>=3 次) 或 parser-fallback Bash pattern 重複 (>=3 次) 且 session 未提任何 skillification 候選時 remind 配 [[skillification-candidates]] skill,configurable via SKILLIFICATION_REMIND_DISABLE + SKILLIFICATION_{TMP,PARSER}_THRESHOLD;refs #125
+    │   ├── remind_parallel_when_bulk.sh # UserPromptSubmit hook：scan user prompt 偵測 bulk-work 訊號 (N >= 4 + plural noun / all|every + noun / 逗號分隔 4+ tokens / CJK 量詞) 且 prompt 未提 parallel/agent 時 remind 配 [[parallel-agents]] skill,configurable via PARALLEL_REMIND_{DISABLE,THRESHOLD};refs #126
+    │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
+    ├── skills/
+    │   ├── rebase-pr/SKILL.md          # PR 因 BEHIND/CONFLICTING 需 rebase 時的 one-shot 流程,配 rebase-pr.sh + wait-pr-ci FAIL hint,refs #87
+    │   ├── wait-pr-ci/SKILL.md         # PR CI 等待用 Monitor 而非 sleep 輪詢
+    │   ├── gh-artifact-format/SKILL.md # gh issue/pr artifact 格式規範(issue title/body 5 sections/close 3 tiers/comment 3 categories/cross-ref keywords)配 enforce_gh_body_file.sh hook
+    │   ├── semver-bump/SKILL.md        # 版本 tag 流程:X/Y/Z 分類 + RC 程序 + RELEASE_X_BUMP_ACK 使用,配 release-tag.sh + enforce_semver_tag_via_script.sh,refs #106
+    │   ├── strategic-compact/SKILL.md  # 何時手動 /compact (task boundary) vs 何時別 compact (mid-implementation),配 remind_strategic_compact.sh hook
+    │   ├── wait-gh-state/SKILL.md      # 非 CI 的 GitHub state 監看 (issue close / release stable),sibling to wait-pr-ci;refs #115
+    │   ├── proactive-optimization/SKILL.md # 任務 boundary 時主動提 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition),配 remind_proactive_optimization.sh Stop hook;refs #124
+    │   ├── skillification-candidates/SKILL.md # 任務 wrap-up 時提 skillification 候選 (/tmp/*.sh re-use / parser-fallback / slash-command gap / bug-in-skill),配 remind_skillification_candidates.sh Stop hook;refs #125
+    │   └── parallel-agents/SKILL.md    # bulk workload (N>=4 獨立 items) 時用最多 3 個 parallel Agent 並行 (single response 內多 Agent 呼叫),配 remind_parallel_when_bulk.sh UserPromptSubmit hook;refs #126
+    ├── test/                           # docker_harness 自己的 hook 測試 infra（與下游 repo 的 Dockerfile 無關）
+    │   ├── Dockerfile                  # bats 1.11 + shellcheck on Alpine（COPY .claude/hooks/ + .claude/scripts/）
+    │   └── Makefile                    # make -C .claude/test build / test / lint / hadolint / check / tree-check / ceiling-check
+    ├── settings.json                   # hooks 註冊 + permissions + sandbox（**唯一一份,無 settings.local.json**）
+    └── instincts.yaml                  # 結構化 repo conventions (#95 pilot) — hooks/skills/commands 用 `instinct-query.sh` 查詢,取代 CLAUDE.md prose grep
 ```
 
-`.claude/` 內部結構詳見 CLAUDE.md「目錄結構」section（CLAUDE.md
-是 single source of truth；CI lint `check-claude-md-tree.sh` 會
-比對 filesystem，drift 就 fail）。
+The `.claude/` block above is the audit target for `make -C .claude/test tree-check`
+(`.claude/scripts/check-claude-md-tree.sh`); drift between this listing and
+the filesystem fails the build. Post-#127 the make target invokes the script
+with this file as the argument; pre-#127 it read `CLAUDE.md`.
 
 ### Standard container layout
 
@@ -470,3 +574,117 @@ Status check 名稱依 repo 類型不同：
 | Docker COPY 不 follow symlinks | symlink 指向 .base/，Docker COPY 複製 symlink 本身 | 不要在需要 Docker COPY 的目錄中放 symlinks |
 | `sed` apt mirror 在 `-euo pipefail` 下失敗 | glob 匹配不到檔案時 sed 回傳非零 | apt mirror sed 加 `\|\| true` |
 | `.env.example` 刪除後 IMAGE_NAME 偵測失敗 | `detect_image_name` 只認 `docker_*` 和 `*_ws` | `.env.example` 保留作為 fallback |
+
+## 14. Sandbox baseline (settings.json)
+
+`.claude/settings.json` 的 sandbox section 是這個 repo 簡化 allow
+list 的關鍵組合，新進來的人請理解這 4 個 key 做什麼：
+
+```json
+"sandbox": {
+  "enabled": true,
+  "autoAllowBashIfSandboxed": true,
+  "excludedCommands": [
+    "docker *", "make *",
+    "./build.sh *", "./run.sh *", "./exec.sh *", "./stop.sh *",
+    ".claude/scripts/*"
+  ],
+  "filesystem": { "allowWrite": ["/tmp"] }
+}
+```
+
+| Key | 行為 |
+|---|---|
+| `enabled: true` | 對 Claude 跑的 Bash 加 sandbox（read-only fs + 限制 write/network），失敗會在錯誤訊息出現 "Operation not permitted" |
+| `autoAllowBashIfSandboxed: true` | 若 Bash 命令在 sandbox 內跑得起來（沒撞 read-only / network 限制），**直接 allow 不問 user**，等於把所有 read-only Bash（`grep`、`awk`、`cat`、`ls`、`find` 等）自動放行 |
+| `excludedCommands: ["docker *", ...]` | 列在這的 command **完全跳過 sandbox**（OS-level 不套 seatbelt/bubblewrap）。Anthropic 官方 [sandboxing 文件](https://code.claude.com/docs/en/sandboxing) 明確建議 docker 一定要列進來,因為 sandbox 會擋 `connect(AF_UNIX, /var/run/docker.sock)` syscall(refs issue #39)。`make *` 與 4 支 wrapper 一起列,因為它們內部也會 spawn docker。`.claude/scripts/*` 列進來解決 bwrap 對 `app/<repo>/.claude` symlink 的 overlay 衝突(下游 repo 的 `.claude` 是 symlink 到 workspace root,bwrap setup 撞到 `Can't create file at .../.claude: Is a directory` — refs #77 sub-3),信任邊界 == repo-owned scripts 已經過 PR review。pattern 是 prefix wildcard 同 `permissions.allow` |
+| `filesystem.allowWrite: ["/tmp"]` | sandbox 預設禁寫入；這條讓 `/tmp` 可寫，配合「把長 body 寫成 `/tmp/<name>.md` 再給 `gh --body-file`」的 cheatsheet pattern |
+
+**實際影響**：
+
+- `permissions.allow` 不需要寫 `Bash(grep:*)` / `Bash(awk:*)` / `Bash(cat:*)` 等 read-only command — sandbox autoAllow 已 cover
+- 只需要寫 **state-changing** commands：`Bash(git:*)`、`Bash(gh:*)`、`Bash(docker:*)`、`Bash(make:*)` 等（這些 sandbox 不 autoAllow，因為會改 state / network）
+- `permissions.ask` 用來把高風險的 state-change（`Bash(rm:*)`、`Bash(git reset --hard:*)`、`Bash(docker push:*)` 等）**從 allow 拉出來**強制問 user，即使父規則 allow 也會被 ask 蓋過
+- `excludedCommands` 的 docker / make / wrapper 不再需要 `dangerouslyDisableSandbox: true` per call — 解掉「驗證一律走 Docker」與 sandbox 的衝突(refs #39)
+
+**什麼時候 sandbox 不夠**：parser fallback 不是 sandbox 問題（見下節「Bash command shape -- parser limits」），即使 sandbox autoAllow 也救不了 — 因為 fallback 發生在 sandbox 評估**之前**。
+
+新 repo / 新 fork 想 port 這套 setup 時，先把 sandbox 那 4 個 key 貼進去（特別是 `excludedCommands` 一定要含 `docker *`,否則撞 #39 的 docker socket 問題）,再從這個 repo 的 `permissions.allow` 揀必要的 state-changing entries 過去就好；不要把 read-only entries 整批複製。
+
+## 15. Bash command shape -- parser limits
+
+Claude Code 的 bash AST parser 對某些 shell 構造會 fallback 到 prompt（即使
+allowlist 涵蓋、`autoAllowBashIfSandboxed` 開啟也無效）。**主動避開以下
+pattern**，改用替代寫法可以根除大量無謂的 user prompt：
+
+| 觸發 prompt 的 pattern | parser 警告 | 替代寫法 |
+|---|---|---|
+| `cat <<EOF > /path` 寫檔 | `Unhandled node type: file_redirect` | **用 Write 工具**直接寫檔。非寫不可時用 `bash -c 'cat <<EOF > X ...'` 包起來 |
+| `gh ... --body "$(cat path)"` / `--comment "$(cat path)"` / `--body-file - <<'EOF'`（heredoc 串 stdin） | `Unhandled node type: string` 或 `Contains zsh =cmd equals expansion` | **先 Write 落地成 `/tmp/<name>.md`，再 `gh ... --body-file /tmp/<name>.md`**（gh CLI 原生支援，所有 subcommand 都有；長 body 永遠寫成檔案，不要 inline、也不要串 stdin）。**`enforce_gh_body_file.sh` PreToolUse hook 會 BLOCK** 這兩個 pattern + 5 個額外 routing 違規(`gh issue/pr create` 必須 `--body-file`、`gh issue close --comment` 必須 two-step、`gh pr edit --body` inline、`gh issue|pr comment|pr review --body` inline > 80 字)。配對的 [[gh-artifact-format]] skill 講格式內容(title shape / body 5 sections / close 3 tiers / cross-ref keywords);refs #64 |
+| `for x in $X; do ${x%:*}; done` 多 PR/repo for-loop | `Contains simple_expansion` | **抽永久 `.claude/scripts/<name>.sh`**，主程序只呼叫一行 |
+| Monitor 內嵌 20+ 行 bash with `${var%:*}` 或 `<<<"$s"` | `Contains simple_expansion` / `Unhandled node type: string` | 同上，body 抽 script。PR CI 輪詢用 `.claude/scripts/wait-pr-ci.sh`；tag/branch CI 輪詢用 `.claude/scripts/wait-tag-ci.sh`（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
+| `cd path && git ...` | 內建 cd+git 安全警告（與上述 parser 無關） | **用 `git -C path <subcmd>`** 取代 |
+| `(cd <repo>/worktree path && ./build.sh test)` 或 `bash -c "cd <dir> && ./build.sh ..."` | parser 只看 top-level token,subshell 是 `(`、`bash -c` 是 `bash`、都不命中 `excludedCommands: "./build.sh *"`,sandbox 套上去後 docker.sock 連不上 → `permission denied while trying to connect to the docker API at unix:///var/run/docker.sock` | **用 `./build.sh -C <dir> ...`**（同樣支援 `run.sh` / `exec.sh` / `stop.sh`,從 template v0.22.0 起,refs #53）。長形式 `--chdir`,行為對齊 `git -C` / `make -C`。Top-level token 留在 `./build.sh ...`,sandbox bypass 正常運作 |
+| `gh pr merge N --repo X` 從非該 repo cwd | 內建 state-changing safety 提示（不可 bypass，與 parser、allowlist 都無關） | **接受 1-click 提示即可** — 這是合理的安全檢查，且 `docker` monorepo 裡沒有 `ycpss91255-docker/base` 的獨立 checkout（只是 git subtree），無法 cd 進去規避；`-R X` 短形式 / `(cd path && ...)` 子 shell 都不能繞 |
+| `[[ a != b ]]` 在 Monitor 內 | Monitor eval wrapper escape `!` 成 `\!` | **用 `case` pattern**（見 `.claude/skills/wait-pr-ci/SKILL.md`） |
+| `until ... $(cat <pidfile>) ...; do sleep N; done` 等 background task | `Contains command_substitution` | **用 `Bash` 的 `run_in_background`** — runtime 完成時自動通知，不用 poll。等 GitHub CI 用 `wait-pr-ci.sh` / `wait-tag-ci.sh`；等 local 長 process 用 `run_in_background` 起 task 然後做別的事 |
+| `docker run ... bash -c '<長 inline 字串>'` 或 `docker compose ... bash -c '...'`（多行 shell logic 包在引號裡） | `Unhandled node type: string` | **抽成 script** — 用 Write 寫成 `/tmp/<name>.sh`，再 `docker run -v "$PWD":/source ... bash /source/<rel-path>/<name>.sh`；或抽 permanent `.claude/scripts/<name>.sh` 接 atomic flags（如 `run-bats-in-compose.sh --suite all --grep '^not ok'`），Claude parser 只看到 atomic args 不 hit string node。長 quoted body 永遠抽成檔案，不要 inline |
+
+對應的 hook 補強：
+
+- `.claude/hooks/remind_no_heredoc_redirect.sh` — heredoc-to-file 寫法 (non-blocking remind)
+- `.claude/hooks/enforce_gh_body_file.sh` — `gh` body-file 規律 BLOCKING (rules 1-8 in `.claude/skills/gh-artifact-format/SKILL.md`, refs #64)
+
+其他 pattern（複雜 for-loop / Monitor body）沒有簡單 heuristic，靠這個
+section 的規則 + `[[skillification-candidates]]` skill 在任務結束時主動列
+skill 化候選收斂。
+
+## 16. Per-project memory (repo-portable via symlink)
+
+Claude Code 的 per-project memory 預設存在
+`~/.claude/projects/<encoded-workspace-path>/memory/`,其中
+`<encoded-workspace-path>` 是把 workspace 絕對路徑的 `/` 換成 `-`
+（例如 `/home/yunchien/workspace/docker` →
+`-home-yunchien-workspace-docker`）。這個路徑被 workspace 絕對位置
+鎖死,**換機器或改 workspace 路徑就會失聯**。
+
+為了讓 memory 跟 repo 走 + 進 git history,實際 memory 檔案存在
+`<workspace>/.claude/memory/`(git-tracked),Claude Code 預期的位置
+則用 symlink 連回來：
+
+```
+<workspace>/.claude/memory/                       (git-tracked source of truth)
+├── MEMORY.md                                     (index, <=150 chars/line)
+├── feedback_*.md                                 (workflow / convention rules)
+└── project_*.md                                  (project context)
+
+~/.claude/projects/-home-yunchien-workspace-docker/memory  ->  symlink -> <workspace>/.claude/memory
+```
+
+### Fresh-clone / new-machine setup
+
+跑一次：
+
+```bash
+bash .claude/scripts/setup-memory-link.sh
+```
+
+idempotent — 偵測現有 symlink target,已正確就 skip；偵測舊
+non-symlink 資料夾且內容跟 repo 一致就 rm + symlink；偵測新內容
+（這台機器才有的 entry）就 refuse 並要求先 merge 進 repo,除非
+`--force`(會先備份成 `.backup-<timestamp>`)。
+
+`--dry-run` 看預期動作。`--workspace <path>` / `--home <path>` 給
+測試用 override。
+
+### Memory file format (unchanged)
+
+仍依 Claude Code 標準格式：
+
+- frontmatter `name` (kebab-case slug) + `description` + `metadata.type`
+  (`user` / `feedback` / `project` / `reference`)
+- 主檔名跟 `name` 對齊（如 `feedback_no_emoji.md`）
+- `MEMORY.md` 是 index — 一行一個 entry,`- [Title](file.md) -- hook`
+- 用 `[[name]]` 連 related memories
+
+詳細寫法見 auto-memory section（system prompt 開頭）。
