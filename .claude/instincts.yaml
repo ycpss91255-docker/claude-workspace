@@ -119,7 +119,7 @@
   guidance:
     - never inline a for-loop that performs cross-repo mutation (git push|reset|tag|branch -D, or gh issue|pr close|merge|comment --body) -- DENIED by enforce_batch_via_script.sh
     - N-iteration loops fire N user prompts and induce yes-fatigue, effectively bypassing every ask rule downstream
-    - write or reuse a permanent `.claude/scripts/<name>.sh` (one prompt for the whole batch); examples: `batch-pr-merge.sh`, `batch-template-upgrade.sh`, `batch-open-archive-rename-issues.sh`
+    - write or reuse a permanent `.claude/scripts/<name>.sh` (one prompt for the whole batch); examples: `batch-pr-merge.sh`, `batch-base-upgrade.sh`, `batch-open-archive-rename-issues.sh`
     - read-only loops (gh pr view, git log, grep, cat) are NOT blocked -- only mutation
     - lift the gate via `/tmp` checkpoint protocol (ADR-00000002) -- touch the matching `<ack>` file and re-issue the same loop
   refs: CLAUDE.md > 跨 repo 批次 mutation 規範

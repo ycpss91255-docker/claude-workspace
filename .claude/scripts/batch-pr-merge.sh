@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # batch-pr-merge.sh — squash-merge a list of PRs across repos.
 #
-# Pairs together with batch-template-upgrade.sh — that script opens N
+# Pairs together with batch-base-upgrade.sh — that script opens N
 # downstream PRs, this one closes them out once their CI is green.
 #
 # Usage:
@@ -10,11 +10,20 @@
 # `<repo>` is short (e.g. `ai_agent`) — prefixed with the default owner
 # `ycpss91255-docker` — or full (`<owner>/<repo>`). Mirrors
 # wait-pr-ci-batch.sh so the next-step copy-paste block printed by
-# batch-template-upgrade.sh works for both scripts.
+# batch-base-upgrade.sh works for both scripts.
 #
 # Options:
 #   --owner <OWNER>  Default owner for short `<repo>` form
 #                    (default: ycpss91255-docker)
+#   --reset-local    After each successful squash-merge, fetch + checkout
+#                    main + reset --hard origin/main in the local repo
+#                    checkout. Closes the detached-HEAD aftermath of the
+#                    batch-base-upgrade.sh flow (the upgrade script
+#                    operates on main checkouts, leaving HEAD detached on
+#                    the pre-squash chore branch once GitHub squash-merges
+#                    it). Best-effort: missing local checkout / git
+#                    failures are logged but do not fail the merge step.
+#                    Refs docker_harness#146.
 #   --dry-run        Print planned merges and exit without invoking gh
 #   -h, --help       Show this help
 #
@@ -26,6 +35,10 @@
 #     counts. Non-zero exit if any failure occurred.
 #   - PR numbers are validated up-front; a non-numeric PR exits 2 before
 #     any gh invocation.
+#   - --reset-local resolves each repo's local checkout via the
+#     project's standard layout (env/<repo> / app/<repo> / agent/<repo>
+#     / <repo> / `base` -> `template/` special case). Missing local
+#     checkouts are logged + skipped, not treated as a failure.
 
 set -euo pipefail
 
@@ -39,8 +52,56 @@ err() {
   printf '[batch-pr-merge] %s\n' "$*" >&2
 }
 
+# reset_local_main fetches origin/main, checks out main, and hard-resets
+# the local checkout for <owner>/<repo> to origin/main. Best-effort:
+# missing checkouts or git failures emit a log line and return 0.
+# Workspace layout (docker_harness): env/<repo> / app/<repo> /
+# agent/<repo> / <repo> at workspace root; ycpss91255-docker/base lives
+# at <workspace>/template/. See CLAUDE.md for the canonical tree.
+reset_local_main() {
+  local repo="$1"
+  local short="${repo##*/}"
+  local workspace
+  workspace="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+  local -a candidates=(
+    "${workspace}/env/${short}"
+    "${workspace}/app/${short}"
+    "${workspace}/agent/${short}"
+    "${workspace}/${short}"
+  )
+  if [[ "${short}" == "base" ]]; then
+    candidates+=("${workspace}/template")
+  fi
+  local local_path=""
+  local c
+  for c in "${candidates[@]}"; do
+    if [[ -d "${c}/.git" || -f "${c}/.git" ]]; then
+      local_path="${c}"
+      break
+    fi
+  done
+  if [[ -z "${local_path}" ]]; then
+    printf '[batch-pr-merge]   reset-local: no local checkout for %s, skipped\n' "${repo}"
+    return 0
+  fi
+  if ! git -C "${local_path}" fetch origin main --quiet 2>/dev/null; then
+    printf '[batch-pr-merge]   reset-local: fetch failed at %s, skipped\n' "${local_path}"
+    return 0
+  fi
+  if ! git -C "${local_path}" checkout main --quiet 2>/dev/null; then
+    printf '[batch-pr-merge]   reset-local: checkout main failed at %s, skipped\n' "${local_path}"
+    return 0
+  fi
+  if ! git -C "${local_path}" reset --hard origin/main --quiet 2>/dev/null; then
+    printf '[batch-pr-merge]   reset-local: reset --hard origin/main failed at %s, skipped\n' "${local_path}"
+    return 0
+  fi
+  printf '[batch-pr-merge]   reset-local: %s now at origin/main\n' "${local_path}"
+}
+
 main() {
   local dry_run=0
+  local reset_local=0
   local owner="${DEFAULT_OWNER}"
   local -a pairs=()
 
@@ -48,6 +109,7 @@ main() {
     case "$1" in
       -h|--help) usage; exit 0 ;;
       --dry-run) dry_run=1; shift ;;
+      --reset-local) reset_local=1; shift ;;
       --owner) owner="$2"; shift 2 ;;
       --)
         shift
@@ -105,6 +167,9 @@ main() {
     if gh pr merge "${pr}" -R "${repo}" --squash --delete-branch 2>&1; then
       printf '[batch-pr-merge]   ok\n'
       merged=$((merged + 1))
+      if (( reset_local )); then
+        reset_local_main "${repo}"
+      fi
     else
       printf '[batch-pr-merge]   FAILED\n'
       failed=$((failed + 1))

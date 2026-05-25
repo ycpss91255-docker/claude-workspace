@@ -61,7 +61,7 @@ docker/
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md                   # /audit — 跨 repo 健康檢查
     │   ├── batch-pr.md                # /batch-pr — 批次跨 repo PR（通用）
-    │   ├── batch-template-upgrade.md  # /batch-template-upgrade — 批次升級下游 template tag（active list 目前 = env/ros_distro + env/ros2_distro,其餘 11 個 repo 在 DEFAULT_REPOS 內 comment-out 待 follow-up）
+    │   ├── batch-base-upgrade.md  # /batch-base-upgrade — 批次升級下游 .base/ subtree（active list 目前 = env/ros_distro + env/ros2_distro,其餘 11 個 repo 在 DEFAULT_REPOS 內 comment-out 待 follow-up;名稱於 #146 由 batch-template-upgrade 改名）
     │   ├── doc-sync.md                # /doc-sync — 變更完成 checklist 對齊檢查
     │   ├── issue-check.md             # /issue-check — 掃 ycpss91255-docker org 未處理的 open issue
     │   ├── issue-fix.md               # /issue-fix <repo> [<issue_num>|all] [--dry-run] [--limit N] — auto-fix 一個或全部 open issue（合理才修，不合理留 comment）
@@ -72,10 +72,10 @@ docker/
     │   ├── adr.md                     # /adr <slug> — 建立新 ADR (Architecture Decision Record),配 new-adr.sh + remind_adr_on_design_decision.sh Stop hook,refs #97
     │   └── verify.md                  # /verify — 變更完成 checklist 一次跑完 (shellcheck/hadolint/bats/tree/test-md/doc-scan/diff-stats)
     ├── scripts/             # 永久 helper script（被 commands / skills 呼叫）
-    │   ├── batch-template-upgrade.sh        # /batch-template-upgrade 的實作
+    │   ├── batch-base-upgrade.sh            # /batch-base-upgrade 的實作（renamed from batch-template-upgrade.sh in #146）
     │   ├── batch-rename-template-to-base.sh # 一次性 #263 Phase 6 fanout：13 下游 git rm template/ + git subtree add --prefix=.base ycpss91255-docker/base.git vX.Y.Z + Dockerfile/main.yaml/README sed
     │   ├── batch-sensor-app-v0.27.sh        # 一次性 #263 sensor-app 5 repo fanout（realsense_humble/noetic、sick_humble/noetic、urg_node_noetic）：rename + Dockerfile 對齊 v0.27 layered config + SETUP_DIR (#254/#261)
-    │   ├── batch-template-pr-body.template.md  # 對應 PR body 模板（envsubst 格式）
+    │   ├── batch-base-pr-body.template.md   # 對應 PR body 模板（envsubst 格式;renamed from batch-template-pr-body.template.md in #146）
     │   ├── batch-gitignore-fix.sh           # 一次性 .gitignore `.claude/` -> `.claude` 17 repo fanout（PR #21）
     │   ├── batch-gitignore-add-line.sh      # 通用 .gitignore 追加任意行的 17 repo fanout（PR #23）
     │   ├── batch-pr-merge.sh                # 批次 squash-merge 多個 <repo>:<pr>（接 short / full repo 名都可）

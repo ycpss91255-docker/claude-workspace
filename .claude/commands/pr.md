@@ -52,11 +52,11 @@ Follow this workflow:
    `${CLAUDE_PROJECT_DIR}` is the workspace dir that contains all 13
    sub-repos. If the current session was started inside a single repo
    (per-repo cwd), skip step 7 entirely and instead run
-   `/batch-template-upgrade <vX.Y.Z>` from a workspace session, which
+   `/batch-base-upgrade <vX.Y.Z>` from a workspace session, which
    handles the same fan-out via a permanent script and avoids `cd`
    parser warnings:
    ```
-   .claude/scripts/batch-template-upgrade.sh vX.Y.Z --why "..." --issue <num>
+   .claude/scripts/batch-base-upgrade.sh vX.Y.Z --why "..." --issue <num>
    ```
    Manual fan-out (kept for reference; prefer the batch script):
    ```

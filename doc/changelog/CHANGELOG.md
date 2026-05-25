@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **`/batch-template-upgrade` renamed to `/batch-base-upgrade`** (closes #146).
+  The upstream repo + subtree prefix moved from `template/` to `base/` +
+  `.base/` long ago; the legacy command name kept causing confusion
+  (operates on `.base/`, not `template/`). Rename touches:
+  - `.claude/commands/batch-template-upgrade.md` ->
+    `.claude/commands/batch-base-upgrade.md`
+  - `.claude/scripts/batch-template-upgrade.sh` ->
+    `.claude/scripts/batch-base-upgrade.sh`
+  - `.claude/scripts/batch-template-pr-body.template.md` ->
+    `.claude/scripts/batch-base-pr-body.template.md`
+  - Internal chore branch name `chore/template-vX.Y.Z` ->
+    `chore/base-vX.Y.Z`
+  - `permissions.allow` entry + every cross-reference (CLAUDE.md,
+    hooks, sibling scripts, skill docs, instincts.yaml, smoke spec
+    filename + content) sed-flipped to the new spelling.
+- **`batch-pr-merge.sh` gains `--reset-local`** (closes #146). After
+  each successful squash-merge, runs `git fetch + checkout main +
+  reset --hard origin/main` against the repo's local checkout
+  (resolved via the standard layout: `env/<repo>` / `app/<repo>` /
+  `agent/<repo>` / `<repo>` at workspace root; `base` -> `template/`
+  special case). Best-effort -- missing checkouts or git failures log
+  + skip without failing the merge step. Closes the detached-HEAD
+  aftermath of `batch-base-upgrade.sh`'s main-checkout flow that
+  surfaced after the v0.34.0 fanout to `env/ros_distro#25` +
+  `env/ros2_distro#24`. The `print_next_step_hint` block in
+  `batch-base-upgrade.sh` now emits `batch-pr-merge.sh --reset-local`
+  by default plus a rationale paragraph so the cleanup is on-by-default
+  in the documented flow.
 - **CLAUDE.md slim (closes #127, closes #116 umbrella)**: shrunk
   from ~965 lines / 20 top-level `##` (64 incl. `###`/`####`) to
   109 lines / 7 top-level `##`. Per the 64-section A / B / C / D /

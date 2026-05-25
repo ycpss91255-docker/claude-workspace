@@ -80,7 +80,7 @@ from prose.
 - Doc alignment (CHANGELOG / TEST.md / README sweep): `/doc-sync`
 - TDD red-green-refactor: `[[tdd]]`
 - Bug fix / new feature / refactor PR: `/pr`
-- Cross-repo template-tag fanout: `/batch-template-upgrade`,
+- Cross-repo base-tag fanout: `/batch-base-upgrade`,
   `/batch-pr` (close / merge variants under
   `.claude/scripts/batch-pr-{merge,close}.sh`)
 - Version bump + RC + release tag: `[[semver-bump]]` (canonical

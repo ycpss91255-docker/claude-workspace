@@ -39,7 +39,7 @@
       "Bash(npm list:*)",
       "Bash(npm root:*)",
       "Bash(npm config:*)",
-      "Bash(.claude/scripts/batch-template-upgrade.sh:*)",
+      "Bash(.claude/scripts/batch-base-upgrade.sh:*)",
       "Bash(.claude/scripts/batch-gitignore-fix.sh:*)",
       "Bash(.claude/scripts/batch-gitignore-add-line.sh:*)",
       "Bash(.claude/scripts/batch-pr-merge.sh:*)",

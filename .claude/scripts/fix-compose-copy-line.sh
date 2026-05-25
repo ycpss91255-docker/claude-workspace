@@ -7,7 +7,7 @@
 # COPY step.
 #
 # This script patches each affected repo's open
-# `chore/template-v0.12.4` branch with a single follow-up commit that
+# `chore/base-v0.12.4` branch with a single follow-up commit that
 # deletes the offending line and force-pushes to refresh CI.
 #
 # Usage:
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 readonly WORKSPACE="${WORKSPACE:-/home/yunchien/workspace/docker}"
-readonly BRANCH="chore/template-v0.12.4"
+readonly BRANCH="chore/base-v0.12.4"
 
 readonly -a AFFECTED_REPOS=(
   env/osrf_ros2_humble

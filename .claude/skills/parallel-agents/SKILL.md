@@ -26,7 +26,7 @@ CLAUDE.md says: "for large workloads (multiple repos / multiple languages / batc
 | Shared state mutation (writing the same file from several Agents) | Last-writer-wins on the same path; lost work |
 | Small N (1, 2, 3 items) | Setup + coordination cost exceeds the wall-clock saving |
 | One-of-a-kind work (each item needs a custom plan) | Agents need self-contained instructions; bespoke per-item adds prompt-engineering overhead larger than the saving |
-| Cross-repo batch that needs a `.claude/scripts/` permanent helper | That's a script job (`batch-template-upgrade.sh` shape), not an Agent job |
+| Cross-repo batch that needs a `.claude/scripts/` permanent helper | That's a script job (`batch-base-upgrade.sh` shape), not an Agent job |
 
 ## How to dispatch
 

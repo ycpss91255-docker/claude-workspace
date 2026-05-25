@@ -3,7 +3,7 @@
 load '../lib/test_helper'
 
 setup() {
-  SCRIPT_PATH="$(script batch-template-upgrade.sh)"
+  SCRIPT_PATH="$(script batch-base-upgrade.sh)"
   export SCRIPT_PATH
 }
 
@@ -40,7 +40,7 @@ setup() {
   assert_output --partial "next: wait CI then merge:"
   assert_output --partial ".claude/scripts/wait-pr-ci-batch.sh ai_agent:194 claude_code:195"
   assert_output --partial "--check-filter '.name==\"call-docker-build / docker-build\"'"
-  assert_output --partial ".claude/scripts/batch-pr-merge.sh ai_agent:194 claude_code:195"
+  assert_output --partial ".claude/scripts/batch-pr-merge.sh --reset-local ai_agent:194 claude_code:195"
 }
 
 @test "print_next_step_hint silent when no pairs" {
@@ -56,5 +56,13 @@ setup() {
   run print_next_step_hint ros_noetic:42
   assert_success
   assert_output --partial ".claude/scripts/wait-pr-ci-batch.sh ros_noetic:42"
-  assert_output --partial ".claude/scripts/batch-pr-merge.sh ros_noetic:42"
+  assert_output --partial ".claude/scripts/batch-pr-merge.sh --reset-local ros_noetic:42"
+}
+
+@test "print_next_step_hint mentions --reset-local rationale (#146)" {
+  source "${SCRIPT_PATH}"
+  run print_next_step_hint ai_agent:194
+  assert_success
+  assert_output --partial "detached-HEAD"
+  assert_output --partial "Drop --reset-local"
 }

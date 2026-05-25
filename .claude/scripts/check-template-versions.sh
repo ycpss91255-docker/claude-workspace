@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # check-template-versions.sh — read-only HTTPS fetch of `.base/.version`
 # from every downstream repo's main branch. Used during release verification
-# to confirm `/batch-template-upgrade <vX.Y.Z>` PRs have all merged.
+# to confirm `/batch-base-upgrade <vX.Y.Z>` PRs have all merged.
 #
 # Replaces the ad-hoc `for repo in ...; do curl raw.githubusercontent.com ...; done`
 # pattern, which trips Claude Code's bash AST parser ("Unhandled node type:

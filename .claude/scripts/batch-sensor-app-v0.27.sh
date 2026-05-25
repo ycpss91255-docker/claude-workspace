@@ -176,7 +176,7 @@ migrate_one() {
   git checkout -B main FETCH_HEAD || return 1
 
   if [[ -d ".base" && ! -d "template" ]]; then
-    info "[${reponame}] already on .base/ -- skipping (run batch-template-upgrade instead)"
+    info "[${reponame}] already on .base/ -- skipping (run batch-base-upgrade instead)"
     return 100
   fi
 

@@ -2,12 +2,12 @@
 #
 # Batch-upgrade all downstream repos under ycpss91255-docker to a target
 # template tag. Iterates a fixed repo list, fetches main via HTTPS (works
-# around stale SSH origin tracking), creates chore/template-<tag> branch,
+# around stale SSH origin tracking), creates chore/base-<tag> branch,
 # runs ./.base/upgrade.sh + ./.base/init.sh, opens a PR per repo.
 #
 # Usage:
-#   batch-template-upgrade.sh <version> --why-file <path> [options]
-#   batch-template-upgrade.sh <version> --why "<text>" [options]
+#   batch-base-upgrade.sh <version> --why-file <path> [options]
+#   batch-base-upgrade.sh <version> --why "<text>" [options]
 #
 # Options:
 #   --why-file <path>      PR body Why-section content (required, or use --why)
@@ -26,7 +26,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 readonly SCRIPT_DIR
-readonly DEFAULT_PR_BODY_TEMPLATE="${SCRIPT_DIR}/batch-template-pr-body.template.md"
+readonly DEFAULT_PR_BODY_TEMPLATE="${SCRIPT_DIR}/batch-base-pr-body.template.md"
 readonly ORG="ycpss91255-docker"
 
 readonly DEFAULT_REPOS=(
@@ -138,7 +138,7 @@ main() {
   root="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"
   readonly root
 
-  local branch="chore/template-${version}"
+  local branch="chore/base-${version}"
   local issue_line=""
   if [[ -n "${issue}" ]]; then
     issue_line="Closes part of ${ORG}/template#${issue}."
@@ -308,7 +308,14 @@ print_next_step_hint() {
   echo "next: wait CI then merge:"
   printf '  .claude/scripts/wait-pr-ci-batch.sh %s \\\n' "${pairs[*]}"
   printf "    --check-filter '.name==\"call-docker-build / docker-build\"'\n"
-  printf '  .claude/scripts/batch-pr-merge.sh %s\n' "${pairs[*]}"
+  printf '  .claude/scripts/batch-pr-merge.sh --reset-local %s\n' "${pairs[*]}"
+  printf '\n'
+  printf '  # --reset-local closes the detached-HEAD aftermath on each\n'
+  printf '  # local main checkout (this script operates on main checkouts,\n'
+  printf '  # not worktrees, so after GitHub squash-merges the chore branch,\n'
+  printf '  # local main lands one squash-commit behind origin/main on a\n'
+  printf '  # detached HEAD). Drop --reset-local if you prefer to keep the\n'
+  printf '  # divergent state.\n'
 }
 
 # Allow sourcing for unit tests without auto-running main.

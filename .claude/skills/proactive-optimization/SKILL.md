@@ -19,7 +19,7 @@ CLAUDE.md says "if you spot a workflow that's clunky, an inconsistency, a step t
 | Category | Signal you saw it | What to propose |
 |---|---|---|
 | **Workflow ergonomics** | You ran the same multi-step ritual twice this session; you typed a 5-line bash pipeline that another session will retype; a slash command exists but is missing one obvious step | A new `.claude/commands/<name>.md`, a step added to an existing command, a skill, or a permanent `.claude/scripts/<name>.sh` |
-| **Cross-repo inconsistency** | You patched repo A in a way repo B should also receive; a base subtree upgrade landed in only some downstreams; a hook lives in `docker_harness` that downstream repos would benefit from | A batch script, a follow-up issue, or a `/batch-template-upgrade`-style fanout |
+| **Cross-repo inconsistency** | You patched repo A in a way repo B should also receive; a base subtree upgrade landed in only some downstreams; a hook lives in `docker_harness` that downstream repos would benefit from | A batch script, a follow-up issue, or a `/batch-base-upgrade`-style fanout |
 | **Doc drift** | TEST.md / CHANGELOG / a 4-language README disagrees with reality; a CLAUDE.md table mentions a path that no longer exists; an instinct in `instincts.yaml` mismatches the narrative | A doc-only PR or a one-line patch |
 | **Manual repetition** | You ran a `gh issue close` loop, a `git -C <repo> ...` loop, a parser-fallback prone command sequence three or more times | A permanent script in `.claude/scripts/<name>.sh` (the existing fix for parser-fallback fatigue) |
 
