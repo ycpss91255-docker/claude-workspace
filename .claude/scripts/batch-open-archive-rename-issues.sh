@@ -99,7 +99,7 @@ refs ${refs}"
 
 This repo (\`${repo}\`) is no longer in docker_harness's active upgrade
 list. The \`DEFAULT_REPOS\` arrays in
-\`.claude/scripts/batch-template-upgrade.sh\`,
+\`.claude/scripts/batch-base-upgrade.sh\`,
 \`check-template-versions.sh\`, and \`batch-gitignore-add-line.sh\` now
 contain only \`env/ros_distro\` and \`env/ros2_distro\`; the rest are
 commented out pending follow-up.

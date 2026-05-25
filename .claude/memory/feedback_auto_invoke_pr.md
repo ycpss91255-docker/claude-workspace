@@ -18,6 +18,6 @@ metadata:
   - User 明確說「直接改」「不用開 PR」「先 dry-run 不 commit」
   - Trivial 一次性檢視（不會留 diff）
   - Doc-only 修改 + 在 main branch 上動已被 CLAUDE.md 明文豁免（「Only pure documentation updates ... can be pushed directly to main」）— 但仍建議先確認 user 偏好
-- 其他 slash command 也適用同邏輯（`/release` `/batch-template-upgrade` `/new-repo` `/issue-fix` `/doc-sync`）— user 描述對應情境時直接 Skill 呼叫，不要憑 ad-hoc gh / git 操作湊一個流程
+- 其他 slash command 也適用同邏輯（`/release` `/batch-base-upgrade` `/new-repo` `/issue-fix` `/doc-sync`）— user 描述對應情境時直接 Skill 呼叫，不要憑 ad-hoc gh / git 操作湊一個流程
 
 相關：[[no-claude-md-edit-in-sandbox]]、[[use-worktree]]、[[make-first-upgrade]]

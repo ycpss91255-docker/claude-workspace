@@ -74,7 +74,7 @@ Reject if **any** apply. On reject, post exactly one comment on the issue and st
 | Body too thin | <50 chars of meaningful content (excluding label/template boilerplate), or no reproducer / no described expected vs actual behaviour |
 | Pure question / discussion | Body is "how do I X" / "what about Y" / "should we ..." with no defect claim and no concrete deliverable |
 | Architectural decision | Requires picking a new abstraction / API / dependency where reasonable people would disagree |
-| Cross-repo coordinated change | Touches `.base/` AND a downstream — that's a `/batch-template-upgrade` job, not this command |
+| Cross-repo coordinated change | Touches `.base/` AND a downstream — that's a `/batch-base-upgrade` job, not this command |
 | Destructive migration | Changes `.env` / `setup.conf` / `compose.yaml` format, breaks existing users |
 | Estimated >200 lines of diff | Includes all production lines; test fixtures excluded. Use issue body + linked code references to estimate |
 | Conflicting / unclear | Multiple reporters disagree on root cause, or body has TODO/maybe phrasing for the core ask |

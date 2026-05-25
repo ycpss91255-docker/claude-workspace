@@ -12,7 +12,7 @@ Three flavours, one script each:
 | Flavour | Script | When |
 |---|---|---|
 | **PR-scoped** (statusCheckRollup) | `.claude/scripts/wait-pr-ci.sh` | After `gh pr create` — single repo, one or several PRs, waiting to merge once green. |
-| **Multi-repo PR-scoped** | `.claude/scripts/wait-pr-ci-batch.sh` | After `/batch-template-upgrade` opens N PRs across N downstream repos — one Monitor for the whole batch instead of N parallel streams. |
+| **Multi-repo PR-scoped** | `.claude/scripts/wait-pr-ci-batch.sh` | After `/batch-base-upgrade` opens N PRs across N downstream repos — one Monitor for the whole batch instead of N parallel streams. |
 | **Tag/branch-scoped** (`gh run list --branch <ref>`) | `.claude/scripts/wait-tag-ci.sh` | After `git push origin <tag>` triggered `on: push: tags:` workflows like `release-test-tools` or `release-worker` — waiting to verify the release pipeline. |
 
 All three are intentionally siblings — same output shape, same exit codes (`0` = ALL_DONE, `1` = FAIL, `2` = arg error, `124` = max-iter exhausted), same Monitor-wrap pattern. CLI shape differs: `wait-pr-ci.sh` takes `--repo` + `--prs`; `wait-pr-ci-batch.sh` takes positional `<repo>:<pr>` pairs; `wait-tag-ci.sh` takes `--repo` + `--branch`.

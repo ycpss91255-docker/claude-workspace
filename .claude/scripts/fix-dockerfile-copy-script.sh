@@ -22,18 +22,18 @@
 #
 # After all branches are patched + pushed, the existing chore PRs
 # auto-rerun their CI. Use the wait-pr-ci-batch.sh + batch-pr-merge.sh
-# step block printed by /batch-template-upgrade as next.
+# step block printed by /batch-base-upgrade as next.
 #
 # Usage:
 #   fix-dockerfile-copy-script.sh --branch <branch> [options]
 #
 # Options:
 #   --branch <name>      Required. Chore branch to patch in each repo
-#                        (e.g. chore/template-v0.31.0).
+#                        (e.g. chore/base-v0.31.0).
 #   --org <owner>        GitHub owner for clones (default: ycpss91255-docker).
 #   --repos <r1,r2,...>  Comma-separated short repo names (default:
 #                        ros_distro,ros2_distro -- the 2 active downstream
-#                        per /batch-template-upgrade DEFAULT_REPOS).
+#                        per /batch-base-upgrade DEFAULT_REPOS).
 #   --dry-run            Print plan and exit without cloning / pushing.
 #   -h, --help           Show this help.
 #

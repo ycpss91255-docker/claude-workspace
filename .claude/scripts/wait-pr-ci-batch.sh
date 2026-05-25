@@ -3,7 +3,7 @@
 # single Monitor pass. Sibling of wait-pr-ci.sh (single-repo); both
 # share output shape and exit codes.
 #
-# Designed for `/batch-template-upgrade` follow-up: after opening N PRs
+# Designed for `/batch-base-upgrade` follow-up: after opening N PRs
 # across N downstream repos, you need them all green before calling
 # batch-pr-merge.sh. Spawning one Monitor per repo (the previous
 # advice in wait-pr-ci/SKILL.md) works for N=2-3 but produces N
@@ -23,7 +23,7 @@
 #                             .statusCheckRollup[]?. Default:
 #                             '.name=="test" or (.name|startswith("Integration"))'
 #                             For container repos (the typical
-#                             batch-template-upgrade case) pass
+#                             batch-base-upgrade case) pass
 #                             '.name=="call-docker-build / docker-build"'.
 #   --check-filter <repo>=<jq-expr>
 #                             Per-repo override applied only when the

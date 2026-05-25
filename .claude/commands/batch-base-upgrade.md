@@ -2,7 +2,7 @@ Batch-upgrade all downstream repos under `ycpss91255-docker` to a target `base` 
 
 **Naming**: this slash command (and the underlying script) keeps the `template` prefix for backward compatibility with existing scripts / muscle memory. The upstream repo was renamed `ycpss91255-docker/template` -> `ycpss91255-docker/base` and the subtree prefix moved from `template/` -> `.base/`; the slash command keeps its old name so existing workflows do not break.
 
-**Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-template-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `.base/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
+**Scope: workspace cwd only.** The implementation script (`.claude/scripts/batch-base-upgrade.sh`) iterates `<workspace>/<category>/<repo>/` directories that exist as siblings of `.base/` in the docker workspace. If running from a per-repo session, refuse and instruct the user to re-open Claude from the docker workspace root.
 
 Use this **after** a new `base` tag has been pushed and the tag's CI is green. This propagates the new base version to all 13 downstream repos (agent / app / env) by opening one PR per repo.
 
@@ -23,7 +23,7 @@ Use this **after** a new `base` tag has been pushed and the tag's CI is green. T
 
 ## How it runs
 
-The command delegates to `.claude/scripts/batch-template-upgrade.sh`. Designed to run from the **main session** — subagent sandbox blocks `git push`.
+The command delegates to `.claude/scripts/batch-base-upgrade.sh`. Designed to run from the **main session** — subagent sandbox blocks `git push`.
 
 ### Required arguments
 
@@ -44,7 +44,7 @@ The command delegates to `.claude/scripts/batch-template-upgrade.sh`. Designed t
 
 Dry-run preview:
 ```bash
-.claude/scripts/batch-template-upgrade.sh v0.12.1 \
+.claude/scripts/batch-base-upgrade.sh v0.12.1 \
   --why-file /tmp/v0.12.1-why.md \
   --issue 151 \
   --dry-run
@@ -52,7 +52,7 @@ Dry-run preview:
 
 Real run, skipping pinned repos:
 ```bash
-.claude/scripts/batch-template-upgrade.sh v0.12.1 \
+.claude/scripts/batch-base-upgrade.sh v0.12.1 \
   --why-file /tmp/v0.12.1-why.md \
   --issue 151 \
   --skip app/ros1_bridge,env/ros2_distro \
@@ -61,7 +61,7 @@ Real run, skipping pinned repos:
 
 Re-run for one failed repo:
 ```bash
-.claude/scripts/batch-template-upgrade.sh v0.12.1 \
+.claude/scripts/batch-base-upgrade.sh v0.12.1 \
   --why-file /tmp/v0.12.1-why.md \
   --only env/ros_distro
 ```

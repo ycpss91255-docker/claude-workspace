@@ -135,6 +135,42 @@ EOF
   refute_output --partial "ai_agent:1"  # only failed pairs listed in summary
 }
 
+# ── #146 --reset-local post-merge cleanup ──
+
+@test "--reset-local is accepted and dry-run still skips gh + reset (#146)" {
+  stub_gh_fail
+  run "$(script batch-pr-merge.sh)" --reset-local --dry-run ai_agent:1
+  assert_success
+  assert_output --partial "would merge"
+  refute_output --partial "reset-local"  # no reset attempted under --dry-run
+}
+
+@test "--reset-local: missing local checkout is logged + skipped, merge still ok (#146)" {
+  # stub_gh_capture writes a successful gh stub. With no local checkout
+  # for a fabricated repo, the reset-local resolver should log "no local
+  # checkout for ... skipped" and the overall merge exits 0.
+  stub_gh_capture
+  run "$(script batch-pr-merge.sh)" --reset-local --owner fictional-org \
+    fictional-repo-zzz:1
+  assert_success
+  assert_output --partial "reset-local: no local checkout for fictional-org/fictional-repo-zzz, skipped"
+  assert_output --partial "summary: merged=1 failed=0"
+}
+
+@test "--reset-local does NOT run when merge fails (#146)" {
+  stub_gh_fail
+  run "$(script batch-pr-merge.sh)" --reset-local --owner fictional-org \
+    fictional-repo-zzz:1
+  assert_failure 1
+  refute_output --partial "reset-local:"
+}
+
+@test "--reset-local appears in --help output (#146)" {
+  run "$(script batch-pr-merge.sh)" --help
+  assert_success
+  assert_output --partial "--reset-local"
+}
+
 @test "unknown flag exits 2" {
   run "$(script batch-pr-merge.sh)" --bogus ai_agent:1
   assert_failure 2

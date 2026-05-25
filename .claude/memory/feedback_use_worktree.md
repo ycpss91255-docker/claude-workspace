@@ -17,6 +17,6 @@ originSessionId: 57c42783-dd59-4158-905a-b8d90ffa7347
 - 命名：N 通常用 PR / issue 編號（範例：`template-177`、`claude-workspace-22`），尚無編號時可用 branch slug
 - 起新 branch：`git worktree add <workspace>/worktree/<repo>-<N> -b <branch> main`
 - merge 後：`git worktree remove <path>` 收尾，或定期 `git worktree prune` 清 stale entry
-- **批次 script 例外**：`batch-template-upgrade.sh` / `batch-gitignore-fix.sh` / `batch-pr-merge.sh` 內部已有 `fetch + checkout -B main FETCH_HEAD + checkout -B <branch>` 流程，且只跑於受控批次 — 不需改寫成 worktree 流程
+- **批次 script 例外**：`batch-base-upgrade.sh` / `batch-gitignore-fix.sh` / `batch-pr-merge.sh` 內部已有 `fetch + checkout -B main FETCH_HEAD + checkout -B <branch>` 流程，且只跑於受控批次 — 不需改寫成 worktree 流程
 - **fresh machine 沒 `<workspace>/worktree/`**：**必須先問 user**「要建在 `<workspace>/worktree/` 還是別處？」或「直接 mkdir？」— 不准自行猜
 - **rm worktree 資料夾不用問**：刪除 `<workspace>/worktree/<repo>-<N>/` 任一個 worktree dir（例如 `git worktree remove <path>` 之後手動清殘骸 / cleanup stale）**直接刪不問** — 既有 `auto_allow_rm_in_workspace.sh` hook 已 cover workspace 路徑下所有 rm，這條只是文字化 explicit 確認

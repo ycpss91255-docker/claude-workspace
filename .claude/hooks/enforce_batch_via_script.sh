@@ -38,7 +38,7 @@ source "${HOOK_DIR}/../scripts/lib/checkpoint.sh"
 
 readonly HOOK_SLUG="enforce-batch-via-script"
 readonly REASON='Inline cross-repo for-loops with state-changing operations create N user prompts (yes-fatigue) and bypass every ask rule downstream.'
-readonly CANONICAL='Write or reuse a permanent .claude/scripts/<name>.sh (one prompt for the whole batch). Examples: .claude/scripts/batch-pr-merge.sh, batch-template-upgrade.sh, batch-open-archive-rename-issues.sh.'
+readonly CANONICAL='Write or reuse a permanent .claude/scripts/<name>.sh (one prompt for the whole batch). Examples: .claude/scripts/batch-pr-merge.sh, batch-base-upgrade.sh, batch-open-archive-rename-issues.sh.'
 
 main() {
   local input cmd

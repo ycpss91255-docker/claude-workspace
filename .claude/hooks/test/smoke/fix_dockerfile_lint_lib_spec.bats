@@ -22,24 +22,24 @@ load '../lib/test_helper'
 }
 
 @test "--dry-run prints plan for all default repos and exits 0" {
-  run "$(script fix-dockerfile-lint-lib.sh)" --branch chore/template-v0.28.2 --dry-run
+  run "$(script fix-dockerfile-lint-lib.sh)" --branch chore/base-v0.28.2 --dry-run
   assert_success
-  assert_output --partial "ycpss91255-docker/ai_agent @ chore/template-v0.28.2"
-  assert_output --partial "ycpss91255-docker/ros_distro @ chore/template-v0.28.2"
+  assert_output --partial "ycpss91255-docker/ai_agent @ chore/base-v0.28.2"
+  assert_output --partial "ycpss91255-docker/ros_distro @ chore/base-v0.28.2"
   assert_output --partial "summary: patched=0 skipped=0 failed=0"
 }
 
 @test "--repos CSV narrows the repo list" {
-  run "$(script fix-dockerfile-lint-lib.sh)" --branch chore/template-v0.28.2 --repos ai_agent,claude_code --dry-run
+  run "$(script fix-dockerfile-lint-lib.sh)" --branch chore/base-v0.28.2 --repos ai_agent,claude_code --dry-run
   assert_success
-  assert_output --partial "ycpss91255-docker/ai_agent @ chore/template-v0.28.2"
-  assert_output --partial "ycpss91255-docker/claude_code @ chore/template-v0.28.2"
+  assert_output --partial "ycpss91255-docker/ai_agent @ chore/base-v0.28.2"
+  assert_output --partial "ycpss91255-docker/claude_code @ chore/base-v0.28.2"
   refute_output --partial "ycpss91255-docker/ros_distro"
 }
 
 @test "--org overrides default owner in dry-run output" {
-  run "$(script fix-dockerfile-lint-lib.sh)" --branch chore/template-v0.28.2 --org other-org --repos foo --dry-run
+  run "$(script fix-dockerfile-lint-lib.sh)" --branch chore/base-v0.28.2 --org other-org --repos foo --dry-run
   assert_success
-  assert_output --partial "other-org/foo @ chore/template-v0.28.2"
+  assert_output --partial "other-org/foo @ chore/base-v0.28.2"
   refute_output --partial "ycpss91255-docker/foo"
 }

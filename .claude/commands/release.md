@@ -148,11 +148,11 @@ After tagging `base@vX.Y.Z`:
 
 - Each downstream repo (the 17 in env / agent / app) needs its `.base/`
   subtree pulled to the new tag.
-- Use `/batch-template-upgrade vX.Y.Z` to mass-upgrade all 17 in one batch
+- Use `/batch-base-upgrade vX.Y.Z` to mass-upgrade all 17 in one batch
   (one PR per downstream repo, parallel CI). The command name keeps
   the `template` prefix for backward compatibility with existing scripts
   / muscle memory; it has always upgraded the `.base/` subtree.
-- This is its own multi-PR workflow — run `/batch-template-upgrade` after
+- This is its own multi-PR workflow — run `/batch-base-upgrade` after
   the base tag's CI is fully green; do not interleave with the release
   itself.
 

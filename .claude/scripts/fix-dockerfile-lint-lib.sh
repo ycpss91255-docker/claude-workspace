@@ -22,7 +22,7 @@
 #
 # After all branches are patched + pushed, the existing chore PRs
 # auto-rerun their CI. Use the wait-pr-ci-batch.sh + batch-pr-merge.sh
-# step block printed by /batch-template-upgrade as next.
+# step block printed by /batch-base-upgrade as next.
 #
 # Long-term: upgrade.sh should auto-detect-and-patch this drift so each
 # fanout heals itself. Tracked separately.
@@ -32,7 +32,7 @@
 #
 # Options:
 #   --branch <name>      Required. Chore branch to patch in each repo
-#                        (e.g. chore/template-v0.28.2).
+#                        (e.g. chore/base-v0.28.2).
 #   --org <owner>        GitHub owner for clones (default: ycpss91255-docker).
 #   --repos <r1,r2,...>  Comma-separated short repo names (default: 13 active
 #                        downstream repos).
