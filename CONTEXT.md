@@ -28,35 +28,53 @@ goes in an ADR. New domain knowledge should never land in `CLAUDE.md`
 
 ### Directory tree
 
+The tree below records **filesystem facts only** -- paths and a
+one-line description of what each repo is for. Lifecycle decision
+state (which repos are active vs archive-pending vs rename-pending
+vs `.base` migration-pending) lives in two stable sources of truth,
+not duplicated here:
+
+- `.claude/scripts/batch-base-upgrade.sh` `DEFAULT_REPOS` -- the
+  current active batch-upgrade scope (active entries uncommented;
+  pending entries comment-out with rationale).
+- GitHub issues opened via
+  `.claude/scripts/batch-open-archive-rename-issues.sh` -- per-repo
+  archive / rename / migration follow-up.
+
+`.claude/scripts/check-claude-md-tree.sh` validates paths, not
+annotations. Keeping lifecycle annotations out of this listing
+removes a drift surface with no lint coverage (refs #130;
+ros1_bridge precedent at base#378 / ros1_bridge#103).
+
 ```
 docker/
-├── agent/                    # AI Agent 容器（4 個 archive 待辦,refs batch-open-archive-rename-issues.sh）
-│   ├── ai_agent/             # All-in-one（Claude + Gemini + Codex）— archive 待辦
-│   ├── claude_code/          # Claude Code 獨立版 — archive 待辦
-│   ├── gemini_cli/           # Gemini CLI 獨立版 — archive 待辦
-│   └── codex_cli/            # Codex CLI 獨立版 — archive 待辦
-├── env/                      # ROS 開發環境容器（active 升級流程的全部 2 個 repo）
+├── agent/                    # AI Agent 容器
+│   ├── ai_agent/             # All-in-one (Claude + Gemini + Codex)
+│   ├── claude_code/          # Claude Code
+│   ├── gemini_cli/           # Gemini CLI
+│   └── codex_cli/            # Codex CLI
+├── env/                      # ROS 開發環境容器
 │   ├── ros_distro/           # ROS 1 multi-distro (noetic / kinetic × ros: / osrf/ros: × variants)
 │   └── ros2_distro/          # ROS 2 multi-distro (humble / jazzy × ros: / osrf/ros: × variants)
-├── app/                      # 應用程式容器（3 個 archive 待辦 + 4 個 rename + .base 遷移待辦）
-│   ├── ros1_bridge/          # archive 待辦（被 env/ros_distro + env/ros2_distro 覆蓋）
-│   ├── urg_node_humble/      # rename -> urg_node_ros2 + template/->.base/ 待辦
-│   ├── urg_node_noetic/      # rename -> urg_node_ros  + template/->.base/ 待辦
-│   ├── realsense_humble/     # rename -> realsense_ros2 + template/->.base/ 待辦
-│   ├── realsense_noetic/     # rename -> realsense_ros  + template/->.base/ 待辦
-│   ├── sick_humble/          # archive 待辦（被 env/ros2_distro 覆蓋）
-│   └── sick_noetic/          # archive 待辦（被 env/ros_distro 覆蓋）
-├── archive/                  # 已 archive（read-only）下游 repo 的本地 checkout，留作參考
+├── app/                      # 應用程式容器
+│   ├── ros1_bridge/          # ROS 1 ↔ ROS 2 bridge (multi-distro dispatcher + from-source catkin builder)
+│   ├── urg_node_humble/      # Hokuyo URG -- ROS 2 (humble)
+│   ├── urg_node_noetic/      # Hokuyo URG -- ROS 1 (noetic)
+│   ├── realsense_humble/     # Intel RealSense -- ROS 2 (humble)
+│   ├── realsense_noetic/     # Intel RealSense -- ROS 1 (noetic)
+│   ├── sick_humble/          # SICK lidar -- ROS 2 (humble)
+│   └── sick_noetic/          # SICK lidar -- ROS 1 (noetic)
+├── archive/                  # 已 archive (read-only) 下游 repo 的本地 checkout, 留作參考
 │   ├── ros_noetic/           # superseded by env/ros_distro (noetic-ros-base entry)
 │   ├── ros_kinetic/          # superseded by env/ros_distro (kinetic-ros-base entry)
 │   ├── ros2_humble/          # superseded by env/ros2_distro (humble-ros-base entry)
 │   ├── osrf_ros_noetic/      # superseded by env/ros_distro (noetic-desktop-full entry)
 │   ├── osrf_ros_kinetic/     # superseded by env/ros_distro (kinetic-desktop-full entry)
 │   └── osrf_ros2_humble/     # superseded by env/ros2_distro (humble-desktop-full entry)
-├── template/                 # 本地 checkout of ycpss91255-docker/base（資料夾名沿用 GitHub rename 前的舊名 `template`；可選擇性重命名為 `base`）
-├── multi_run/                # 多容器啟動工具（獨立 repo）
+├── template/                 # 本地 checkout of ycpss91255-docker/base
+├── multi_run/                # 多容器啟動工具 (獨立 repo)
 ├── org-profile/              # 本地 checkout of ycpss91255-docker/.github (org 首頁)
-├── .github/workflows/        # docker_harness 自身 CI（test.yaml）
+├── .github/workflows/        # docker_harness 自身 CI (test.yaml)
 └── .claude/                  # Claude Code 設定
     ├── commands/             # 自訂 slash commands
     │   ├── audit.md                   # /audit — 跨 repo 健康檢查
