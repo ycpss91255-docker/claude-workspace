@@ -7,6 +7,30 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **CONTEXT.md `### Directory tree` lifecycle annotations stripped
+  (closes #130).** The docker/ subtree listing previously mixed
+  filesystem facts with lifecycle decision state (per-repo
+  `archive 待辦` / `rename -> <new>` / `template/->.base/ 待辦`
+  annotations + group-header count summaries like
+  `(3 個 archive 待辦 + 4 個 rename + .base 遷移待辦)`).
+  `.claude/scripts/check-claude-md-tree.sh` validates paths only --
+  not annotations -- so the lifecycle layer drifted silently
+  (concrete precedent: `base#378` audit refuted the
+  `app/ros1_bridge/` archive-pending annotation; the
+  multi-distro dispatcher + from-source catkin builder is
+  architecturally distinct from env/* and was kept active per
+  `ros1_bridge#103`). Per-repo lifecycle state is now sourced
+  exclusively from `.claude/scripts/batch-base-upgrade.sh`
+  `DEFAULT_REPOS` (active vs comment-out) and the GitHub issues
+  opened via
+  `.claude/scripts/batch-open-archive-rename-issues.sh`. A pointer
+  paragraph immediately under the heading documents the split.
+  ros1_bridge entry replaced with a positive description
+  ("ROS 1 <-> ROS 2 bridge (multi-distro dispatcher + from-source
+  catkin builder)"). Issue #130 originally targeted CLAUDE.md;
+  #127 (CLAUDE.md slim) migrated the listing to CONTEXT.md §2.1
+  so the cleanup landed there with scope unchanged.
+
 - **`/batch-template-upgrade` renamed to `/batch-base-upgrade`** (closes #146).
   The upstream repo + subtree prefix moved from `template/` to `base/` +
   `.base/` long ago; the legacy command name kept causing confusion
