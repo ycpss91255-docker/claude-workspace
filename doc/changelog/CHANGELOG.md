@@ -7,6 +7,39 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **Workspace path portability across users / machines
+  (closes #143).** Three places hard-coded
+  `/home/yunchien/workspace/docker` as the workspace path:
+  - `.claude/settings.json` sandbox `filesystem.allowWrite` only
+    contained `/tmp`, so every `git worktree remove worktree/*`
+    tripped "Read-only file system" and required per-call
+    `dangerouslyDisableSandbox` (the precedent: `base#389 / #391 /
+    #392` all hit this at cleanup). Added `"worktree"` as a
+    relative entry (resolved against `${CLAUDE_PROJECT_DIR}`).
+  - `.claude/scripts/batch-license-apache.sh` and
+    `.claude/scripts/fix-compose-copy-line.sh` defaulted
+    `WORKSPACE` to the hard-coded path when
+    `${CLAUDE_PROJECT_DIR}` / `${WORKSPACE}` were unset. Both
+    now derive from `BASH_SOURCE` (script lives at
+    `.claude/scripts/<name>.sh`, so `../..` lands on the
+    workspace root). Works in any clone location.
+  - `.claude/hooks/test/smoke/auto_allow_rm_in_workspace_spec.bats`
+    `setup()` exported a hard-coded `CLAUDE_PROJECT_DIR`; the
+    "allows rm <absolute under workspace>" test case hard-coded
+    the same path in the command body. Both now derive from
+    `${BATS_TEST_DIRNAME}` so the spec passes wherever the
+    workspace lives on disk. The "silent on /home/yunchien/.bashrc"
+    test case stays as-is -- the literal path is just a
+    representative "outside workspace" location, unchanged by
+    workspace base derivation.
+
+  Phase 1 (`settings.json`) ships an experimental relative
+  `"worktree"` entry; sandbox interpolation semantics need
+  empirical verification on next session reload. If bwrap takes
+  the relative path raw (rather than resolving against
+  `${CLAUDE_PROJECT_DIR}`) a follow-up will switch to absolute
+  or `${HOME}` interpolation.
+
 - **CONTEXT.md `### Directory tree` lifecycle annotations stripped
   (closes #130).** The docker/ subtree listing previously mixed
   filesystem facts with lifecycle decision state (per-repo

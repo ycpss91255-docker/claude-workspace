@@ -3,9 +3,11 @@
 load '../lib/test_helper'
 
 # Fix CLAUDE_PROJECT_DIR for tests so the hook has a stable workspace
-# anchor independent of where the tests run.
+# anchor independent of where the tests run. Derived from
+# ${BATS_TEST_DIRNAME} so the spec is portable across clones / users
+# (refs #143).
 setup() {
-  export CLAUDE_PROJECT_DIR="/home/yunchien/workspace/docker"
+  export CLAUDE_PROJECT_DIR="$(cd "${BATS_TEST_DIRNAME}/../../../.." && pwd -P)"
 }
 
 @test "allows rm <relative file> (workspace cwd assumed)" {
@@ -28,8 +30,8 @@ setup() {
   assert_permission_decision "allow"
 }
 
-@test "allows rm /home/yunchien/workspace/docker/foo.txt (under workspace)" {
-  run "$(hook auto_allow_rm_in_workspace.sh)" <<< '{"tool_input":{"command":"rm /home/yunchien/workspace/docker/foo.txt"}}'
+@test "allows rm <absolute path under workspace>" {
+  run "$(hook auto_allow_rm_in_workspace.sh)" <<< "{\"tool_input\":{\"command\":\"rm ${CLAUDE_PROJECT_DIR}/foo.txt\"}}"
   assert_permission_decision "allow"
 }
 

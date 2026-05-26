@@ -29,7 +29,7 @@ readonly ORG="ycpss91255-docker"
 readonly LICENSE_SOURCE="/tmp/apache-2.0.txt"
 readonly BRANCH="chore/license-apache-2"
 readonly TITLE="chore: add Apache 2.0 LICENSE + CI/License badges"
-readonly WORKSPACE="${CLAUDE_PROJECT_DIR:-/home/yunchien/workspace/docker}"
+readonly WORKSPACE="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
 
 # repo|category|issue
 readonly REPOS=(

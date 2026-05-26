@@ -24,7 +24,7 @@
 
 set -euo pipefail
 
-readonly WORKSPACE="${WORKSPACE:-/home/yunchien/workspace/docker}"
+readonly WORKSPACE="${WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
 readonly BRANCH="chore/base-v0.12.4"
 
 readonly -a AFFECTED_REPOS=(
