@@ -96,7 +96,8 @@
     ],
     "filesystem": {
       "allowWrite": [
-        "/tmp"
+        "/tmp",
+        "worktree"
       ]
     }
   },
