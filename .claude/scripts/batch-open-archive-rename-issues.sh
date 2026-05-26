@@ -121,8 +121,11 @@ pattern of existing archived repos (\`archive/ros_noetic\`,
 
 - [ ] GitHub repo marked archived (read-only)
 - [ ] Local checkout moved under \`<workspace>/archive/${repo}/\`
-- [ ] docker_harness \`CLAUDE.md\` directory-tree \`archive/\` section appended
-      with the entry (and the \`app/\` or \`agent/\` listing annotated)
+- [ ] docker_harness \`CONTEXT.md\` sec 2.1 \`archive/\` block appended
+      with the entry (post-#127 the directory tree moved from \`CLAUDE.md\`
+      to \`CONTEXT.md\` sec 2.1; post-#130 per-repo lifecycle annotations
+      live in \`.claude/scripts/batch-base-upgrade.sh\` \`DEFAULT_REPOS\`
+      + this script's follow-up issues, not in the tree listing)
 
 ## Out of scope
 
