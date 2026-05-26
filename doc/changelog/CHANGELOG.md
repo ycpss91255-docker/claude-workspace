@@ -7,6 +7,47 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **Post-rename drift sweep (closes #150).** Stale references
+  surfaced after #127 (CLAUDE.md slim moved the directory tree
+  to CONTEXT.md sec 2.1), #130 (lifecycle annotations stripped
+  from the same tree), and #146 (`/batch-template-upgrade`
+  renamed to `/batch-base-upgrade` plus the script renamed
+  accordingly):
+  - `doc/adr/00000007-slash-command-first-over-ad-hoc.md` --
+    three `/batch-template-upgrade` mentions updated to
+    `/batch-base-upgrade`; the
+    `.claude/commands/batch-template-upgrade.md` path reference
+    updated to `.claude/commands/batch-base-upgrade.md`.
+  - `.claude/scripts/batch-open-archive-rename-issues.sh:124`
+    issue-body template -- the acceptance-checklist line that
+    pointed at `CLAUDE.md` directory-tree retargeted to
+    `CONTEXT.md sec 2.1` (post-#127 location). The line also
+    notes that post-#130 per-repo lifecycle annotations live in
+    `batch-base-upgrade.sh` `DEFAULT_REPOS` plus this script's
+    follow-up issues, not in the tree listing itself.
+  - `.claude/memory/feedback_template_subtree_upgrade.md`
+    renamed to `feedback_base_subtree_upgrade.md` with content
+    refreshed: `template/init.sh` -> `.base/init.sh`,
+    `.template_version` -> `.base/.version`, and a note that
+    `enforce_make_first_upgrade.sh` now BLOCKs raw subtree pull
+    in favour of the make wrapper.
+  - `.claude/memory/feedback_make_first_upgrade.md` refreshed
+    so the canonical fallback reads `./.base/upgrade.sh`
+    (legacy `./template/upgrade.sh` mentioned only as the
+    old-folder-name variant the hook also catches); cross-link
+    added to `[[feedback_base_subtree_upgrade]]`.
+  - `.claude/memory/MEMORY.md` index entries for the two
+    memory files updated to `.base subtree` titles + refreshed
+    one-line hooks.
+
+  Working-as-designed references that intentionally still
+  mention the legacy names (`enforce_make_first_upgrade.sh`
+  surface 2, `check_readme_framework.sh` `.template_version`
+  catcher, `instincts.yaml:133` mirror,
+  `feedback_subagent_sandbox_limits.md` incident narrative,
+  historical CHANGELOG entries) are NOT touched -- see the
+  #150 body for the full "do not change" list.
+
 - **Workspace path portability across users / machines
   (closes #143).** Three places hard-coded
   `/home/yunchien/workspace/docker` as the workspace path:

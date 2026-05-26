@@ -6,7 +6,7 @@
 ## Context
 
 The repo accumulates `.claude/commands/*.md` (slash commands like
-`/release`, `/pr`, `/batch-template-upgrade`, `/issue-fix`,
+`/release`, `/pr`, `/batch-base-upgrade`, `/issue-fix`,
 `/new-repo`, `/doc-sync`, `/safe-delete`, `/verify`) and
 `.claude/skills/*/SKILL.md` (e.g. `wait-pr-ci`, `gh-artifact-format`,
 `semver-bump`) as multi-step workflows mature. Each documented
@@ -43,7 +43,7 @@ mutating flow they cover. Concretely:
 |---|---|
 | Tag a release | `/release` (chore-PR + tag + `wait-tag-ci`) |
 | Open a PR | `/pr` (branch + commit + push + create + `wait-pr-ci`) |
-| Batch upgrade downstream `.base/` | `/batch-template-upgrade` |
+| Batch upgrade downstream `.base/` | `/batch-base-upgrade` |
 | Fix an open issue | `/issue-fix <repo> [<num>\|all]` |
 | Create a new repo | `/new-repo` |
 | Pre-commit doc check | `/doc-sync` or `/verify` |
@@ -132,7 +132,7 @@ Three alternatives were considered and rejected:
   one blocking enforcement.
 - `.claude/commands/release.md`,
   `.claude/commands/pr.md`,
-  `.claude/commands/batch-template-upgrade.md`,
+  `.claude/commands/batch-base-upgrade.md`,
   `.claude/commands/issue-fix.md`,
   `.claude/skills/wait-pr-ci/SKILL.md`,
   `.claude/skills/semver-bump/SKILL.md` -- the canonical
