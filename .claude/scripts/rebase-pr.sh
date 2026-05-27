@@ -28,6 +28,10 @@
 
 set -uo pipefail
 
+_RP_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_RP_SCRIPT_DIR}/lib/log.sh"
+
 usage() {
   cat >&2 <<'EOF'
 Usage: rebase-pr.sh <pr> [options]

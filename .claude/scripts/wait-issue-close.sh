@@ -28,12 +28,12 @@
 
 set -euo pipefail
 
+_WIC_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_WIC_SCRIPT_DIR}/lib/log.sh"
+
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[wait-issue-close] ERROR: %s\n' "$*" >&2
 }
 
 main() {
@@ -51,16 +51,16 @@ main() {
       --on-close) on_close="$2"; shift 2 ;;
       --interval) interval="$2"; shift 2 ;;
       --max-iterations) max_iter="$2"; shift 2 ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal wait-issue-close unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if [[ -z "${repo}" ]]; then
-    err "--repo is required"
+    _log_fatal wait-issue-close precondition_missing arg=--repo
     exit 2
   fi
   if [[ -z "${issue}" || ! "${issue}" =~ ^[0-9]+$ ]]; then
-    err "--issue must be a positive integer"
+    _log_fatal wait-issue-close precondition_missing arg=--issue reason=not-positive-integer
     exit 2
   fi
 
@@ -95,7 +95,7 @@ main() {
     fi
 
     if (( max_iter > 0 && iter >= max_iter )); then
-      err "max-iterations (${max_iter}) reached"
+      _log_err wait-issue-close wait_failed reason=max-iterations max="${max_iter}"
       exit 124
     fi
 
