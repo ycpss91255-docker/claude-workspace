@@ -54,6 +54,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 readonly SCRIPT_DIR
+# shellcheck source=lib/log.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/log.sh"
 readonly ORG="ycpss91255-docker"
 readonly BASE_REPO="${ORG}/base"
 readonly BASE_REMOTE="https://github.com/${BASE_REPO}.git"
@@ -71,9 +73,6 @@ readonly DEFAULT_REPOS=(
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
-
-err() { printf '[batch-sensor-app] ERROR: %s\n' "$*" >&2; }
-info() { printf '[batch-sensor-app] %s\n' "$*"; }
 
 # Sensor-app Dockerfile structural transform. Each sed has a unique
 # anchor and runs in a defined order so the file ends in the v0.27
@@ -176,7 +175,7 @@ migrate_one() {
   git checkout -B main FETCH_HEAD || return 1
 
   if [[ -d ".base" && ! -d "template" ]]; then
-    info "[${reponame}] already on .base/ -- skipping (run batch-base-upgrade instead)"
+    _log_info batch-sensor-v0.27 repo_skipped repo="${reponame}" reason=already-on-base
     return 100
   fi
 
@@ -213,7 +212,7 @@ migrate_one() {
 
   git add -A
   if git diff --cached --quiet; then
-    info "[${reponame}] no Dockerfile / main.yaml / README sed needed"
+    _log_info batch-sensor-v0.27 processing_repo repo="${reponame}" detail=no-sed-needed
   else
     git commit -m "chore: migrate Dockerfile to v0.27 layered config + SETUP_DIR (refs ${BASE_REPO}#263)" \
       || return 1
@@ -256,7 +255,7 @@ EOF
     --head "${BRANCH}" --base main \
     --title "chore: migrate to ${BASE_REPO}@${TARGET_VERSION} (sensor-app v0.27 layered config + SETUP_DIR)" \
     --body-file "${pr_body_file}" 2>&1)"; then
-    info "[${reponame}] PR: ${pr_url}"
+    _log_info batch-sensor-v0.27 pr_opened repo="${reponame}" url="${pr_url}"
     if [[ -n "${pairs_file}" ]]; then
       local pr_num
       pr_num="$(printf '%s' "${pr_url}" | grep -oE '/pull/[0-9]+' | head -1 | sed 's|/pull/||')"
@@ -267,7 +266,7 @@ EOF
     rm -f "${pr_body_file}"
     return 0
   else
-    err "[${reponame}] gh pr create failed: ${pr_url}"
+    _log_err batch-sensor-v0.27 repo_failed repo="${reponame}" action=gh-pr-create detail="${pr_url}"
     rm -f "${pr_body_file}"
     return 1
   fi
@@ -302,18 +301,18 @@ main() {
       --continue-on-error) continue_on_error=1; shift ;;
       --only) only_csv="$2"; shift 2 ;;
       --skip) skip_csv="$2"; shift 2 ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal batch-sensor-v0.27 unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   local why
   if [[ -n "${why_file}" ]]; then
-    [[ -f "${why_file}" ]] || { err "--why-file not found: ${why_file}"; exit 2; }
+    [[ -f "${why_file}" ]] || { _log_fatal batch-sensor-v0.27 precondition_missing path="${why_file}" reason=not-found; exit 2; }
     why="$(< "${why_file}")"
   elif [[ -n "${why_text}" ]]; then
     why="${why_text}"
   else
-    err "either --why-file or --why is required"
+    _log_fatal batch-sensor-v0.27 precondition_missing arg="--why-file|--why"
     usage
     exit 2
   fi
@@ -336,11 +335,11 @@ main() {
   done
 
   if (( ${#repos[@]} == 0 )); then
-    err "no repos selected"
+    _log_fatal batch-sensor-v0.27 precondition_missing arg="<repos>" reason=none-selected
     exit 2
   fi
 
-  info "migrating ${#repos[@]} repo(s) to ${BASE_REPO}@${TARGET_VERSION} on branch ${BRANCH}"
+  _log_info batch-sensor-v0.27 summary phase=start count="${#repos[@]}" base_repo="${BASE_REPO}" version="${TARGET_VERSION}" branch="${BRANCH}"
 
   local pairs_file
   pairs_file="$(mktemp)"
@@ -356,10 +355,10 @@ main() {
     local reponame="${r##*/}"
     local url="https://github.com/${ORG}/${reponame}.git"
 
-    [[ -d "${dir}" ]] || { err "[${reponame}] dir missing: ${dir}"; failed+=("${reponame}"); continue; }
+    [[ -d "${dir}" ]] || { _log_err batch-sensor-v0.27 repo_failed repo="${reponame}" reason=dir-missing path="${dir}"; failed+=("${reponame}"); continue; }
 
     if (( dry_run )); then
-      info "[${reponame}] dry-run: would fetch ${url}, rm template/, subtree add .base/ @ ${TARGET_VERSION}, init.sh, sed Dockerfile/main.yaml/READMEs, transform Dockerfile, open PR"
+      _log_info batch-sensor-v0.27 dry_run_cmd repo="${reponame}" url="${url}" version="${TARGET_VERSION}" action="rm template+subtree add+init+sed+transform+PR"
       continue
     fi
 
@@ -371,7 +370,7 @@ main() {
       *)
         failed+=("${reponame}")
         if (( ! continue_on_error )); then
-          err "[${reponame}] failed (exit ${rc}); use --continue-on-error to keep going"
+          _log_err batch-sensor-v0.27 repo_failed repo="${reponame}" rc="${rc}" action=abort
           break
         fi
         ;;
@@ -384,8 +383,7 @@ main() {
   fi
   rm -f "${pairs_file}"
 
-  echo
-  info "summary: opened=${#opened[@]} skipped=${#skipped[@]} failed=${#failed[@]}"
+  _log_info batch-sensor-v0.27 summary phase=end opened="${#opened[@]}" skipped="${#skipped[@]}" failed="${#failed[@]}"
   if (( ${#opened[@]} )); then
     printf '  opened:  %s\n' "${opened[@]}"
   fi

@@ -42,14 +42,14 @@
 
 set -euo pipefail
 
+_BPM_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_BPM_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_OWNER='ycpss91255-docker'
 
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[batch-pr-merge] %s\n' "$*" >&2
 }
 
 # reset_local_main fetches origin/main, checks out main, and hard-resets
@@ -81,22 +81,22 @@ reset_local_main() {
     fi
   done
   if [[ -z "${local_path}" ]]; then
-    printf '[batch-pr-merge]   reset-local: no local checkout for %s, skipped\n' "${repo}"
+    _log_warn batch-pr-merge repo_skipped repo="${repo}" reason=reset-local-no-checkout
     return 0
   fi
   if ! git -C "${local_path}" fetch origin main --quiet 2>/dev/null; then
-    printf '[batch-pr-merge]   reset-local: fetch failed at %s, skipped\n' "${local_path}"
+    _log_warn batch-pr-merge repo_skipped path="${local_path}" reason=reset-local-fetch-failed
     return 0
   fi
   if ! git -C "${local_path}" checkout main --quiet 2>/dev/null; then
-    printf '[batch-pr-merge]   reset-local: checkout main failed at %s, skipped\n' "${local_path}"
+    _log_warn batch-pr-merge repo_skipped path="${local_path}" reason=reset-local-checkout-failed
     return 0
   fi
   if ! git -C "${local_path}" reset --hard origin/main --quiet 2>/dev/null; then
-    printf '[batch-pr-merge]   reset-local: reset --hard origin/main failed at %s, skipped\n' "${local_path}"
+    _log_warn batch-pr-merge repo_skipped path="${local_path}" reason=reset-local-reset-failed
     return 0
   fi
-  printf '[batch-pr-merge]   reset-local: %s now at origin/main\n' "${local_path}"
+  _log_info batch-pr-merge processing_repo path="${local_path}" kind=reset-local result=at-origin-main
 }
 
 main() {
@@ -119,14 +119,14 @@ main() {
       *)
         case "$1" in
           *:*) pairs+=("$1"); shift ;;
-          *) err "unknown arg: $1"; usage; exit 2 ;;
+          *) _log_fatal batch-pr-merge unrecognised_arg arg="${1}"; usage; exit 2 ;;
         esac
         ;;
     esac
   done
 
   if (( ${#pairs[@]} == 0 )); then
-    err "no <repo>:<pr> pairs given"
+    _log_fatal batch-pr-merge precondition_missing arg="<repo>:<pr>" reason=no-pairs
     usage
     exit 2
   fi
@@ -137,11 +137,11 @@ main() {
     repo="${p%:*}"
     pr="${p##*:}"
     if [[ -z "${repo}" || -z "${pr}" ]]; then
-      err "bad pair: ${p}"
+      _log_fatal batch-pr-merge precondition_missing pair="${p}" reason=bad-format
       exit 2
     fi
     if [[ "${pr}" =~ [^0-9] ]]; then
-      err "PR number must be a positive integer in: ${p}"
+      _log_fatal batch-pr-merge precondition_missing pair="${p}" reason=non-numeric-pr
       exit 2
     fi
     if [[ "${repo}" != */* ]]; then
@@ -159,25 +159,24 @@ main() {
     pr="${p##*:}"
 
     if (( dry_run )); then
-      printf '[batch-pr-merge] dry-run: would merge %s#%s\n' "${repo}" "${pr}"
+      _log_info batch-pr-merge dry_run_cmd repo="${repo}" pr="${pr}" action=merge
       continue
     fi
 
-    printf '[batch-pr-merge] merging %s#%s ... ' "${repo}" "${pr}"
     if gh pr merge "${pr}" -R "${repo}" --squash --delete-branch 2>&1; then
-      printf '[batch-pr-merge]   ok\n'
+      _log_info batch-pr-merge pr_merged repo="${repo}" pr="${pr}"
       merged=$((merged + 1))
       if (( reset_local )); then
         reset_local_main "${repo}"
       fi
     else
-      printf '[batch-pr-merge]   FAILED\n'
+      _log_err batch-pr-merge pr_failed repo="${repo}" pr="${pr}" action=merge
       failed=$((failed + 1))
       failed_pairs+=("${p}")
     fi
   done
 
-  printf '\n[batch-pr-merge] summary: merged=%d failed=%d\n' "${merged}" "${failed}"
+  _log_info batch-pr-merge summary merged="${merged}" failed="${failed}"
   if (( failed > 0 )); then
     printf '  failed: %s\n' "${failed_pairs[@]}"
     exit 1

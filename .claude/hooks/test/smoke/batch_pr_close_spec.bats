@@ -46,33 +46,36 @@ EOF
 @test "missing --reason exits 2" {
   run "$(script batch-pr-close.sh)" ai_agent:1
   assert_failure 2
-  assert_output --partial "--reason is required"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"--reason"'
 }
 
 @test "no pairs exits 2" {
   run "$(script batch-pr-close.sh)" --reason "x"
   assert_failure 2
-  assert_output --partial "no <repo>:<pr> pairs given"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"no-pairs"'
 }
 
 @test "bad pair (no colon) exits 2" {
   run "$(script batch-pr-close.sh)" --reason "x" not-a-pair
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "non-numeric PR exits 2" {
   run "$(script batch-pr-close.sh)" --reason "x" ai_agent:abc
   assert_failure 2
-  assert_output --partial "PR number"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"non-numeric-pr"'
 }
 
 @test "short repo name is normalized to ycpss91255-docker/<repo>" {
   stub_gh_capture
   run "$(script batch-pr-close.sh)" --reason "superseded" ai_agent:42
   assert_success
-  assert_output --partial "closing ycpss91255-docker/ai_agent#42"
-  refute_output --partial "closing ai_agent#42"
+  assert_output --partial '"repo":"ycpss91255-docker/ai_agent"'
+  assert_output --partial '"pr":"42"'
   run cat "${GH_STUB_DIR}/calls.log"
   assert_output --partial "ycpss91255-docker/ai_agent"
 }
@@ -81,7 +84,7 @@ EOF
   stub_gh_capture
   run "$(script batch-pr-close.sh)" --reason "x" other-org/repo:5
   assert_success
-  assert_output --partial "closing other-org/repo#5"
+  assert_output --partial '"repo":"other-org/repo"'
   refute_output --partial "ycpss91255-docker/other-org"
 }
 
@@ -89,16 +92,17 @@ EOF
   stub_gh_capture
   run "$(script batch-pr-close.sh)" --reason "x" --owner my-org repo-a:7
   assert_success
-  assert_output --partial "closing my-org/repo-a#7"
+  assert_output --partial '"repo":"my-org/repo-a"'
 }
 
 @test "--dry-run prints planned closes and skips gh invocation" {
   stub_gh_fail
   run "$(script batch-pr-close.sh)" --reason "x" --dry-run ai_agent:1 claude_code:2
   assert_success
-  assert_output --partial "would comment+close ycpss91255-docker/ai_agent#1"
-  assert_output --partial "would comment+close ycpss91255-docker/claude_code#2"
-  refute_output --partial "FAILED"
+  assert_output --partial '"body":"dry_run_cmd"'
+  assert_output --partial '"repo":"ycpss91255-docker/ai_agent"'
+  assert_output --partial '"repo":"ycpss91255-docker/claude_code"'
+  refute_output --partial '"severity_text":"ERROR"'
 }
 
 @test "successful close invokes gh pr close with --comment and --delete-branch" {
@@ -125,8 +129,10 @@ EOF
   stub_gh_fail
   run "$(script batch-pr-close.sh)" --reason "x" ai_agent:1
   assert_failure 1
-  assert_output --partial "FAILED"
-  assert_output --partial "summary: closed=0 failed=1"
+  assert_output --partial '"body":"pr_failed"'
+  assert_output --partial '"body":"summary"'
+  assert_output --partial '"closed":"0"'
+  assert_output --partial '"failed":"1"'
   assert_output --partial "ai_agent:1"
 }
 
@@ -146,25 +152,27 @@ EOF
   chmod +x "${GH_STUB_DIR}/gh"
   run "$(script batch-pr-close.sh)" --reason "x" ai_agent:1 claude_code:2 codex_cli:3
   assert_failure 1
-  assert_output --partial "summary: closed=2 failed=1"
+  assert_output --partial '"closed":"2"'
+  assert_output --partial '"failed":"1"'
   assert_output --partial "claude_code:2"
-  refute_output --partial "ai_agent:1"
 }
 
 @test "unknown flag exits 2" {
   run "$(script batch-pr-close.sh)" --reason "x" --bogus ai_agent:1
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "empty repo in pair exits 2" {
   run "$(script batch-pr-close.sh)" --reason "x" :42
   assert_failure 2
-  assert_output --partial "bad pair"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"bad-format"'
 }
 
 @test "empty PR in pair exits 2" {
   run "$(script batch-pr-close.sh)" --reason "x" ai_agent:
   assert_failure 2
-  assert_output --partial "bad pair"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"bad-format"'
 }

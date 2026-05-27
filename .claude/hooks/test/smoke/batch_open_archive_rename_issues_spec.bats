@@ -86,7 +86,8 @@ EOF
 @test "unknown arg exits 2" {
   run "$(script batch-open-archive-rename-issues.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
+  assert_output --partial '"arg":"--bogus"'
 }
 
 # ---- --dry-run lists exactly 11 issues with the right repo/title shape ----
@@ -115,8 +116,8 @@ EOF
   assert_output --partial "realsense_noetic -> realsense_ros"
 
   # 11 created in summary
-  assert_output --partial "created=11"
-  assert_output --partial "failed=0"
+  assert_output --partial '"created":"11"'
+  assert_output --partial '"failed":"0"'
 }
 
 @test "--dry-run writes body files under TMPDIR" {
@@ -184,7 +185,7 @@ EOF
   assert_output --partial "ai_agent"
   refute_output --partial "claude_code"
   refute_output --partial "urg_node_humble"
-  assert_output --partial "created=1"
+  assert_output --partial '"created":"1"'
 }
 
 @test "--only filters to multiple slugs across archive + rename groups" {
@@ -194,14 +195,14 @@ EOF
   assert_output --partial "sick_humble"
   assert_output --partial "urg_node_humble"
   refute_output --partial "ai_agent"
-  assert_output --partial "created=2"
+  assert_output --partial '"created":"2"'
 }
 
 @test "--only with non-matching slug creates none" {
   run "$(script batch-open-archive-rename-issues.sh)" \
     --dry-run --only nonexistent_repo
   assert_success
-  assert_output --partial "created=0"
+  assert_output --partial '"created":"0"'
 }
 
 # ---- title format ----
@@ -226,7 +227,7 @@ EOF
   stub_gh_capture_no_existing
   run "$(script batch-open-archive-rename-issues.sh)" --only ai_agent
   assert_success
-  assert_output --partial "created=1"
+  assert_output --partial '"created":"1"'
 
   run cat "${GH_STUB_DIR}/calls.log"
   assert_output --partial "issue"
@@ -256,9 +257,10 @@ EOF
   stub_gh_existing_title
   run "$(script batch-open-archive-rename-issues.sh)" --only ai_agent
   assert_success
-  assert_output --partial "skip ycpss91255-docker/ai_agent"
-  assert_output --partial "skipped=1"
-  assert_output --partial "created=0"
+  assert_output --partial '"body":"issue_skipped"'
+  assert_output --partial '"owner_repo":"ycpss91255-docker/ai_agent"'
+  assert_output --partial '"skipped":"1"'
+  assert_output --partial '"created":"0"'
 }
 
 # ---- gh create failure ----
@@ -267,6 +269,6 @@ EOF
   stub_gh_create_fails
   run "$(script batch-open-archive-rename-issues.sh)" --only ai_agent
   assert_failure 1
-  assert_output --partial "failed=1"
+  assert_output --partial '"failed":"1"'
   assert_output --partial "ai_agent"
 }

@@ -40,6 +40,10 @@
 
 set -euo pipefail
 
+_BOARI_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_BOARI_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_OWNER='ycpss91255-docker'
 readonly TMP_DIR="${TMPDIR:-/tmp}"
 
@@ -64,14 +68,6 @@ readonly RENAME_REPOS=(
 
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[batch-issues] ERROR: %s\n' "$*" >&2
-}
-
-info() {
-  printf '[batch-issues] %s\n' "$*"
 }
 
 issue_title_archive() {
@@ -212,18 +208,17 @@ create_issue() {
 
   if (( dry_run == 0 )); then
     if issue_exists "${owner_repo}" "${title}"; then
-      info "skip ${owner_repo}: issue with same title already exists"
+      _log_info batch-issues issue_skipped owner_repo="${owner_repo}" title="${title}" reason=already-exists
       return 2
     fi
   fi
 
   if (( dry_run )); then
-    info "dry-run: would create ${owner_repo}: ${title}"
-    info "  body: ${body_path}"
+    _log_info batch-issues dry_run_cmd owner_repo="${owner_repo}" title="${title}" body_path="${body_path}"
     return 0
   fi
 
-  info "creating ${owner_repo}: ${title}"
+  _log_info batch-issues processing_repo owner_repo="${owner_repo}" title="${title}" action=create
   # --label enhancement: archive + rename issues are all chore(*) titles;
   # chore maps to enhancement per gh-artifact-format SKILL.md Section 6.
   # Required by enforce_gh_body_file.sh rule 9 (#91).
@@ -261,7 +256,7 @@ main() {
       --refs) refs="$2"; shift 2 ;;
       --only) only_csv="$2"; shift 2 ;;
       --dry-run) dry_run=1; shift ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal batch-issues unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
@@ -316,8 +311,7 @@ main() {
     esac
   done
 
-  printf '\n[batch-issues] summary: created=%d skipped=%d failed=%d\n' \
-    "${created}" "${skipped}" "${failed}"
+  _log_info batch-issues summary created="${created}" skipped="${skipped}" failed="${failed}"
   if (( failed > 0 )); then
     printf '  failed: %s\n' "${failed_repos[@]}"
     exit 1

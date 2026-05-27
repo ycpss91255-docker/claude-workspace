@@ -29,6 +29,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 readonly SCRIPT_DIR
+# shellcheck source=lib/log.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/log.sh"
 readonly ORG="ycpss91255-docker"
 readonly BRANCH="chore/gitignore-claude-symlink"
 readonly TITLE="chore: gitignore .claude (also covers symlinks)"
@@ -58,14 +60,6 @@ usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
 
-err() {
-  printf '[batch-gitignore-fix] ERROR: %s\n' "$*" >&2
-}
-
-info() {
-  printf '[batch-gitignore-fix] %s\n' "$*"
-}
-
 main() {
   local why_file=""
   local why_text=""
@@ -83,16 +77,16 @@ main() {
       --continue-on-error) continue_on_error=1; shift ;;
       --only) only_csv="$2"; shift 2 ;;
       --skip) skip_csv="$2"; shift 2 ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal batch-gitignore-fix unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if [[ -z "${why_file}" && -z "${why_text}" ]]; then
-    err "must provide --why-file <path> or --why \"<text>\""
+    _log_fatal batch-gitignore-fix precondition_missing arg="--why-file|--why"
     exit 2
   fi
   if [[ -n "${why_file}" && ! -r "${why_file}" ]]; then
-    err "why-file not readable: ${why_file}"
+    _log_fatal batch-gitignore-fix precondition_missing path="${why_file}" reason=not-readable
     exit 2
   fi
 
@@ -131,7 +125,7 @@ main() {
     readonly root
   fi
 
-  info "branch=${BRANCH} dry_run=${dry_run} repos=${#repos[@]}"
+  _log_info batch-gitignore-fix summary phase=start branch="${BRANCH}" dry_run="${dry_run}" count="${#repos[@]}"
 
   local failed=()
   local skipped=()
@@ -141,20 +135,20 @@ main() {
   for repo in "${repos[@]}"; do
     local reponame="${repo##*/}"
     local url="https://github.com/${ORG}/${reponame}.git"
-    info "=== [${repo}] ==="
+    _log_info batch-gitignore-fix processing_repo repo="${repo}"
 
     if (( dry_run )); then
-      info "[${repo}] dry-run: would fetch ${url} main, create ${BRANCH}, sed .claude/ -> .claude in .gitignore, open PR"
+      _log_info batch-gitignore-fix dry_run_cmd repo="${repo}" url="${url}" branch="${BRANCH}" action="sed .claude/ to .claude"
       continue
     fi
 
     if [[ ! -d "${root}/${repo}" ]]; then
-      err "[${repo}] missing local dir; skipping"
+      _log_warn batch-gitignore-fix repo_skipped repo="${repo}" reason=missing-local-dir
       skipped+=("${repo} (missing)")
       continue
     fi
     if [[ ! -f "${root}/${repo}/.gitignore" ]]; then
-      info "[${repo}] no .gitignore; skipping"
+      _log_info batch-gitignore-fix repo_skipped repo="${repo}" reason=no-gitignore
       skipped+=("${repo} (no .gitignore)")
       continue
     fi
@@ -168,15 +162,14 @@ main() {
       else
         failed+=("${repo}")
         if (( ! continue_on_error )); then
-          err "[${repo}] failed (rc=${rc}); aborting (use --continue-on-error to keep going)"
+          _log_err batch-gitignore-fix repo_failed repo="${repo}" rc="${rc}" action=abort
           break
         fi
       fi
     fi
   done
 
-  echo
-  info "summary: opened=${#opened[@]} skipped=${#skipped[@]} failed=${#failed[@]}"
+  _log_info batch-gitignore-fix summary phase=end opened="${#opened[@]}" skipped="${#skipped[@]}" failed="${#failed[@]}"
   if (( ${#opened[@]} )); then
     printf '  opened:  %s\n' "${opened[@]}"
   fi
@@ -203,7 +196,7 @@ fix_one() {
   # Idempotency: if .gitignore no longer has the old `.claude/` line,
   # treat as already fixed and skip without opening a PR.
   if ! grep -qE '^\.claude/$' .gitignore; then
-    info "[${reponame}] .gitignore already lacks the trailing-slash form; skipping"
+    _log_info batch-gitignore-fix repo_skipped repo="${reponame}" reason=already-fixed
     return 100
   fi
 
@@ -213,7 +206,7 @@ fix_one() {
   sed -i 's|^\.claude/$|.claude|' .gitignore
 
   if git diff --quiet; then
-    info "[${reponame}] sed produced no change; skipping"
+    _log_info batch-gitignore-fix repo_skipped repo="${reponame}" reason=sed-no-change
     git checkout main || return 1
     git branch -D "${BRANCH}" || return 1
     return 100
@@ -235,7 +228,7 @@ fix_one() {
     --title "${TITLE}" \
     --body "${body}")" || return 1
 
-  info "[${reponame}] PR: ${pr_url}"
+  _log_info batch-gitignore-fix pr_opened repo="${reponame}" url="${pr_url}"
 }
 
 main "$@"

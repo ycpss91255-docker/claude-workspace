@@ -7,6 +7,27 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **Migrate batch-\* + fix-\* remainder to lib/log.sh (refs #148, M3
+  of 5).** Replaced bare `printf` / `echo` diagnostics with `_log_*`
+  callsites in `batch-pr-merge.sh`, `batch-pr-close.sh`,
+  `batch-gitignore-add-line.sh`, `batch-gitignore-fix.sh`,
+  `batch-rename-template-to-base.sh`, `batch-sensor-app-v0.27.sh`,
+  `batch-open-archive-rename-issues.sh`, `fix-compose-copy-line.sh`,
+  `fix-dockerfile-lint-lib.sh`, and `fix-dockerfile-copy-script.sh`.
+  Removed redundant local `err()` / `info()` helpers in favour of
+  inline `_log_*` calls with structured `repo=` / `pr=` / `reason=`
+  attributes. `print_next_step_hint` blocks, `opened:` /
+  `skipped:` / `failed:` per-item lists, and PR body file content
+  stayed as `printf` -- those are data products. Added
+  `patch_applied` / `patch_skipped` / `patch_failed` / `pr_failed`
+  / `issue_created` / `issue_skipped` / `issue_failed` to
+  `log-events.txt` for the new event categories. Updated
+  `batch_gitignore_add_line_spec.bats`,
+  `batch_gitignore_fix_spec.bats`,
+  `batch_open_archive_rename_issues_spec.bats`,
+  `batch_pr_close_spec.bats`, `batch_pr_merge_spec.bats`, and
+  `fix_dockerfile_lint_lib_spec.bats` assertions to match JSON
+  output emitted in non-tty test capture.
 - **Migrate top-4 callers to lib/log.sh (refs #148, M2 of 5).**
   Replaced bare `printf` / `echo` diagnostics with `_log_*`
   callsites in `verify.sh` (drift / lint / arg errors),

@@ -47,3 +47,16 @@ ack_required
 
 # --- external API failure ---
 api_error
+
+# --- patch / fix script outcomes ---
+patch_applied
+patch_skipped
+patch_failed
+
+# --- pr operations ---
+pr_failed
+
+# --- batch issue creation ---
+issue_created
+issue_skipped
+issue_failed

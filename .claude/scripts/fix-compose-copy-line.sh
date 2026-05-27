@@ -25,6 +25,9 @@
 set -euo pipefail
 
 readonly WORKSPACE="${WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
+_FCCL_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_FCCL_SCRIPT_DIR}/lib/log.sh"
 readonly BRANCH="chore/base-v0.12.4"
 
 readonly -a AFFECTED_REPOS=(
@@ -40,9 +43,6 @@ readonly -a AFFECTED_REPOS=(
   app/urg_node_noetic
 )
 
-info() { printf '[fix] %s\n' "$*"; }
-err()  { printf '[fix] ERROR: %s\n' "$*" >&2; }
-
 main() {
   local _summary_ok=()
   local _summary_skip=()
@@ -54,28 +54,28 @@ main() {
     _reponame="${_rel##*/}"
     _origin="https://github.com/ycpss91255-docker/${_reponame}.git"
 
-    info "[${_reponame}] checking out ${BRANCH}"
+    _log_info fix-compose processing_repo repo="${_reponame}" branch="${BRANCH}"
 
     if ! git -C "${_repo_dir}" rev-parse --git-dir >/dev/null 2>&1; then
-      err "[${_reponame}] not a git repo at ${_repo_dir}"
+      _log_err fix-compose repo_failed repo="${_reponame}" reason=not-a-git-repo path="${_repo_dir}"
       _summary_fail+=("${_rel}")
       continue
     fi
 
     git -C "${_repo_dir}" fetch "${_origin}" "${BRANCH}" 2>&1 | tail -2 || {
-      err "[${_reponame}] fetch failed"
+      _log_err fix-compose repo_failed repo="${_reponame}" reason=fetch-failed
       _summary_fail+=("${_rel}")
       continue
     }
     git -C "${_repo_dir}" checkout -B "${BRANCH}" FETCH_HEAD >/dev/null 2>&1 || {
-      err "[${_reponame}] checkout failed"
+      _log_err fix-compose repo_failed repo="${_reponame}" reason=checkout-failed
       _summary_fail+=("${_rel}")
       continue
     }
 
     if ! grep -qF 'COPY compose.yaml /lint/compose.yaml' \
         "${_repo_dir}/Dockerfile"; then
-      info "[${_reponame}] already clean — skip"
+      _log_info fix-compose patch_skipped repo="${_reponame}" reason=already-clean
       _summary_skip+=("${_rel}")
       continue
     fi
@@ -85,7 +85,7 @@ main() {
 
     if grep -qF 'COPY compose.yaml /lint/compose.yaml' \
         "${_repo_dir}/Dockerfile"; then
-      err "[${_reponame}] sed did not remove the line"
+      _log_err fix-compose patch_failed repo="${_reponame}" reason=sed-no-remove
       _summary_fail+=("${_rel}")
       continue
     fi
@@ -106,15 +106,14 @@ generated runtime artifact." >/dev/null
         "${BRANCH}" 2>&1 | tail -2
 
     _summary_ok+=("${_rel}")
-    info "[${_reponame}] patched + pushed"
+    _log_info fix-compose patch_applied repo="${_reponame}"
   done
 
-  echo
-  info "summary: patched=${#_summary_ok[@]} skipped=${#_summary_skip[@]} failed=${#_summary_fail[@]}"
+  _log_info fix-compose summary patched="${#_summary_ok[@]}" skipped="${#_summary_skip[@]}" failed="${#_summary_fail[@]}"
   local _r
-  for _r in "${_summary_ok[@]}"; do echo "  patched: ${_r}"; done
-  for _r in "${_summary_skip[@]}"; do echo "  skipped: ${_r}"; done
-  for _r in "${_summary_fail[@]}"; do echo "  FAILED:  ${_r}"; done
+  for _r in "${_summary_ok[@]}"; do printf '  patched: %s\n' "${_r}"; done
+  for _r in "${_summary_skip[@]}"; do printf '  skipped: %s\n' "${_r}"; done
+  for _r in "${_summary_fail[@]}"; do printf '  FAILED:  %s\n' "${_r}"; done
   (( ${#_summary_fail[@]} == 0 ))
 }
 
