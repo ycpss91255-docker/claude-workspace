@@ -43,6 +43,10 @@
 
 set -euo pipefail
 
+_FDLL_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_FDLL_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_ORG='ycpss91255-docker'
 readonly DEFAULT_REPOS=(
   ai_agent
@@ -64,10 +68,6 @@ usage() {
   sed -n '/^# Usage:/,/^# Run/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
 
-err() {
-  printf '[fix-lint-lib] %s\n' "$*" >&2
-}
-
 main() {
   local branch=""
   local org="${DEFAULT_ORG}"
@@ -81,12 +81,12 @@ main() {
       --org) org="$2"; shift 2 ;;
       --repos) repos_csv="$2"; shift 2 ;;
       --dry-run) dry_run=1; shift ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal fix-lint-lib unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if [[ -z "${branch}" ]]; then
-    err "--branch is required"
+    _log_fatal fix-lint-lib precondition_missing arg=--branch
     usage
     exit 2
   fi
@@ -110,17 +110,17 @@ main() {
 
   local repo workdir
   for repo in "${repos[@]}"; do
-    printf '\n[fix-lint-lib] === %s ===\n' "${repo}"
+    _log_info fix-lint-lib processing_repo repo="${repo}"
 
     if (( dry_run )); then
-      printf '[fix-lint-lib] dry-run: would clone %s/%s @ %s, patch Dockerfile, push\n' "${org}" "${repo}" "${branch}"
+      _log_info fix-lint-lib dry_run_cmd repo="${repo}" org="${org}" branch="${branch}" action="clone+patch+push"
       continue
     fi
 
     workdir="${TMPDIR_FIX}/${repo}"
 
     if ! gh repo clone "${org}/${repo}" "${workdir}" -- --quiet --depth=1 --branch="${branch}" 2>/dev/null; then
-      printf '[fix-lint-lib] %s: clone failed (no %s branch? skipping)\n' "${repo}" "${branch}"
+      _log_err fix-lint-lib repo_failed repo="${repo}" reason=clone-failed branch="${branch}"
       failed=$((failed + 1))
       failed_repos+=("${repo}")
       continue
@@ -132,21 +132,21 @@ main() {
     git -C "${workdir}" config user.email "$(git config --get user.email)"
 
     if [[ ! -f "${workdir}/Dockerfile" ]]; then
-      printf '[fix-lint-lib] %s: no Dockerfile at branch root; skipping\n' "${repo}"
+      _log_warn fix-lint-lib patch_skipped repo="${repo}" reason=no-dockerfile
       skipped=$((skipped + 1))
       skipped_repos+=("${repo}")
       continue
     fi
 
     if grep -qE '^COPY .base/script/docker/lib(/|$)' "${workdir}/Dockerfile"; then
-      printf '[fix-lint-lib] %s: already patched (idempotent); skipping\n' "${repo}"
+      _log_info fix-lint-lib patch_skipped repo="${repo}" reason=already-patched
       skipped=$((skipped + 1))
       skipped_repos+=("${repo}")
       continue
     fi
 
     if ! grep -qE '^RUN shellcheck -S warning /lint/\*\.sh$' "${workdir}/Dockerfile"; then
-      printf '[fix-lint-lib] %s: cannot locate "RUN shellcheck -S warning /lint/*.sh" anchor; manual fix required\n' "${repo}"
+      _log_err fix-lint-lib patch_failed repo="${repo}" reason=anchor-not-found anchor="RUN shellcheck -S warning /lint/*.sh"
       failed=$((failed + 1))
       failed_repos+=("${repo}")
       continue
@@ -158,29 +158,28 @@ main() {
     if ! git -C "${workdir}" diff --quiet -- Dockerfile; then
       git -C "${workdir}" add Dockerfile
       if ! git -C "${workdir}" commit -m "fix(dockerfile): COPY .base/script/docker/lib /lint/lib for shellcheck + smoke (post-#306 follow-up)"; then
-        printf '[fix-lint-lib] %s: commit failed\n' "${repo}"
+        _log_err fix-lint-lib patch_failed repo="${repo}" reason=commit-failed
         failed=$((failed + 1))
         failed_repos+=("${repo}")
         continue
       fi
       if ! git -C "${workdir}" push origin "${branch}" 2>&1 | tail -3; then
-        printf '[fix-lint-lib] %s: push failed\n' "${repo}"
+        _log_err fix-lint-lib patch_failed repo="${repo}" reason=push-failed
         failed=$((failed + 1))
         failed_repos+=("${repo}")
         continue
       fi
       opened=$((opened + 1))
       opened_repos+=("${repo}")
-      printf '[fix-lint-lib] %s: patched + pushed\n' "${repo}"
+      _log_info fix-lint-lib patch_applied repo="${repo}"
     else
-      printf '[fix-lint-lib] %s: sed produced no diff (unexpected); skipping\n' "${repo}"
+      _log_warn fix-lint-lib patch_skipped repo="${repo}" reason=sed-no-diff
       skipped=$((skipped + 1))
       skipped_repos+=("${repo}")
     fi
   done
 
-  printf '\n[fix-lint-lib] summary: patched=%d skipped=%d failed=%d\n' \
-    "${opened}" "${skipped}" "${failed}"
+  _log_info fix-lint-lib summary patched="${opened}" skipped="${skipped}" failed="${failed}"
   local r
   for r in "${opened_repos[@]}"; do printf '  patched: %s\n' "${r}"; done
   for r in "${skipped_repos[@]}"; do printf '  skipped: %s\n' "${r}"; done

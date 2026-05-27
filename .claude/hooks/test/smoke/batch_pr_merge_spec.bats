@@ -45,27 +45,29 @@ EOF
 @test "no pairs exits 2" {
   run "$(script batch-pr-merge.sh)"
   assert_failure 2
-  assert_output --partial "no <repo>:<pr> pairs given"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"no-pairs"'
 }
 
 @test "bad pair (no colon) exits 2" {
   run "$(script batch-pr-merge.sh)" not-a-pair
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "non-numeric PR exits 2" {
   run "$(script batch-pr-merge.sh)" ai_agent:abc
   assert_failure 2
-  assert_output --partial "PR number"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"non-numeric-pr"'
 }
 
 @test "short repo name is normalized to ycpss91255-docker/<repo>" {
   stub_gh_capture
   run "$(script batch-pr-merge.sh)" ai_agent:42
   assert_success
-  assert_output --partial "merging ycpss91255-docker/ai_agent#42"
-  refute_output --partial "merging ai_agent#42"
+  assert_output --partial '"repo":"ycpss91255-docker/ai_agent"'
+  assert_output --partial '"pr":"42"'
   run cat "${GH_STUB_DIR}/calls.log"
   assert_output --partial "ycpss91255-docker/ai_agent"
 }
@@ -74,7 +76,7 @@ EOF
   stub_gh_capture
   run "$(script batch-pr-merge.sh)" other-org/repo:5
   assert_success
-  assert_output --partial "merging other-org/repo#5"
+  assert_output --partial '"repo":"other-org/repo"'
   refute_output --partial "ycpss91255-docker/other-org"
 }
 
@@ -82,16 +84,17 @@ EOF
   stub_gh_capture
   run "$(script batch-pr-merge.sh)" --owner my-org repo-a:7
   assert_success
-  assert_output --partial "merging my-org/repo-a#7"
+  assert_output --partial '"repo":"my-org/repo-a"'
 }
 
 @test "--dry-run prints planned merges and skips gh invocation" {
   stub_gh_fail
   run "$(script batch-pr-merge.sh)" --dry-run ai_agent:1 claude_code:2
   assert_success
-  assert_output --partial "would merge ycpss91255-docker/ai_agent#1"
-  assert_output --partial "would merge ycpss91255-docker/claude_code#2"
-  refute_output --partial "FAILED"
+  assert_output --partial '"body":"dry_run_cmd"'
+  assert_output --partial '"repo":"ycpss91255-docker/ai_agent"'
+  assert_output --partial '"repo":"ycpss91255-docker/claude_code"'
+  refute_output --partial '"severity_text":"ERROR"'
 }
 
 @test "successful merge invokes gh pr merge with --squash --delete-branch" {
@@ -109,8 +112,9 @@ EOF
   stub_gh_fail
   run "$(script batch-pr-merge.sh)" ai_agent:1
   assert_failure 1
-  assert_output --partial "FAILED"
-  assert_output --partial "summary: merged=0 failed=1"
+  assert_output --partial '"body":"pr_failed"'
+  assert_output --partial '"merged":"0"'
+  assert_output --partial '"failed":"1"'
   assert_output --partial "ai_agent:1"
 }
 
@@ -130,9 +134,9 @@ EOF
   chmod +x "${GH_STUB_DIR}/gh"
   run "$(script batch-pr-merge.sh)" ai_agent:1 claude_code:2 codex_cli:3
   assert_failure 1
-  assert_output --partial "summary: merged=2 failed=1"
+  assert_output --partial '"merged":"2"'
+  assert_output --partial '"failed":"1"'
   assert_output --partial "claude_code:2"
-  refute_output --partial "ai_agent:1"  # only failed pairs listed in summary
 }
 
 # ── #146 --reset-local post-merge cleanup ──
@@ -141,20 +145,18 @@ EOF
   stub_gh_fail
   run "$(script batch-pr-merge.sh)" --reset-local --dry-run ai_agent:1
   assert_success
-  assert_output --partial "would merge"
-  refute_output --partial "reset-local"  # no reset attempted under --dry-run
+  assert_output --partial '"body":"dry_run_cmd"'
+  refute_output --partial "reset-local"
 }
 
 @test "--reset-local: missing local checkout is logged + skipped, merge still ok (#146)" {
-  # stub_gh_capture writes a successful gh stub. With no local checkout
-  # for a fabricated repo, the reset-local resolver should log "no local
-  # checkout for ... skipped" and the overall merge exits 0.
   stub_gh_capture
   run "$(script batch-pr-merge.sh)" --reset-local --owner fictional-org \
     fictional-repo-zzz:1
   assert_success
-  assert_output --partial "reset-local: no local checkout for fictional-org/fictional-repo-zzz, skipped"
-  assert_output --partial "summary: merged=1 failed=0"
+  assert_output --partial '"reason":"reset-local-no-checkout"'
+  assert_output --partial '"merged":"1"'
+  assert_output --partial '"failed":"0"'
 }
 
 @test "--reset-local does NOT run when merge fails (#146)" {
@@ -162,7 +164,7 @@ EOF
   run "$(script batch-pr-merge.sh)" --reset-local --owner fictional-org \
     fictional-repo-zzz:1
   assert_failure 1
-  refute_output --partial "reset-local:"
+  refute_output --partial "reset-local"
 }
 
 @test "--reset-local appears in --help output (#146)" {
@@ -174,17 +176,19 @@ EOF
 @test "unknown flag exits 2" {
   run "$(script batch-pr-merge.sh)" --bogus ai_agent:1
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "empty repo in pair exits 2" {
   run "$(script batch-pr-merge.sh)" :42
   assert_failure 2
-  assert_output --partial "bad pair"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"bad-format"'
 }
 
 @test "empty PR in pair exits 2" {
   run "$(script batch-pr-merge.sh)" ai_agent:
   assert_failure 2
-  assert_output --partial "bad pair"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"bad-format"'
 }

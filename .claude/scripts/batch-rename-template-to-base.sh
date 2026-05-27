@@ -47,6 +47,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 readonly SCRIPT_DIR
+# shellcheck source=lib/log.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/log.sh"
 readonly ORG="ycpss91255-docker"
 readonly BASE_REPO="${ORG}/base"
 readonly BASE_REMOTE="https://github.com/${BASE_REPO}.git"
@@ -72,9 +74,6 @@ usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
 
-err() { printf '[batch-rename] ERROR: %s\n' "$*" >&2; }
-info() { printf '[batch-rename] %s\n' "$*"; }
-
 main() {
   local version="${DEFAULT_VERSION}"
   local why_file=""
@@ -96,16 +95,16 @@ main() {
       --only) only_csv="$2"; shift 2 ;;
       --skip) skip_csv="$2"; shift 2 ;;
       v[0-9]*) version="$1"; shift ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal batch-rename unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if [[ -z "${why_file}" && -z "${why_text}" ]]; then
-    err "must provide --why-file <path> or --why \"<text>\""
+    _log_fatal batch-rename precondition_missing arg="--why-file|--why"
     exit 2
   fi
   if [[ -n "${why_file}" && ! -r "${why_file}" ]]; then
-    err "why-file not readable: ${why_file}"
+    _log_fatal batch-rename precondition_missing path="${why_file}" reason=not-readable
     exit 2
   fi
 
@@ -143,7 +142,7 @@ main() {
     issue_line="Closes part of ${ORG}/docker_harness#${issue}."
   fi
 
-  info "version=${version} branch=${branch} dry_run=${dry_run} repos=${#repos[@]}"
+  _log_info batch-rename summary phase=start version="${version}" branch="${branch}" dry_run="${dry_run}" count="${#repos[@]}"
 
   local failed=() skipped=() opened=()
   local pairs_file
@@ -155,16 +154,16 @@ main() {
   for repo in "${repos[@]}"; do
     local reponame="${repo##*/}"
     local url="https://github.com/${ORG}/${reponame}.git"
-    info "=== [${repo}] ==="
+    _log_info batch-rename processing_repo repo="${repo}"
 
     if [[ ! -d "${root}/${repo}" ]]; then
-      err "[${repo}] missing local dir; skipping"
+      _log_warn batch-rename repo_skipped repo="${repo}" reason=missing-local-dir
       skipped+=("${repo} (missing)")
       continue
     fi
 
     if (( dry_run )); then
-      info "[${repo}] dry-run: would fetch ${url} main, branch ${branch}, git rm -r template, subtree add --prefix=.base ${BASE_REMOTE} ${version}, init.sh, sed Dockerfile/main.yaml/READMEs, open PR"
+      _log_info batch-rename dry_run_cmd repo="${repo}" url="${url}" branch="${branch}" version="${version}" action="rm template+subtree add .base+init+sed+PR"
       continue
     fi
 
@@ -177,7 +176,7 @@ main() {
       else
         failed+=("${repo}")
         if (( ! continue_on_error )); then
-          err "[${repo}] failed (rc=${rc}); aborting (use --continue-on-error to keep going)"
+          _log_err batch-rename repo_failed repo="${repo}" rc="${rc}" action=abort
           break
         fi
       fi
@@ -192,8 +191,7 @@ main() {
     done < "${pairs_file}"
   fi
 
-  echo
-  info "summary: opened=${#opened[@]} skipped=${#skipped[@]} failed=${#failed[@]}"
+  _log_info batch-rename summary phase=end opened="${#opened[@]}" skipped="${#skipped[@]}" failed="${#failed[@]}"
   if (( ${#opened[@]} )); then
     printf '  opened:  %s\n' "${opened[@]}"
   fi
@@ -275,7 +273,7 @@ rename_one() {
   git checkout -B main FETCH_HEAD || return 1
 
   if [[ -d ".base" && ! -d "template" ]]; then
-    info "[${reponame}] already on .base/ — skipping"
+    _log_info batch-rename repo_skipped repo="${reponame}" reason=already-on-base
     return 100
   fi
 
@@ -309,7 +307,7 @@ rename_one() {
 
   git add -A
   if git diff --cached --quiet; then
-    info "[${reponame}] subtree add already brought everything into shape; no consumer-ref sed needed"
+    _log_info batch-rename processing_repo repo="${reponame}" detail=no-sed-needed
   else
     git commit -m "chore: migrate Dockerfile / main.yaml / README refs to .base/ + ${BASE_REPO}@${version}" \
       || return 1
@@ -345,7 +343,7 @@ EOF
     --head "${branch}" --base main \
     --title "chore: migrate template/ subtree to .base/ (${BASE_REPO}@${version})" \
     --body-file "${pr_body_file}" 2>&1)"; then
-    info "[${reponame}] PR: ${pr_url}"
+    _log_info batch-rename pr_opened repo="${reponame}" url="${pr_url}"
     if [[ -n "${pairs_file}" ]]; then
       local pr_num
       pr_num="$(printf '%s' "${pr_url}" | grep -oE '/pull/[0-9]+' | head -1 | sed 's|/pull/||')"
@@ -356,7 +354,7 @@ EOF
     rm -f "${pr_body_file}"
     return 0
   else
-    err "[${reponame}] gh pr create failed: ${pr_url}"
+    _log_err batch-rename repo_failed repo="${reponame}" action=gh-pr-create detail="${pr_url}"
     rm -f "${pr_body_file}"
     return 1
   fi

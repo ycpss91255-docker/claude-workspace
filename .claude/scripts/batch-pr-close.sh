@@ -34,14 +34,14 @@
 
 set -euo pipefail
 
+_BPC_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_BPC_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_OWNER='ycpss91255-docker'
 
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[batch-pr-close] %s\n' "$*" >&2
 }
 
 main() {
@@ -66,20 +66,20 @@ main() {
       *)
         case "$1" in
           *:*) pairs+=("$1"); shift ;;
-          *) err "unknown arg: $1"; usage; exit 2 ;;
+          *) _log_fatal batch-pr-close unrecognised_arg arg="${1}"; usage; exit 2 ;;
         esac
         ;;
     esac
   done
 
   if [[ -z "${reason}" ]]; then
-    err "--reason is required (visible PR comment explaining the close)"
+    _log_fatal batch-pr-close precondition_missing arg=--reason
     usage
     exit 2
   fi
 
   if (( ${#pairs[@]} == 0 )); then
-    err "no <repo>:<pr> pairs given"
+    _log_fatal batch-pr-close precondition_missing arg="<repo>:<pr>" reason=no-pairs
     usage
     exit 2
   fi
@@ -90,11 +90,11 @@ main() {
     repo="${p%:*}"
     pr="${p##*:}"
     if [[ -z "${repo}" || -z "${pr}" ]]; then
-      err "bad pair: ${p}"
+      _log_fatal batch-pr-close precondition_missing pair="${p}" reason=bad-format
       exit 2
     fi
     if [[ "${pr}" =~ [^0-9] ]]; then
-      err "PR number must be a positive integer in: ${p}"
+      _log_fatal batch-pr-close precondition_missing pair="${p}" reason=non-numeric-pr
       exit 2
     fi
     if [[ "${repo}" != */* ]]; then
@@ -112,11 +112,9 @@ main() {
     pr="${p##*:}"
 
     if (( dry_run )); then
-      printf '[batch-pr-close] dry-run: would comment+close %s#%s\n' "${repo}" "${pr}"
+      _log_info batch-pr-close dry_run_cmd repo="${repo}" pr="${pr}" action="comment+close"
       continue
     fi
-
-    printf '[batch-pr-close] closing %s#%s ... ' "${repo}" "${pr}"
 
     local close_args=("${pr}" "-R" "${repo}" "--comment" "${reason}")
     if (( delete_branch )); then
@@ -124,16 +122,16 @@ main() {
     fi
 
     if gh pr close "${close_args[@]}" 2>&1; then
-      printf '[batch-pr-close]   ok\n'
+      _log_info batch-pr-close pr_closed repo="${repo}" pr="${pr}"
       closed=$((closed + 1))
     else
-      printf '[batch-pr-close]   FAILED\n'
+      _log_err batch-pr-close pr_failed repo="${repo}" pr="${pr}" action=close
       failed=$((failed + 1))
       failed_pairs+=("${p}")
     fi
   done
 
-  printf '\n[batch-pr-close] summary: closed=%d failed=%d\n' "${closed}" "${failed}"
+  _log_info batch-pr-close summary closed="${closed}" failed="${failed}"
   if (( failed > 0 )); then
     printf '  failed: %s\n' "${failed_pairs[@]}"
     exit 1
