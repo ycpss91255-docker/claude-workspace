@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # batch-pr-merge.sh — squash-merge a list of PRs across repos.
 #
 # Pairs together with batch-base-upgrade.sh — that script opens N

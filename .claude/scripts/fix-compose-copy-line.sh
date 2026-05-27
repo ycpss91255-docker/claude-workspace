@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # fix-compose-copy-line.sh — one-off remediation for the v0.12.4 batch
 # upgrade. The pre-#172 Dockerfile has `COPY compose.yaml
 # /lint/compose.yaml` (dead code: hadolint never looks at it), and #172

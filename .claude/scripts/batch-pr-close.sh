@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # batch-pr-close.sh — close a list of PRs across repos with a single reason.
 #
 # Sibling of batch-pr-merge.sh. Use when a batch of in-flight PRs has been

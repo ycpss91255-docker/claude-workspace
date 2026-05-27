@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # verify.sh — unified pre-commit / pre-PR verification loop.
 #
 # Runs the project's change-complete checklist (CLAUDE.md「變更完成
