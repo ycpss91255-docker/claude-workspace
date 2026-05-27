@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # release-tag.sh -- canonical primitive for cutting version tags.
 #
 # Enforces the project's semver workflow (issue #106):

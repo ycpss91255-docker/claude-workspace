@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # instinct-query.sh -- query .claude/instincts.yaml for conventions
 # matching a given trigger kind (and optional file path).
 #

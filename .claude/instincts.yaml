@@ -155,6 +155,20 @@
     - use `git -C <path> <subcommand>` instead -- same idiom as `make -C`
   refs: CLAUDE.md > Bash 命令寫法的 parser 限制
 
+- name: bash-log-via-lib
+  trigger:
+    kind: file_edit
+    glob: '.claude/scripts/**/*.sh'
+    not_glob: '.claude/scripts/lib/**'
+  guidance:
+    - emit diagnostics via `_log_*` from `lib/log.sh` (mirror of base v0.37.0), not bare `printf '[X] ERROR: ...'`
+    - 5 levels - `_log_debug` / `_log_info` / `_log_warn` / `_log_err` / `_log_fatal` (severity_text + severity_number per OTel Logs Data Model)
+    - body name MUST be registered in `lib/log-events.txt` -- unregistered body causes fatal exit; add same-PR if new
+    - structured kvs (`repo=X` / `pr=N` / `reason=...`) prefer over message blobs; JSON output in non-tty / text in tty (tty-detect single-sink)
+    - `check-log-helper-usage.sh` (Makefile `log-helper-check`) fails CI on bare `printf` / `echo` outside `usage()` body or allowlist markers
+    - allowlist markers - `# log-allow:script` (file-wide) / `# log-allow:start` ... `# log-allow:end` (block) for data-product output (markdown tables, copy-paste hints, Monitor protocol)
+  refs: ycpss91255-docker/docker_harness#148 + ycpss91255-docker/base#423 + base#438
+
 - name: tdd-four-categories
   trigger:
     kind: file_edit

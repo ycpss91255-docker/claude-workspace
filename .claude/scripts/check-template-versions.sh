@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # check-template-versions.sh — read-only HTTPS fetch of `.base/.version`
 # from every downstream repo's main branch. Used during release verification
 # to confirm `/batch-base-upgrade <vX.Y.Z>` PRs have all merged.

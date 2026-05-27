@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # setup-memory-link.sh — link Claude Code per-project memory dir to a
 # repo-tracked location so memory ports with the repo across machines.
 #

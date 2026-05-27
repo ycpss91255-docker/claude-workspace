@@ -6,6 +6,51 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **CI lint + PostToolUse hook + instinct entry enforcing
+  `lib/log.sh` adoption (closes #148, M5 of 5).** Final phase of
+  the five-PR `#148` plan that started in #158.
+  - `.claude/scripts/check-log-helper-usage.sh` -- scans
+    `.claude/scripts/*.sh` (excluding `lib/`) for bare `printf` /
+    `echo` callsites outside `usage()` bodies. Three allowlist
+    layers: `# log-allow:script` at file top (file-wide skip),
+    `# log-allow:start` ... `# log-allow:end` block markers, and
+    automatic skip inside `usage()` function bodies (heredoc /
+    sed-extracted help text). Reports `file:line: bare <op>` on
+    stderr plus a final tally; exits 1 on any violation, 0 on
+    clean, 2 on arg error. Wired into the CI gate via the new
+    `log-helper-check` target in `.claude/test/Makefile`; the
+    `check` aggregator now includes it.
+  - `.claude/hooks/remind_log_helper.sh` -- PostToolUse hook
+    (Edit / Write / MultiEdit). On touches to
+    `.claude/scripts/*.sh` (excluding `lib/`), delegates to the
+    lint scoped to the single touched file and surfaces any bare
+    `printf` / `echo` as a non-blocking `systemMessage` nudge
+    with the canonical `_log_<level> <service> <body>
+    [attr=val]...` shape. Wired into `.claude/settings.json`
+    PostToolUse alongside the other Edit/Write hooks.
+  - `.claude/instincts.yaml` -- new `bash-log-via-lib` instinct
+    (kind `file_edit`, glob `.claude/scripts/**/*.sh`, not_glob
+    `lib/**`). Documents the 5-level vocabulary
+    (`_log_debug` / `_log_info` / `_log_warn` / `_log_err` /
+    `_log_fatal`), strict body-enum (`lib/log-events.txt`),
+    tty-detect dispatch, and allowlist markers.
+  - Allowlist markers applied to every existing
+    `.claude/scripts/*.sh` (excluding `lib/`) so the lint passes
+    against the current tree as a baseline. Each marker is a
+    `# log-allow:script` comment with rationale ("emits
+    data-product output (markdown table / next-step hint /
+    Monitor protocol / pass-fail summary) alongside `_log_*`").
+    Future per-callsite splits can replace the file-wide marker
+    with block-level markers once tooling can reliably
+    distinguish data-product printf from log-event printf.
+  - Bats specs: `check_log_helper_usage_spec.bats` (13 cases) +
+    `remind_log_helper_spec.bats` (7 cases).
+  - This phase wraps the `#148` umbrella: the lint, hook, and
+    instinct together codify the "diagnostics go through
+    `lib/log.sh`" rule that M1-M4 progressively migrated callers
+    toward.
+
 ### Changed
 - **Migrate wait-\* family to lib/log.sh (refs #148, M4 of 5).**
   Replaced bare `printf '[wait-X] ERROR: ...'` arg-parse / max-iter

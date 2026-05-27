@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # new-adr.sh -- create a new Architecture Decision Record (ADR) under
 # the current repo's `doc/adr/` directory.
 #

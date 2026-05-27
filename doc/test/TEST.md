@@ -15,13 +15,16 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **823 tests** (819 smoke + 4 integration) plus shellcheck (34 hook
-scripts + 29 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
+Total: **843 tests** (839 smoke + 4 integration) plus shellcheck (35 hook
+scripts + 30 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
 CLAUDE.md) plus a CLAUDE.md ceiling audit (`make ceiling-check`
 — `.claude/scripts/check-claude-md-ceiling.sh`; defaults 240
-lines / 20 `^##` sections).
+lines / 20 `^##` sections) plus a log-helper-usage audit
+(`make log-helper-check` —
+`.claude/scripts/check-log-helper-usage.sh`; enforces lib/log.sh
+adoption in `.claude/scripts/*.sh`, refs #148 M5).
 
 ## 4-category coverage
 
@@ -666,6 +669,50 @@ via PATH.
 | empty run list (tag just pushed) keeps polling and hits max-iterations 124 | total==0 ≠ green |
 | custom --check-filter narrows to a specific run name | filter ignores out-of-scope in-progress runs |
 | cancelled conclusion counts as failure | non-success conclusion handling |
+
+### test/smoke/check_log_helper_usage_spec.bats (13)
+
+Covers `.claude/scripts/check-log-helper-usage.sh` (CI lint that
+enforces `lib/log.sh` adoption in `.claude/scripts/*.sh`; refs
+`#148` M5). Validates: arg-parse, scripts-dir resolution, the
+`usage()` body allowlist (always skipped), the file-wide
+`# log-allow:script` marker, the block-level
+`# log-allow:start..end` markers, `lib/` subdirectory exclusion,
+and a smoke pass against the actual docker_harness scripts dir.
+
+| Test | Scenario |
+|------|----------|
+| --help prints usage and exits 0 | help path |
+| unknown arg exits 2 | arg parse error |
+| non-existent scripts dir exits 2 | path validation |
+| empty scripts dir passes | zero-script clean exit |
+| script using only _log_* passes | no violations |
+| bare printf without marker fails with line number | core violation detection |
+| bare echo without marker fails | echo + printf both detected |
+| printf inside usage() is allowed | usage-body allowlist |
+| file-wide # log-allow:script marker skips file | file-wide pragma |
+| block markers log-allow:start..end suppress violations inside | block pragma |
+| multiple violations across files are all reported | multi-file aggregation |
+| lib/ subdirectory is NOT scanned (only top-level *.sh) | lib/ exclusion |
+| real repo passes the lint (smoke against actual docker_harness) | self-host smoke |
+
+### test/smoke/remind_log_helper_spec.bats (7)
+
+Covers `.claude/hooks/remind_log_helper.sh` (PostToolUse hook that
+delegates to `check-log-helper-usage.sh` for the touched file
+only). Validates: skip on non-script paths, skip on `lib/`, skip on
+clean / allowed files, fire on bare `printf` / `echo` (refs `#148`
+M5).
+
+| Test | Scenario |
+|------|----------|
+| silent on non-script file | path-filter (not under .claude/scripts/) |
+| silent on .claude/scripts/lib/*.sh (lib is excluded) | lib/ excluded |
+| silent when file does not exist | safety net |
+| silent on script that uses _log_* only | no violation |
+| silent on script with file-wide log-allow:script marker | file-wide pragma |
+| fires on bare printf outside usage() | core fire path |
+| fires on bare echo outside usage() | echo + printf both fire |
 
 ### test/smoke/check_template_versions_spec.bats (7)
 

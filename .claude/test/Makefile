@@ -14,7 +14,7 @@ HADOLINT_IMAGE := hadolint/hadolint:latest-alpine
 # stay relative to that context (`.claude/hooks/`, `.claude/scripts/`).
 REPO_ROOT := $(CURDIR)/../..
 
-.PHONY: help build test lint hadolint tree-check check clean
+.PHONY: help build test lint hadolint tree-check ceiling-check log-helper-check check clean
 
 help:  ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -43,7 +43,10 @@ tree-check:  ## Audit CONTEXT.md `.claude/` tree listing vs filesystem (host bas
 ceiling-check:  ## Audit CLAUDE.md line / `^##` ceilings (refs #127; defaults 240 / 20, env-overridable via MAX_LINES / MAX_SECTIONS)
 	$(REPO_ROOT)/.claude/scripts/check-claude-md-ceiling.sh $(REPO_ROOT)/CLAUDE.md
 
-check: lint hadolint test tree-check ceiling-check  ## Full CI gate: shellcheck + Hadolint + bats + tree audit + ceiling audit
+log-helper-check:  ## Enforce lib/log.sh adoption in .claude/scripts/*.sh (refs #148 M5; bare printf/echo outside usage()/allowlist fails)
+	$(REPO_ROOT)/.claude/scripts/check-log-helper-usage.sh --scripts-dir $(REPO_ROOT)/.claude/scripts
+
+check: lint hadolint test tree-check ceiling-check log-helper-check  ## Full CI gate: shellcheck + Hadolint + bats + tree audit + ceiling audit + log-helper audit
 
 clean:  ## Remove the test image
 	docker image rm $(IMAGE) 2>/dev/null || true

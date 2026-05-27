@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# log-allow:script -- emits data-product output (markdown table / next-step hint / Monitor protocol / pass-fail summary) alongside _log_*; per-callsite split deferred until tooling can distinguish.
+
 # wait-tag-ci.sh — poll GitHub Actions runs for a tag or branch until settled.
 #
 # Sibling to wait-pr-ci.sh — same shape, different query. wait-pr-ci uses

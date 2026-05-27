@@ -120,6 +120,7 @@ docker/
     │   ├── instinct-query.sh                 # 查詢 .claude/instincts.yaml — `instinct-query.sh <kind> [path]` 印出符合 trigger 的 instincts (5 kinds: file_edit / git_commit / gh_pr_create / gh_issue_create / bash_command)，hooks/skills 用來取代 grep CLAUDE.md prose;refs #95
     │   ├── release-tag.sh                    # canonical primitive for cutting version tags;decision tree (RC / Z / Y / X bump) + .version integrity + RC CI 查詢 + RELEASE_X_BUMP_ACK 檢查;搭配 enforce_semver_tag_via_script.sh 強制 routing,refs #106
     │   ├── new-adr.sh                         # /adr 的實作:auto-number 8 位數補零,從 doc/adr/[0-9]*.md 掃 max+1,渲染 5-section 模板 (Date/Status/Context/Decision/Alternatives/Consequences),refs #97
+    │   ├── check-log-helper-usage.sh           # CI lint：scan .claude/scripts/*.sh 偵測 bare printf|echo（usage() 內 + log-allow:script/start..end allowlist marker 外）為違反 lib/log.sh adoption,refs #148 M5
     │   ├── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
     │   └── lib/
     │       ├── checkpoint.sh                  # /tmp checkpoint protocol helper — write_checkpoint + is_acked,Tier 2 E2 hook 共享 deny/ack 契約,refs ADR-00000002 / #117
@@ -165,6 +166,7 @@ docker/
     │   ├── remind_proactive_optimization.sh # Stop hook：task-boundary 訊號(gh pr merge / tool count >= 50)後若 session 未提任何 optimisation 候選 (workflow ergonomics / cross-repo inconsistency / doc drift / manual repetition) 則 remind 配 [[proactive-optimization]] skill,configurable via PROACTIVE_OPTIMIZATION_REMIND_{DISABLE,THRESHOLD};refs #124
     │   ├── remind_skillification_candidates.sh # Stop hook：偵測 /tmp/*.sh 反覆呼叫 (>=3 次) 或 parser-fallback Bash pattern 重複 (>=3 次) 且 session 未提任何 skillification 候選時 remind 配 [[skillification-candidates]] skill,configurable via SKILLIFICATION_REMIND_DISABLE + SKILLIFICATION_{TMP,PARSER}_THRESHOLD;refs #125
     │   ├── remind_parallel_when_bulk.sh # UserPromptSubmit hook：scan user prompt 偵測 bulk-work 訊號 (N >= 4 + plural noun / all|every + noun / 逗號分隔 4+ tokens / CJK 量詞) 且 prompt 未提 parallel/agent 時 remind 配 [[parallel-agents]] skill,configurable via PARALLEL_REMIND_{DISABLE,THRESHOLD};refs #126
+    │   ├── remind_log_helper.sh        # PostToolUse hook：Edit/Write .claude/scripts/*.sh 後 delegate 到 check-log-helper-usage.sh,若該檔案有 bare printf|echo (usage()/allowlist marker 外) 則 systemMessage nudge 提醒走 _log_*,refs #148 M5
     │   └── test/                       # bats specs (smoke + integration) — 跑法見 Makefile
     ├── skills/
     │   ├── rebase-pr/SKILL.md          # PR 因 BEHIND/CONFLICTING 需 rebase 時的 one-shot 流程,配 rebase-pr.sh + wait-pr-ci FAIL hint,refs #87
