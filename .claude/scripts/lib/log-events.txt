@@ -1,0 +1,46 @@
+# log-events.txt - Registered body enum for _log_* (docker_harness mirror).
+#
+# One event name per line. _log_* with an unregistered body is a fatal
+# error (strict enforcement, per ycpss91255-docker/base#438).
+# Adding a new event requires a same-PR addition here.
+#
+# Mirror of ycpss91255-docker/base@v0.37.0 contract; this list is
+# docker_harness-specific (events here do not necessarily overlap with
+# base's events list, which targets container scripts -- build / setup /
+# upgrade / etc).
+#
+# Seed list (M1) derived from the migration survey at
+# /tmp/docker_harness-log-survey.md; M2-M5 will append per migrating
+# callsite same-PR. Refs ycpss91255-docker/docker_harness#148.
+
+# --- batch mutation flows ---
+processing_repo
+repo_skipped
+repo_failed
+pr_opened
+pr_merged
+pr_closed
+worktree_exists
+
+# --- license / one-shot batch ---
+license_source_missing
+
+# --- dry-run preview (per base#438: dry-run is a body, not a function) ---
+dry_run_cmd
+
+# --- summary / verify / lint ---
+summary
+drift_detected
+lint_pass
+lint_fail
+
+# --- wait-* family ---
+wait_iteration
+wait_settled
+wait_failed
+release_detected
+
+# --- error class (fatal-level events) ---
+unrecognised_arg
+precondition_missing
+ack_required
