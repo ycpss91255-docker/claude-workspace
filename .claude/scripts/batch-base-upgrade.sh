@@ -26,6 +26,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 readonly SCRIPT_DIR
+# shellcheck source=lib/log.sh disable=SC1091
+source "${SCRIPT_DIR}/lib/log.sh"
 readonly DEFAULT_PR_BODY_TEMPLATE="${SCRIPT_DIR}/batch-base-pr-body.template.md"
 readonly ORG="ycpss91255-docker"
 
@@ -57,14 +59,6 @@ usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
 
-err() {
-  printf '[batch-upgrade] ERROR: %s\n' "$*" >&2
-}
-
-info() {
-  printf '[batch-upgrade] %s\n' "$*"
-}
-
 main() {
   local version=""
   local why_file=""
@@ -86,25 +80,25 @@ main() {
       --only) only_csv="$2"; shift 2 ;;
       --skip) skip_csv="$2"; shift 2 ;;
       v[0-9]*) version="$1"; shift ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal batch-base-upgrade unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if [[ -z "${version}" ]]; then
-    err "missing <version> (e.g. v0.12.1)"
+    _log_fatal batch-base-upgrade precondition_missing arg="<version>" hint="e.g. v0.12.1"
     usage
     exit 2
   fi
   if [[ -z "${why_file}" && -z "${why_text}" ]]; then
-    err "must provide --why-file <path> or --why \"<text>\""
+    _log_fatal batch-base-upgrade precondition_missing arg="--why-file|--why"
     exit 2
   fi
   if [[ -n "${why_file}" && ! -r "${why_file}" ]]; then
-    err "why-file not readable: ${why_file}"
+    _log_fatal batch-base-upgrade precondition_missing path="${why_file}" reason=not-readable
     exit 2
   fi
   if [[ ! -r "${DEFAULT_PR_BODY_TEMPLATE}" ]]; then
-    err "PR body template not found: ${DEFAULT_PR_BODY_TEMPLATE}"
+    _log_fatal batch-base-upgrade precondition_missing path="${DEFAULT_PR_BODY_TEMPLATE}" reason=not-found
     exit 2
   fi
 
@@ -144,7 +138,7 @@ main() {
     issue_line="Closes part of ${ORG}/template#${issue}."
   fi
 
-  info "version=${version} branch=${branch} dry_run=${dry_run} repos=${#repos[@]}"
+  _log_info batch-base-upgrade summary phase=start version="${version}" branch="${branch}" dry_run="${dry_run}" count="${#repos[@]}"
 
   local failed=()
   local skipped=()
@@ -159,16 +153,16 @@ main() {
   for repo in "${repos[@]}"; do
     local reponame="${repo##*/}"
     local url="https://github.com/${ORG}/${reponame}.git"
-    info "=== [${repo}] ==="
+    _log_info batch-base-upgrade processing_repo repo="${repo}"
 
     if [[ ! -d "${root}/${repo}" ]]; then
-      err "[${repo}] missing local dir; skipping"
+      _log_warn batch-base-upgrade repo_skipped repo="${repo}" reason=missing-local-dir
       skipped+=("${repo} (missing)")
       continue
     fi
 
     if (( dry_run )); then
-      info "[${repo}] dry-run: would fetch ${url} main, create ${branch}, run upgrade.sh ${version} + init.sh, open PR"
+      _log_info batch-base-upgrade dry_run_cmd repo="${repo}" url="${url}" branch="${branch}" version="${version}"
       continue
     fi
 
@@ -181,7 +175,7 @@ main() {
       else
         failed+=("${repo}")
         if (( ! continue_on_error )); then
-          err "[${repo}] failed (rc=${rc}); aborting (use --continue-on-error to keep going)"
+          _log_err batch-base-upgrade repo_failed repo="${repo}" rc="${rc}" action=abort hint="use --continue-on-error to keep going"
           break
         fi
       fi
@@ -196,8 +190,7 @@ main() {
     done < "${pairs_file}"
   fi
 
-  echo
-  info "summary: opened=${#opened[@]} skipped=${#skipped[@]} failed=${#failed[@]}"
+  _log_info batch-base-upgrade summary phase=end opened="${#opened[@]}" skipped="${#skipped[@]}" failed="${#failed[@]}"
   if (( ${#opened[@]} )); then
     printf '  opened:  %s\n' "${opened[@]}"
   fi
@@ -251,7 +244,7 @@ upgrade_one() {
   if git diff --quiet main HEAD \
      && git diff --quiet \
      && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
-    info "[${reponame}] no changes after upgrade — already at ${version}"
+    _log_info batch-base-upgrade repo_skipped repo="${reponame}" reason=already-at-version version="${version}"
     git checkout main || return 1
     git branch -D "${branch}" || return 1
     return 100
@@ -272,7 +265,7 @@ upgrade_one() {
     --title "chore: upgrade template subtree to ${version}" \
     --body "${body}")" || return 1
 
-  info "[${reponame}] PR: ${pr_url}"
+  _log_info batch-base-upgrade pr_opened repo="${reponame}" url="${pr_url}"
 
   if [[ -n "${pairs_file}" ]]; then
     local pr_num="${pr_url##*/}"

@@ -61,25 +61,29 @@ EOF
 @test "missing --repo exits 2" {
   run "$(script ci-wall-time-compare.sh)" --baseline 1 --fixed 2
   assert_failure 2
-  assert_output --partial "--repo"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"--repo"'
 }
 
 @test "missing --baseline exits 2" {
   run "$(script ci-wall-time-compare.sh)" --repo a/b --fixed 2
   assert_failure 2
-  assert_output --partial "--baseline"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"--baseline"'
 }
 
 @test "missing --fixed exits 2" {
   run "$(script ci-wall-time-compare.sh)" --repo a/b --baseline 1
   assert_failure 2
-  assert_output --partial "--fixed"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"--fixed"'
 }
 
 @test "unknown arg exits 2" {
   run "$(script ci-wall-time-compare.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
+  assert_output --partial '"arg":"--bogus"'
 }
 
 @test "all jobs match, fixed faster -> table with negative deltas" {
@@ -125,7 +129,8 @@ EOF
   stub_gh_runs 1 "${b}" 2 "${f}"
   run "$(script ci-wall-time-compare.sh)" --repo a/b --baseline 1 --fixed 2
   assert_failure 2
-  assert_output --partial "in-progress or incomplete jobs"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"in-progress-jobs"'
   assert_output --partial "build"
 }
 
@@ -136,7 +141,8 @@ EOF
   stub_gh_runs 1 "${b}" 2 "${f}"
   run "$(script ci-wall-time-compare.sh)" --repo a/b --baseline 1 --fixed 2
   assert_failure 2
-  assert_output --partial "in-progress or incomplete jobs"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"in-progress-jobs"'
 }
 
 @test "gh API failure exits 1" {
@@ -145,7 +151,9 @@ EOF
   stub_gh_fail 1 "${b}" 999
   run "$(script ci-wall-time-compare.sh)" --repo a/b --baseline 1 --fixed 999
   assert_failure 1
-  assert_output --partial "gh run view failed"
+  assert_output --partial '"body":"api_error"'
+  assert_output --partial '"tool":"gh-run-view"'
+  assert_output --partial '"run_id":"999"'
 }
 
 @test "--output writes table to file, stdout is empty" {
@@ -156,7 +164,8 @@ EOF
   tmp_out="$(mktemp)"
   run "$(script ci-wall-time-compare.sh)" --repo a/b --baseline 1 --fixed 2 --output "${tmp_out}"
   assert_success
-  assert_output --partial "wrote table to ${tmp_out}"
+  assert_output --partial '"body":"lint_pass"'
+  assert_output --partial '"kind":"table-written"'
   refute_output --partial "| build |"
   run cat "${tmp_out}"
   assert_output --partial "| build |"

@@ -49,6 +49,10 @@
 
 set -uo pipefail
 
+_VERIFY_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_VERIFY_SCRIPT_DIR}/lib/log.sh"
+
 readonly ALL_PHASES=(shellcheck hadolint bats tree-audit test-md doc-scan diff-stats)
 readonly HARD_PHASES=(shellcheck hadolint bats)
 
@@ -103,7 +107,7 @@ run_tree_audit() {
 
 run_test_md() {
   local test_md="${REPO_ROOT}/doc/test/TEST.md"
-  [[ -f "${test_md}" ]] || { echo "no doc/test/TEST.md — skipping"; return 0; }
+  [[ -f "${test_md}" ]] || { _log_info verify lint_pass kind=test-md detail=missing; return 0; }
 
   local drifts=0 line rel claimed actual file
   while IFS= read -r line; do
@@ -112,22 +116,22 @@ run_test_md() {
     file="${REPO_ROOT}/.claude/hooks/${rel}"
     [[ -f "${file}" ]] || file="${REPO_ROOT}/${rel}"
     if [[ ! -f "${file}" ]]; then
-      printf '  drift: %s — listed in TEST.md but file not found\n' "${rel}"
+      _log_warn verify drift_detected kind=test-md file="${rel}" reason=not-found
       drifts=$((drifts + 1))
       continue
     fi
     actual="$(grep -c '^@test' "${file}" || true)"
     if [[ "${claimed}" != "${actual}" ]]; then
-      printf '  drift: %s — TEST.md says %s, actual %s\n' "${rel}" "${claimed}" "${actual}"
+      _log_warn verify drift_detected kind=test-md file="${rel}" claimed="${claimed}" actual="${actual}"
       drifts=$((drifts + 1))
     fi
   done < <(grep -E '^### test/.+\.bats \([0-9]+\)$' "${test_md}" || true)
 
   if (( drifts > 0 )); then
-    printf '%d TEST.md drift(s) — sync doc/test/TEST.md before commit\n' "${drifts}"
+    _log_err verify lint_fail kind=test-md count="${drifts}"
     return 1
   fi
-  echo "TEST.md aligned"
+  _log_info verify lint_pass kind=test-md
 }
 
 changed_files_since_base() {
@@ -146,7 +150,7 @@ run_doc_scan() {
   local base="$1"
   local files file hits=0
   files="$(changed_files_since_base "${base}" | sort -u)"
-  [[ -z "${files}" ]] && { echo "no changed files vs ${base}"; return 0; }
+  [[ -z "${files}" ]] && { _log_info verify lint_pass kind=doc-scan base="${base}" reason=no-changes; return 0; }
 
   while IFS= read -r file; do
     [[ -z "${file}" ]] && continue
@@ -163,16 +167,16 @@ run_doc_scan() {
     fi
     if grep -qiE 'Generated with (\[)?Claude Code|Co-Authored-By:[[:space:]]*Claude' \
       "${abs}" 2>/dev/null; then
-      printf '  AI attribution: %s\n' "${file}"
+      _log_warn verify drift_detected kind=ai-attribution file="${file}"
       hits=$((hits + 1))
     fi
   done <<< "${files}"
 
   if (( hits > 0 )); then
-    printf '%d AI attribution hit(s) — strip before commit\n' "${hits}"
+    _log_err verify lint_fail kind=ai-attribution count="${hits}"
     return 1
   fi
-  echo "doc-scan clean (${base}..HEAD + worktree)"
+  _log_info verify lint_pass kind=doc-scan base="${base}"
 }
 
 run_diff_stats() {
@@ -180,7 +184,7 @@ run_diff_stats() {
   if git -C "${REPO_ROOT}" rev-parse --verify --quiet "${base}" >/dev/null 2>&1; then
     git -C "${REPO_ROOT}" diff --stat "${base}"..HEAD || true
   else
-    echo "base ${base} not found; skipping diff stats"
+    _log_warn verify drift_detected kind=diff-stats base="${base}" reason=missing-ref
   fi
 }
 
@@ -194,7 +198,7 @@ run_phase() {
     test-md)    run_test_md ;;
     doc-scan)   run_doc_scan "${base}" ;;
     diff-stats) run_diff_stats "${base}" ;;
-    *) echo "unknown phase: ${name}" >&2; return 2 ;;
+    *) _log_fatal verify unrecognised_arg phase="${name}"; return 2 ;;
   esac
 }
 
@@ -211,15 +215,15 @@ main() {
       --dry-run) dry_run=1; shift ;;
       --continue-on-fail) continue_on_fail=1; shift ;;
       --phase)
-        [[ -n "${2:-}" ]] || { echo "--phase needs a name" >&2; usage; exit 2; }
+        [[ -n "${2:-}" ]] || { _log_fatal verify precondition_missing arg=--phase reason=needs-a-name; usage; exit 2; }
         phases+=("$2"); shift 2 ;;
       --repo-root)
-        [[ -n "${2:-}" ]] || { echo "--repo-root needs a path" >&2; usage; exit 2; }
+        [[ -n "${2:-}" ]] || { _log_fatal verify precondition_missing arg=--repo-root reason=needs-a-path; usage; exit 2; }
         repo_root_override="$2"; shift 2 ;;
       --base)
-        [[ -n "${2:-}" ]] || { echo "--base needs a ref" >&2; usage; exit 2; }
+        [[ -n "${2:-}" ]] || { _log_fatal verify precondition_missing arg=--base reason=needs-a-ref; usage; exit 2; }
         base="$2"; shift 2 ;;
-      *) echo "unknown arg: $1" >&2; usage; exit 2 ;;
+      *) _log_fatal verify unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
@@ -230,7 +234,7 @@ main() {
   else
     REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
   fi
-  [[ -d "${REPO_ROOT}" ]] || { echo "repo root not a directory: ${REPO_ROOT}" >&2; exit 2; }
+  [[ -d "${REPO_ROOT}" ]] || { _log_fatal verify precondition_missing path="${REPO_ROOT}" reason=not-a-dir; exit 2; }
 
   if [[ ${#phases[@]} -eq 0 ]]; then
     phases=("${ALL_PHASES[@]}")
@@ -238,8 +242,7 @@ main() {
     local p
     for p in "${phases[@]}"; do
       if ! in_array "${p}" "${ALL_PHASES[@]}"; then
-        echo "unknown phase: ${p}" >&2
-        echo "valid phases: ${ALL_PHASES[*]}" >&2
+        _log_fatal verify unrecognised_arg phase="${p}" valid_phases="${ALL_PHASES[*]}"
         exit 2
       fi
     done

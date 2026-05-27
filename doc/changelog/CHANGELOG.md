@@ -6,6 +6,26 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Migrate top-4 callers to lib/log.sh (refs #148, M2 of 5).**
+  Replaced bare `printf` / `echo` diagnostics with `_log_*`
+  callsites in `verify.sh` (drift / lint / arg errors),
+  `batch-base-upgrade.sh` (summary + per-repo events,
+  removed `err`/`info` helpers), `ci-wall-time-compare.sh`
+  (gh API failures + precondition errors), and
+  `batch-license-apache.sh` (processing / skip / license
+  source). Markdown report output (verify summary table,
+  ci-wall-time-compare table, batch-base-upgrade
+  `print_next_step_hint`, dry-run plans) stays as `printf`
+  -- those are data products, not log events. Added
+  `api_error` to `log-events.txt` for the gh CLI failure
+  path. Updated `verify_spec.bats`,
+  `batch_base_upgrade_spec.bats`, and
+  `ci_wall_time_compare_spec.bats` assertions to match the
+  JSON output emitted in non-tty test capture. M3-M5
+  follow up to migrate the remaining batch / fix / wait
+  families and add CI lint enforcement.
+
 ### Added
 - **OTel-aligned log.sh mirror lib (refs #148, M1 of 5).**
   Vendored `ycpss91255-docker/base@v0.37.0`'s

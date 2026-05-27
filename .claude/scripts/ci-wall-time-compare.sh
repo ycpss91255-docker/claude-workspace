@@ -19,6 +19,10 @@
 
 set -uo pipefail
 
+_CIWT_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_CIWT_SCRIPT_DIR}/lib/log.sh"
+
 usage() {
   cat >&2 <<'EOF'
 ci-wall-time-compare.sh -- diff CI wall time between two runs of the same workflow.
@@ -84,8 +88,7 @@ iso_to_epoch() {
 fetch_run_jobs() {
   local repo="$1" run_id="$2" out
   if ! out="$(gh run view "${run_id}" --repo "${repo}" --json jobs 2>&1)"; then
-    echo "gh run view failed for run ${run_id} in ${repo}:" >&2
-    echo "${out}" >&2
+    _log_err ci-wall-time api_error tool=gh-run-view run_id="${run_id}" repo="${repo}" detail="${out}"
     return 1
   fi
   printf '%s' "${out}"
@@ -175,21 +178,21 @@ main() {
       --fixed) fixed="${2:-}"; shift 2 ;;
       --output) output="${2:-}"; shift 2 ;;
       -h|--help) usage; return 0 ;;
-      *) echo "unknown arg: $1" >&2; usage; return 2 ;;
+      *) _log_fatal ci-wall-time unrecognised_arg arg="${1}"; usage; return 2 ;;
     esac
   done
   if [[ -z "${repo}" ]]; then
-    echo "missing --repo" >&2
+    _log_fatal ci-wall-time precondition_missing arg=--repo
     usage
     return 2
   fi
   if [[ -z "${baseline}" ]]; then
-    echo "missing --baseline" >&2
+    _log_fatal ci-wall-time precondition_missing arg=--baseline
     usage
     return 2
   fi
   if [[ -z "${fixed}" ]]; then
-    echo "missing --fixed" >&2
+    _log_fatal ci-wall-time precondition_missing arg=--fixed
     usage
     return 2
   fi
@@ -201,8 +204,7 @@ main() {
   local incomplete
   incomplete="$(incomplete_job_names "${baseline_json}" "${fixed_json}")"
   if [[ -n "${incomplete}" ]]; then
-    echo "in-progress or incomplete jobs detected (missing startedAt or completedAt):" >&2
-    echo "${incomplete}" >&2
+    _log_fatal ci-wall-time precondition_missing reason=in-progress-jobs jobs="${incomplete//$'\n'/,}"
     return 2
   fi
 
@@ -211,7 +213,7 @@ main() {
 
   if [[ -n "${output}" ]]; then
     printf '%s\n' "${table}" > "${output}"
-    echo "wrote table to ${output}" >&2
+    _log_info ci-wall-time lint_pass kind=table-written output="${output}"
   else
     printf '%s\n' "${table}"
   fi
