@@ -18,19 +18,22 @@ setup() {
 @test "missing version exits 2" {
   run "${SCRIPT_PATH}" --why "x"
   assert_failure 2
-  assert_output --partial "missing <version>"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"<version>"'
 }
 
 @test "missing why exits 2" {
   run "${SCRIPT_PATH}" v0.99.0
   assert_failure 2
-  assert_output --partial "must provide --why-file"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"--why-file|--why"'
 }
 
 @test "unknown arg exits 2" {
   run "${SCRIPT_PATH}" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
+  assert_output --partial '"arg":"--bogus"'
 }
 
 @test "print_next_step_hint emits both wait + merge commands when pairs given" {

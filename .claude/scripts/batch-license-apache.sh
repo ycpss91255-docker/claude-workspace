@@ -30,6 +30,9 @@ readonly LICENSE_SOURCE="/tmp/apache-2.0.txt"
 readonly BRANCH="chore/license-apache-2"
 readonly TITLE="chore: add Apache 2.0 LICENSE + CI/License badges"
 readonly WORKSPACE="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)}"
+_BLA_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_BLA_SCRIPT_DIR}/lib/log.sh"
 
 # repo|category|issue
 readonly REPOS=(
@@ -161,21 +164,20 @@ process_repo() {
   local worktree_path="${WORKSPACE}/worktree/${repo}-${issue}-license"
   local body_file="/tmp/pr-${repo}-license.md"
 
-  printf '\n=== %s/%s (issue #%s, category %s) ===\n' "${ORG}" "${repo}" "${issue}" "${category}"
+  _log_info batch-license processing_repo org="${ORG}" repo="${repo}" issue="${issue}" category="${category}"
 
   if [[ ! -d "${repo_path}" ]]; then
-    printf 'SKIP: %s not present at %s\n' "${repo}" "${repo_path}" >&2
+    _log_warn batch-license repo_skipped repo="${repo}" reason=not-present path="${repo_path}"
     return 1
   fi
 
   if [[ "${dry_run}" == "true" ]]; then
-    printf 'DRY: would create worktree %s, update LICENSE/README/CHANGELOG, push branch %s, open PR closing #%d\n' \
-      "${worktree_path}" "${BRANCH}" "${issue}"
+    _log_info batch-license dry_run_cmd repo="${repo}" worktree="${worktree_path}" branch="${BRANCH}" issue="${issue}" action="worktree+LICENSE+README+CHANGELOG+push+PR"
     return 0
   fi
 
   if [[ -d "${worktree_path}" ]]; then
-    printf 'SKIP: worktree %s already exists; remove it first\n' "${worktree_path}" >&2
+    _log_warn batch-license worktree_exists repo="${repo}" path="${worktree_path}"
     return 1
   fi
 
@@ -219,14 +221,13 @@ main() {
       --dry-run) dry_run="true"; shift ;;
       -h|--help) usage; exit 0 ;;
       --) shift; filter+=("$@"); break ;;
-      -*) printf 'Unknown option: %s\n' "$1" >&2; usage; exit 2 ;;
+      -*) _log_fatal batch-license unrecognised_arg arg="${1}"; usage; exit 2 ;;
       *) filter+=("$1"); shift ;;
     esac
   done
 
   if [[ ! -f "${LICENSE_SOURCE}" ]]; then
-    printf 'ERROR: %s not found. Pre-fetch with:\n' "${LICENSE_SOURCE}" >&2
-    printf '  gh api /licenses/apache-2.0 --jq .body > %s\n' "${LICENSE_SOURCE}" >&2
+    _log_fatal batch-license license_source_missing path="${LICENSE_SOURCE}" hint="gh api /licenses/apache-2.0 --jq .body > ${LICENSE_SOURCE}"
     exit 1
   fi
 
@@ -249,7 +250,7 @@ main() {
     fi
   done
 
-  printf '\n--- summary: ok=%d fail=%d ---\n' "${ok}" "${fail}"
+  _log_info batch-license summary ok="${ok}" fail="${fail}"
   if (( ${#filter[@]} == 0 )); then
     printf 'After all PRs are open, monitor CI with:\n'
     printf '  .claude/scripts/wait-pr-ci-batch.sh \\\n'

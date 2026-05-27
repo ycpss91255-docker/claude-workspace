@@ -44,3 +44,6 @@ release_detected
 unrecognised_arg
 precondition_missing
 ack_required
+
+# --- external API failure ---
+api_error

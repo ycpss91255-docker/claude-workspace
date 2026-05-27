@@ -64,25 +64,29 @@ teardown() {
 @test "unknown arg exits 2" {
   run "$(script verify.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
+  assert_output --partial '"arg":"--bogus"'
 }
 
 @test "--phase needs a name" {
   run "$(script verify.sh)" --phase
   assert_failure 2
-  assert_output --partial "needs a name"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"arg":"--phase"'
+  assert_output --partial '"reason":"needs-a-name"'
 }
 
 @test "unknown phase name exits 2" {
   run "$(script verify.sh)" --repo-root "${REPO_DIR}" --phase bogus
   assert_failure 2
-  assert_output --partial "unknown phase"
+  assert_output --partial '"body":"unrecognised_arg"'
+  assert_output --partial '"phase":"bogus"'
 }
 
 @test "valid phases listed on bad phase name" {
   run "$(script verify.sh)" --repo-root "${REPO_DIR}" --phase nope
   assert_failure 2
-  assert_output --partial "valid phases:"
+  assert_output --partial '"valid_phases":'
   assert_output --partial "shellcheck"
   assert_output --partial "bats"
 }
@@ -129,7 +133,8 @@ teardown() {
   assert_output --partial "hadolint pass"
   assert_output --partial "bats pass"
   assert_output --partial "tree audit pass"
-  assert_output --partial "TEST.md aligned"
+  assert_output --partial '"body":"lint_pass"'
+  assert_output --partial '"kind":"test-md"'
   assert_output --partial "## Verify summary"
 }
 
@@ -143,7 +148,9 @@ teardown() {
 EOF
   run "$(script verify.sh)" --repo-root "${REPO_DIR}" --phase test-md
   assert_failure 1
-  assert_output --partial "TEST.md says 5, actual 2"
+  assert_output --partial '"body":"drift_detected"'
+  assert_output --partial '"claimed":"5"'
+  assert_output --partial '"actual":"2"'
   assert_output --partial "| test-md | fail |"
 }
 
@@ -156,7 +163,7 @@ EOF
   run "$(script verify.sh)" --repo-root "${REPO_DIR}" --phase test-md
   assert_failure 1
   assert_output --partial "missing_spec.bats"
-  assert_output --partial "file not found"
+  assert_output --partial '"reason":"not-found"'
 }
 
 # ---- hard-fail short-circuit ----
@@ -196,7 +203,7 @@ EOF
   )
   run "$(script verify.sh)" --repo-root "${REPO_DIR}" --phase doc-scan --base HEAD~1
   assert_failure 1
-  assert_output --partial "AI attribution"
+  assert_output --partial '"kind":"ai-attribution"'
   assert_output --partial "notes.txt"
 }
 
@@ -209,5 +216,6 @@ EOF
   )
   run "$(script verify.sh)" --repo-root "${REPO_DIR}" --phase doc-scan --base HEAD~1
   assert_success
-  assert_output --partial "doc-scan clean"
+  assert_output --partial '"body":"lint_pass"'
+  assert_output --partial '"kind":"doc-scan"'
 }
