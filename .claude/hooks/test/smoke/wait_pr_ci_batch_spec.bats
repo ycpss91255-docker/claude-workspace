@@ -29,25 +29,28 @@ stub_gh() {
 @test "no pairs exits 2" {
   run "$(script wait-pr-ci-batch.sh)"
   assert_failure 2
-  assert_output --partial "at least one"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"no-pairs"'
 }
 
 @test "bad pair (no colon) exits 2" {
   run "$(script wait-pr-ci-batch.sh)" not-a-pair
   assert_failure 2
-  assert_output --partial "expected <repo>:<pr>"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"bad-format"'
 }
 
 @test "non-numeric PR exits 2" {
   run "$(script wait-pr-ci-batch.sh)" ai_agent:abc
   assert_failure 2
-  assert_output --partial "PR number"
+  assert_output --partial '"body":"precondition_missing"'
+  assert_output --partial '"reason":"non-numeric-pr"'
 }
 
 @test "unknown flag exits 2" {
   run "$(script wait-pr-ci-batch.sh)" --bogus ai_agent:1
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "all-pass single short-form pair exits 0 with ALL_DONE" {

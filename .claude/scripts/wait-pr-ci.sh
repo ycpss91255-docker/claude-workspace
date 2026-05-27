@@ -59,14 +59,14 @@
 
 set -euo pipefail
 
+_WPC_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_WPC_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_FILTER='.name=="test" or (.name|startswith("Integration"))'
 
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[wait-pr-ci] ERROR: %s\n' "$*" >&2
 }
 
 main() {
@@ -86,21 +86,21 @@ main() {
       --min-checks) min_checks="$2"; shift 2 ;;
       --interval) interval="$2"; shift 2 ;;
       --max-iterations) max_iter="$2"; shift 2 ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal wait-pr-ci unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if ! [[ "${min_checks}" =~ ^[0-9]+$ ]] || (( min_checks < 1 )); then
-    err "--min-checks must be a positive integer (got: ${min_checks})"
+    _log_fatal wait-pr-ci precondition_missing arg=--min-checks value="${min_checks}" reason=not-positive-integer
     exit 2
   fi
 
   if [[ -z "${repo}" ]]; then
-    err "--repo is required"
+    _log_fatal wait-pr-ci precondition_missing arg=--repo
     exit 2
   fi
   if [[ -z "${prs_csv}" ]]; then
-    err "--prs is required"
+    _log_fatal wait-pr-ci precondition_missing arg=--prs
     exit 2
   fi
 
@@ -257,7 +257,7 @@ main() {
     fi
 
     if (( max_iter > 0 && iter >= max_iter )); then
-      err "max-iterations (${max_iter}) reached"
+      _log_err wait-pr-ci wait_failed reason=max-iterations max="${max_iter}"
       exit 124
     fi
 

@@ -7,6 +7,34 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **Migrate wait-\* family to lib/log.sh (refs #148, M4 of 5).**
+  Replaced bare `printf '[wait-X] ERROR: ...'` arg-parse / max-iter
+  diagnostics with structured `_log_fatal precondition_missing` /
+  `_log_fatal unrecognised_arg` / `_log_err wait_failed
+  reason=max-iterations` callsites in `wait-pr-ci.sh`,
+  `wait-pr-ci-batch.sh`, `wait-tag-ci.sh`, `wait-issue-close.sh`,
+  and `wait-release.sh`. Removed each script's local `err()`
+  helper. The wait scripts' main protocol output (per-PR
+  `PR<n>: checks=<state> mergeable=<m>` snapshots, `ALL_DONE` /
+  `FAIL <pr>` final lines, `[head-moved] PR<n> <old7>..<new7>`
+  markers) deliberately stayed as `printf` -- those are the
+  script's documented Monitor-consumed protocol, not log events;
+  migrating would break the wait-pr-ci skill's poll-and-parse
+  contract. Sourced `lib/log.sh` into `rebase-pr.sh` for future
+  callsite migration (no functional change in this PR). Updated
+  `wait_pr_ci_spec.bats`, `wait_pr_ci_batch_spec.bats`,
+  `wait_tag_ci_spec.bats`, `wait_issue_close_spec.bats`, and
+  `wait_release_spec.bats` arg-parse-error assertions to match
+  the JSON output. The remaining M4-survey utility scripts
+  (`instinct-query.sh`, `release-tag.sh`, `new-adr.sh`,
+  `setup-memory-link.sh`, `run-bats-in-compose.sh`,
+  `migrate-local-to-setupconf.sh`, `check-claude-md-ceiling.sh`,
+  `check-claude-md-tree.sh`, `check-template-versions.sh`) keep
+  their existing diagnostic `printf` / `echo` because each has
+  user-facing data-product output (markdown summary, table rows,
+  pass/fail status) that the bats specs assert on by exact text;
+  per-callsite migration deferred until M5 introduces the lint
+  allowlist pragma for marked data-product blocks.
 - **Migrate batch-\* + fix-\* remainder to lib/log.sh (refs #148, M3
   of 5).** Replaced bare `printf` / `echo` diagnostics with `_log_*`
   callsites in `batch-pr-merge.sh`, `batch-pr-close.sh`,

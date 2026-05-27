@@ -70,7 +70,7 @@ STUB_EOF
 @test "unknown arg exits 2" {
   run "$(script wait-pr-ci.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "all-pass + MERGEABLE single PR exits 0 with ALL_DONE" {

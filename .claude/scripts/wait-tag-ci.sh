@@ -34,14 +34,14 @@
 
 set -euo pipefail
 
+_WTC_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_WTC_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_FILTER='true'
 
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[wait-tag-ci] ERROR: %s\n' "$*" >&2
 }
 
 main() {
@@ -61,16 +61,16 @@ main() {
       --limit) limit="$2"; shift 2 ;;
       --interval) interval="$2"; shift 2 ;;
       --max-iterations) max_iter="$2"; shift 2 ;;
-      *) err "unknown arg: $1"; usage; exit 2 ;;
+      *) _log_fatal wait-tag-ci unrecognised_arg arg="${1}"; usage; exit 2 ;;
     esac
   done
 
   if [[ -z "${repo}" ]]; then
-    err "--repo is required"
+    _log_fatal wait-tag-ci precondition_missing arg=--repo
     exit 2
   fi
   if [[ -z "${ref}" ]]; then
-    err "--branch is required"
+    _log_fatal wait-tag-ci precondition_missing arg=--branch
     exit 2
   fi
 
@@ -120,7 +120,7 @@ main() {
     fi
 
     if (( max_iter > 0 && iter >= max_iter )); then
-      err "max-iterations (${max_iter}) reached"
+      _log_err wait-tag-ci wait_failed reason=max-iterations max="${max_iter}"
       exit 124
     fi
 

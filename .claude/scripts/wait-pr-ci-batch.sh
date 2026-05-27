@@ -76,15 +76,15 @@
 
 set -euo pipefail
 
+_WPCB_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+# shellcheck source=lib/log.sh disable=SC1091
+source "${_WPCB_SCRIPT_DIR}/lib/log.sh"
+
 readonly DEFAULT_FILTER='.name=="test" or (.name|startswith("Integration"))'
 readonly DEFAULT_OWNER='ycpss91255-docker'
 
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
-}
-
-err() {
-  printf '[wait-pr-ci-batch] ERROR: %s\n' "$*" >&2
 }
 
 main() {
@@ -123,13 +123,13 @@ main() {
         if [[ "${raw_min}" == *=* \
               && "${mlhs}" =~ ^[A-Za-z0-9_/-]+$ ]]; then
           if ! [[ "${mrhs}" =~ ^[0-9]+$ ]] || (( mrhs < 1 )); then
-            err "--min-checks ${mlhs}=<N>: N must be a positive integer (got: ${mrhs})"
+            _log_fatal wait-pr-ci-batch precondition_missing arg=--min-checks repo="${mlhs}" value="${mrhs}" reason=not-positive-integer
             exit 2
           fi
           min_checks_by_repo["${mlhs}"]="${mrhs}"
         else
           if ! [[ "${raw_min}" =~ ^[0-9]+$ ]] || (( raw_min < 1 )); then
-            err "--min-checks must be a positive integer (got: ${raw_min})"
+            _log_fatal wait-pr-ci-batch precondition_missing arg=--min-checks value="${raw_min}" reason=not-positive-integer
             exit 2
           fi
           min_checks="${raw_min}"
@@ -139,10 +139,10 @@ main() {
       --interval) interval="$2"; shift 2 ;;
       --max-iterations) max_iter="$2"; shift 2 ;;
       --) shift; pairs+=("$@"); break ;;
-      -*) err "unknown arg: $1"; usage; exit 2 ;;
+      -*) _log_fatal wait-pr-ci-batch unrecognised_arg arg="${1}"; usage; exit 2 ;;
       *)
         if [[ "$1" != *:* ]]; then
-          err "expected <repo>:<pr>, got: $1"
+          _log_fatal wait-pr-ci-batch precondition_missing arg="<repo>:<pr>" value="${1}" reason=bad-format
           exit 2
         fi
         pairs+=("$1")
@@ -152,7 +152,7 @@ main() {
   done
 
   if (( ${#pairs[@]} == 0 )); then
-    err "at least one <repo>:<pr> required"
+    _log_fatal wait-pr-ci-batch precondition_missing arg="<repo>:<pr>" reason=no-pairs
     exit 2
   fi
 
@@ -163,11 +163,11 @@ main() {
     repo="${p%:*}"
     pr="${p##*:}"
     if [[ -z "${repo}" || -z "${pr}" ]]; then
-      err "bad pair: ${p}"
+      _log_fatal wait-pr-ci-batch precondition_missing pair="${p}" reason=bad-format
       exit 2
     fi
     if [[ "${pr}" =~ [^0-9] ]]; then
-      err "PR number must be a positive integer in: ${p}"
+      _log_fatal wait-pr-ci-batch precondition_missing pair="${p}" reason=non-numeric-pr
       exit 2
     fi
     if [[ "${repo}" != */* ]]; then
@@ -311,7 +311,7 @@ main() {
     fi
 
     if (( max_iter > 0 && iter >= max_iter )); then
-      err "max-iterations (${max_iter}) reached"
+      _log_err wait-pr-ci-batch wait_failed reason=max-iterations max="${max_iter}"
       exit 124
     fi
 

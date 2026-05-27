@@ -42,7 +42,7 @@ stub_gh() {
 @test "unknown arg exits 2" {
   run "$(script wait-tag-ci.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "all runs completed + success exits 0 with ALL_DONE" {

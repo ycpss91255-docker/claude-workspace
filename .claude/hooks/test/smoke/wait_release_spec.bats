@@ -61,7 +61,7 @@ STUB_EOF
 @test "unknown flag exits 2" {
   run "$(script wait-release.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "empty release list keeps polling and hits max-iterations" {

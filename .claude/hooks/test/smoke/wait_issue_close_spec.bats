@@ -68,7 +68,7 @@ STUB_EOF
 @test "unknown flag exits 2" {
   run "$(script wait-issue-close.sh)" --bogus
   assert_failure 2
-  assert_output --partial "unknown arg"
+  assert_output --partial '"body":"unrecognised_arg"'
 }
 
 @test "state=OPEN keeps polling and hits max-iterations 124" {
