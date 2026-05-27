@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **770 tests** (766 smoke + 4 integration) plus shellcheck (34 hook
+Total: **823 tests** (819 smoke + 4 integration) plus shellcheck (34 hook
 scripts + 29 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
@@ -826,6 +826,35 @@ makes CLAUDE.md fit the ceilings.
 | sections exceed default ceiling exits 1 | section ceiling violation |
 | MAX_LINES env override (tighter) triggers FAIL | env override respected for lines |
 | MAX_SECTIONS env override (tighter) triggers FAIL | env override respected for sections |
+
+### test/smoke/log_spec.bats (48)
+
+Covers `.claude/scripts/lib/log.sh` -- the vendored OTel-aligned
+5-level JSON logger (mirror of `ycpss91255-docker/base@v0.37.0`,
+refs `#148`). Test cases mirror the upstream `base/test/unit/log_spec.bats`
+content, adapted for the docker_harness mount path (`/work/.claude/scripts/lib/log.sh`),
+the docker_harness body-enum vocabulary (`summary` / `repo_failed` /
+`unrecognised_arg` / `precondition_missing` / `repo_skipped` /
+`drift_detected` / `dry_run_cmd` etc. in `log-events.txt`), and
+the test helper load path (`../lib/test_helper`).
+
+Coverage groups (48 cases total):
+
+| Group | Cases |
+|------|-------|
+| Text output (LOG_FORMAT=text): _log_info / _log_err / _log_warn / _log_debug / _log_fatal text shape + stream routing + timestamp + color | ~8 |
+| JSON output (LOG_FORMAT=json): schema fields (severity_text, severity_number, body, attributes), service.name + service.lang=bash, ISO 8601 microsecond UTC timestamp, attribute key=value parsing | ~10 |
+| tty-detect dispatch (LOG_FORMAT=auto): forced via redirect to confirm text on tty / JSON on non-tty | ~4 |
+| LOG_FORMAT override: text on non-tty, json on tty, unknown value rejected | ~3 |
+| Strict body enforcement: unregistered body causes fatal exit (return 1), error message names offending body + events file path | ~3 |
+| TRACEPARENT parsing: omit fields when env unset, extract trace_id + span_id from valid 4-part env value | ~3 |
+| Scoped wrappers: _log_with_trace generates new trace + restores prior env, _log_with_span pushes new span under existing trace + restores | ~4 |
+| _log_with_trace prints `[trace started: <32-hex>]` once at trace creation | ~1 |
+| Service name positional handling: required (errors when missing), used as attributes."service.name" | ~3 |
+| code.filepath + code.lineno auto-capture from BASH_SOURCE + BASH_LINENO | ~3 |
+| thread.id auto-capture (PID via $$) | ~1 |
+| Color handling: NO_COLOR honored, FORCE_COLOR override, auto-detect on tty | ~3 |
+| Negative: typo_event_name / not_a_real_event rejected by strict body check | ~2 |
 
 ### test/smoke/check_tag_version_consistency_spec.bats (15)
 

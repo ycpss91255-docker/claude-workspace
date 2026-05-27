@@ -6,6 +6,29 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **OTel-aligned log.sh mirror lib (refs #148, M1 of 5).**
+  Vendored `ycpss91255-docker/base@v0.37.0`'s
+  `script/docker/lib/log.sh` into
+  `.claude/scripts/lib/log.sh`. Sibling files
+  (`log.lnav-format.json`) shipped verbatim;
+  `log-events.txt` seeded with docker_harness-specific event
+  vocabulary derived from the migration survey (batch ops,
+  verify, wait-* family, error class). Header annotates the
+  upstream source + sync-when-upstream-changes contract.
+  Unit spec `.claude/hooks/test/smoke/log_spec.bats`
+  (48 cases) covers 5-level helpers, tty-detect dispatch
+  (text on TTY / JSON on pipe), `LOG_FORMAT` override,
+  `_log_with_trace` / `_log_with_span` scoped wrappers,
+  W3C TRACEPARENT parsing, strict body enforcement,
+  microsecond UTC timestamp. No existing
+  `.claude/scripts/*.sh` callsite migrates in this PR --
+  vendoring + spec land first, M2-M5 follow-up PRs migrate
+  callers + add CI lint. Refs
+  `ycpss91255-docker/base#423` (umbrella contract spec) +
+  `ycpss91255-docker/base#438` (dispatch refinement +
+  microsecond + strict body default).
+
 ### Changed
 - **Post-rename drift sweep (closes #150).** Stale references
   surfaced after #127 (CLAUDE.md slim moved the directory tree
