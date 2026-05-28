@@ -7,6 +7,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- **PreToolUse hook `remind_monitor_on_ci_trigger.sh` covering
+  `gh workflow run` + `gh run rerun` (closes #154).** Sibling of
+  `remind_pr_wait_ci.sh` (which only fires on `gh pr create`).
+  Without this hook the agent could trigger a manual
+  workflow_dispatch or re-run a failed run and then forget to arm
+  a Monitor, leaving CI results unchecked or sleep-polled.
+  - `gh workflow run ...` (workflow_dispatch) is always
+    tag/branch-scoped → message points at `wait-tag-ci.sh`.
+  - `gh run rerun ...` can be either PR-scoped or
+    tag/branch-scoped → message mentions both `/wait-pr-ci` skill
+    and `wait-tag-ci.sh` so the agent picks based on context.
+  - Non-blocking (always exit 0); registered in
+    `.claude/settings.json` `PreToolUse > Bash` block alongside
+    `remind_pr_wait_ci.sh`. 13 smoke cases under
+    `.claude/hooks/test/smoke/remind_monitor_on_ci_trigger_spec.bats`
+    (cover both fire paths, chained commands, and silent paths for
+    `gh run list` / `gh run view` / `gh run watch` /
+    `gh workflow list` / `gh workflow view`).
 - **CI lint + PostToolUse hook + instinct entry enforcing
   `lib/log.sh` adoption (closes #148, M5 of 5).** Final phase of
   the five-PR `#148` plan that started in #158.
