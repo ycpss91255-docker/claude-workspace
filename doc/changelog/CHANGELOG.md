@@ -7,6 +7,18 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- **`check_test_md_drift.sh` now also tracks
+  `.base/test/smoke/*.bats` headings (closes #156).** The TEST.md
+  heading regex extended from `### test/<path>.bats (N)` to
+  `### (\.base/)?test/<path>.bats (N)`. Downstream repos that
+  vendor shared template tests via the `.base/` subtree (e.g.
+  `.base/test/smoke/script_help.bats`) can now pin counts on
+  those files; previously a base subtree pull that landed new
+  `@test` stanzas would drift TEST.md silently because the regex
+  required the heading to start with `test/`, missing the
+  `.base/` prefix entirely. Repo discovery (walk up to find
+  `test/` + `doc/test/TEST.md`) is unchanged and already worked
+  when the touched bats file lives under `.base/`.
 - **Rename `.github/workflows/test.yaml` `name:` from `test` to
   `CI` (closes #155).** Matches the README badge label `CI` and
   the org-wide convention. File path stays `test.yaml`, so the
