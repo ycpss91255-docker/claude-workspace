@@ -42,3 +42,69 @@ EOF
   run "$(hook check_test_md_drift.sh)" <<< '{"tool_input":{"file_path":"/tmp/foo.txt"}}'
   assert_silent
 }
+
+# Note: writing `@test ...` lines via heredoc is unsafe inside a .bats
+# spec — bats's preprocessor scans every line of the spec file looking
+# for `@test` at column 0 and rewrites them, even inside `<<'EOF'`
+# heredocs. Use `printf` per line (or `echo` in `{ ... }`) so the
+# stanza strings live inside an argument and never appear at column 0.
+mktemp_base_drift_repo() {
+  local base_count="$1" repo
+  repo="$(mktemp -d)"
+  mkdir -p "${repo}/test/smoke" "${repo}/.base/test/smoke" "${repo}/doc/test"
+  {
+    printf '#!/usr/bin/env bats\n'
+    local i=0
+    while (( i < base_count )); do
+      printf '@test "t%d" { :; }\n' "${i}"
+      i=$((i + 1))
+    done
+  } > "${repo}/.base/test/smoke/script_help.bats"
+  echo "${repo}"
+}
+
+@test "fires when .base/test/smoke/*.bats count drifts (post base subtree upgrade)" {
+  local repo
+  repo="$(mktemp_base_drift_repo 3)"
+  printf '### .base/test/smoke/script_help.bats (5)\n' > "${repo}/doc/test/TEST.md"
+  run "$(hook check_test_md_drift.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/.base/test/smoke/script_help.bats\"}}"
+  assert_message_contains "TEST.md drift"
+  assert_message_contains ".base/test/smoke/script_help.bats: TEST.md says 5, actual 3"
+  rm -rf "${repo}"
+}
+
+@test "silent when .base/test/smoke/*.bats count matches" {
+  local repo
+  repo="$(mktemp_base_drift_repo 4)"
+  printf '### .base/test/smoke/script_help.bats (4)\n' > "${repo}/doc/test/TEST.md"
+  run "$(hook check_test_md_drift.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/.base/test/smoke/script_help.bats\"}}"
+  assert_silent
+  rm -rf "${repo}"
+}
+
+@test "fires when .base/test/smoke/*.bats heading lists missing file" {
+  local repo
+  repo="$(mktemp -d)"
+  mkdir -p "${repo}/test" "${repo}/.base/test/smoke" "${repo}/doc/test"
+  printf '### .base/test/smoke/script_help.bats (10)\n' > "${repo}/doc/test/TEST.md"
+  run "$(hook check_test_md_drift.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/doc/test/TEST.md\"}}"
+  assert_message_contains ".base/test/smoke/script_help.bats: listed in TEST.md but file missing"
+  rm -rf "${repo}"
+}
+
+@test "repo-local and .base/ entries both checked in same TEST.md" {
+  local repo
+  repo="$(mktemp_base_drift_repo 3)"
+  {
+    printf '#!/usr/bin/env bats\n'
+    printf '@test "a" { :; }\n'
+    printf '@test "b" { :; }\n'
+  } > "${repo}/test/smoke/local_spec.bats"
+  {
+    printf '### test/smoke/local_spec.bats (2)\n'
+    printf '### .base/test/smoke/script_help.bats (7)\n'
+  } > "${repo}/doc/test/TEST.md"
+  run "$(hook check_test_md_drift.sh)" <<< "{\"tool_input\":{\"file_path\":\"${repo}/doc/test/TEST.md\"}}"
+  assert_message_contains ".base/test/smoke/script_help.bats: TEST.md says 7, actual 3"
+  rm -rf "${repo}"
+}

@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **856 tests** (852 smoke + 4 integration) plus shellcheck (36 hook
+Total: **860 tests** (856 smoke + 4 integration) plus shellcheck (36 hook
 scripts + 30 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
@@ -145,7 +145,14 @@ stdin and asserts one of three behaviours:
 | silent on meta-doc CLAUDE.md (legitimate emoji quoting) | rule-describing CLAUDE.md → SILENT |
 | silent on .claude/commands/*.md meta-doc (rule description) | command markdown → SILENT |
 
-### test/smoke/check_test_md_drift_spec.bats (5)
+### test/smoke/check_test_md_drift_spec.bats (9)
+
+The regex parsing repo-local + `.base/test/` headings is shared:
+`^### ((\.base/)?test/<path>.bats) (<N>)`. The optional `.base/`
+prefix (added refs #156) lets downstream repos pin counts on tests
+vendored via the `.base/` subtree -- otherwise a base subtree pull
+that lands new `@test` stanzas drifts TEST.md silently.
+
 | Test | Scenario |
 |------|----------|
 | fires when TEST.md count > actual @test count | TEST.md claims more → FIRE |
@@ -153,6 +160,10 @@ stdin and asserts one of three behaviours:
 | silent when counts match | counts equal → SILENT |
 | fires when TEST.md lists missing bats file | bats file missing → FIRE |
 | silent when edited file is not .bats or TEST.md | not a tracked file type → SILENT |
+| fires when .base/test/smoke/*.bats count drifts (post base subtree upgrade) | subtree-vendored bats drifted → FIRE |
+| silent when .base/test/smoke/*.bats count matches | subtree counts match → SILENT |
+| fires when .base/test/smoke/*.bats heading lists missing file | subtree path in TEST.md but file absent → FIRE |
+| repo-local and .base/ entries both checked in same TEST.md | mixed headings, one drifts → FIRE on the drifted one |
 
 ### test/smoke/check_readme_framework_spec.bats (20)
 | Test | Scenario |

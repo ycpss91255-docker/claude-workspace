@@ -10,9 +10,12 @@
 # TEST.md heading format (single source of truth):
 #   ### test/unit/setup_spec.bats (166)
 #   ### test/integration/upgrade_spec.bats (6)
+#   ### .base/test/smoke/script_help.bats (27)   # subtree-shared (refs #156)
 # Per-section count is authoritative; some sections summarise by category
 # rather than per-test, so a row-count grep does not work. Per-file count
-# does.
+# does. The optional `.base/` prefix lets downstream repos pin counts on
+# tests vendored via the `.base/` subtree (otherwise a base subtree pull
+# that lands new @test stanzas would drift TEST.md silently).
 #
 # Repo discovery: walk up from the touched file until we find a directory
 # containing both `test/` and `doc/test/TEST.md`.
@@ -53,9 +56,9 @@ main() {
   # silently mis-runs under mawk / POSIX awk.
   mismatches=""
   while IFS= read -r line; do
-    [[ "${line}" =~ ^\#\#\#[[:space:]](test/[^[:space:]]+\.bats)[[:space:]]\(([0-9]+)\) ]] || continue
+    [[ "${line}" =~ ^\#\#\#[[:space:]]((\.base/)?test/[^[:space:]]+\.bats)[[:space:]]\(([0-9]+)\) ]] || continue
     local rel="${BASH_REMATCH[1]}"
-    local expected="${BASH_REMATCH[2]}"
+    local expected="${BASH_REMATCH[3]}"
     local path="${repo_root}/${rel}"
     if [[ ! -f "${path}" ]]; then
       mismatches+="  ${rel}: listed in TEST.md but file missing"$'\n'
