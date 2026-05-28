@@ -140,6 +140,7 @@ docker/
     │   ├── check_test_md_drift.sh      # *.bats / TEST.md 後比對測試數
     │   ├── remind_tdd_categories.sh    # 動到 .sh/Dockerfile/compose 等時提醒 4 類測試
     │   ├── remind_pr_wait_ci.sh        # gh pr create 前提醒用 /wait-pr-ci skill
+    │   ├── remind_monitor_on_ci_trigger.sh # gh workflow run / gh run rerun 前提醒用 wait-tag-ci.sh / /wait-pr-ci (refs #154)
     │   ├── remind_no_ai_attribution.sh # git commit / gh pr create 前掃 inline 歸屬字串
     │   ├── remind_subtree_init.sh      # git subtree pull .base 前提醒跑 init.sh
     │   ├── remind_docker_for_lint.sh   # bats/shellcheck/hadolint/kcov 前提醒走 Docker (wrapper list 可被 .claude/lint_wrappers.txt override)

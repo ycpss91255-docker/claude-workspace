@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **843 tests** (839 smoke + 4 integration) plus shellcheck (35 hook
+Total: **856 tests** (852 smoke + 4 integration) plus shellcheck (36 hook
 scripts + 30 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
@@ -209,6 +209,31 @@ stdin and asserts one of three behaviours:
 | fires on gh pr create | direct invocation → FIRE |
 | fires on chained command containing gh pr create | `... && gh pr create` → FIRE |
 | silent on gh pr list | non-create gh command → SILENT |
+| silent on unrelated command | `echo hello` → SILENT |
+| silent on empty command | empty input → SILENT |
+
+### test/smoke/remind_monitor_on_ci_trigger_spec.bats (13)
+
+Covers `.claude/hooks/remind_monitor_on_ci_trigger.sh` — PreToolUse on
+Bash matcher. Sibling of `remind_pr_wait_ci`; fires when the agent
+triggers a new CI run via `gh workflow run` (workflow_dispatch) or
+`gh run rerun` (re-running a previous run), reminding to Monitor the
+resulting run via `wait-tag-ci.sh` / `/wait-pr-ci` instead of
+sleep-polling. Refs #154.
+
+| Test | Scenario |
+|------|----------|
+| fires on gh run rerun (PR + tag hints) | direct re-run → message contains both `wait-pr-ci` + `wait-tag-ci` |
+| fires on gh run rerun --failed | re-run failed-only flavour → FIRE |
+| fires on gh workflow run (tag-scoped hint) | workflow_dispatch → message contains `wait-tag-ci` |
+| fires on gh workflow run --ref refs/heads/main | branch dispatch flavour → FIRE |
+| fires on chained command containing gh workflow run | `git push tag && gh workflow run ... --ref tag` → FIRE |
+| fires on chained command containing gh run rerun | `gh pr checks ; gh run rerun ...` → FIRE |
+| silent on gh run list | listing only → SILENT |
+| silent on gh run view | inspecting only → SILENT |
+| silent on gh run watch | watching is itself the recommended path → SILENT |
+| silent on gh workflow list | listing only → SILENT |
+| silent on gh workflow view | inspecting only → SILENT |
 | silent on unrelated command | `echo hello` → SILENT |
 | silent on empty command | empty input → SILENT |
 
