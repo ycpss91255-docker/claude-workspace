@@ -83,7 +83,22 @@ setup() {
   assert_output "call-docker-build / docker-build"
 }
 
-@test "ALL_REPOS includes all 24 org repos" {
+@test "ALL_REPOS lists 23 base-aligned repos" {
   source "${SCRIPT_PATH}"
-  [ "${#ALL_REPOS[@]}" -eq 24 ]
+  [ "${#ALL_REPOS[@]}" -eq 23 ]
+}
+
+@test "ALL_REPOS excludes out-of-scope repos (demo-repository, github_runner)" {
+  source "${SCRIPT_PATH}"
+  local repo
+  for repo in "${ALL_REPOS[@]}"; do
+    [[ "$repo" != "demo-repository" ]] || {
+      echo "demo-repository should not be in ALL_REPOS"
+      return 1
+    }
+    [[ "$repo" != "github_runner" ]] || {
+      echo "github_runner should not be in ALL_REPOS (ADR-0012, distinct workflow)"
+      return 1
+    }
+  done
 }

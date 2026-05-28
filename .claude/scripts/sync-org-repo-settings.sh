@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # log-allow:script -- per-repo delta output is the data product; control-flow errors still route through _log_*.
 #
-# sync-org-repo-settings.sh -- Sync GitHub repo settings across ycpss91255-docker org.
+# sync-org-repo-settings.sh -- Sync GitHub repo settings across base-aligned
+# repos in the ycpss91255-docker org (base + .base subtree consumers + adjacent
+# tooling). One-off projects that don't follow the base workflow (e.g.
+# github_runner per ADR-0012, demo-repository) are intentionally out of scope.
 #
 # Idempotent. Each PUT/PATCH only fires when current state != target.
 # Supports --dry-run to preview deltas and --repo <name> to scope to one repo.
@@ -43,11 +46,16 @@ OWNER="ycpss91255-docker"
 DRY_RUN=0
 SCOPE_REPO=""
 
+# Base-aligned repos only -- consume `.base/` subtree, share the base CI / setup
+# conventions, or are adjacent tooling (multi_run, docker_harness, template,
+# .github). Add a repo here only after confirming it follows the base workflow.
+# Out-of-scope intentionally: github_runner (self-hosted runner provisioning,
+# ADR-0012), demo-repository (deleted upstream).
 ALL_REPOS=(
   jetson_sdk_manager isaac docker_harness base omniverse_web_viewer ros1_bridge
   template ros2_distro ros_distro sam_manager seggpt urg_node_noetic
   urg_node_humble sick_noetic sick_humble realsense_noetic realsense_humble
-  gemini_cli codex_cli claude_code ai_agent .github demo-repository multi_run
+  gemini_cli codex_cli claude_code ai_agent .github multi_run
 )
 
 required_check_for() {
