@@ -6,10 +6,24 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **`sync-org-repo-settings.sh` scope narrowed to base-aligned
+  repos.** `ALL_REPOS` no longer enumerates the full org -- it
+  lists only the 23 repos that follow the base workflow (base +
+  `.base/` subtree consumers + adjacent tooling: `multi_run`,
+  `docker_harness`, `template`, `.github`). One-off projects
+  with distinct conventions stay out: `github_runner`
+  (self-hosted runner provisioning per ADR-0012) and
+  `demo-repository` (deleted upstream). The script preamble +
+  inline comment over `ALL_REPOS` document the inclusion rule
+  so future readers don't widen scope by default. Smoke spec
+  adds an explicit exclusion check.
+
 ### Added
 - **`sync-org-repo-settings.sh` for idempotent org-wide repo
-  settings alignment.** Single source of truth for the 24-repo
-  `ycpss91255-docker` org: fork PR approval =
+  settings alignment.** Single source of truth for the 23
+  base-aligned repos in the `ycpss91255-docker` org: fork PR
+  approval =
   `all_external_contributors`, repo-level merge defaults
   (`allow_auto_merge` / `delete_branch_on_merge` /
   `allow_update_branch` = true; `allow_merge_commit` = false so
