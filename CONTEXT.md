@@ -122,6 +122,7 @@ docker/
     │   ├── new-adr.sh                         # /adr 的實作:auto-number 8 位數補零,從 doc/adr/[0-9]*.md 掃 max+1,渲染 5-section 模板 (Date/Status/Context/Decision/Alternatives/Consequences),refs #97
     │   ├── check-log-helper-usage.sh           # CI lint：scan .claude/scripts/*.sh 偵測 bare printf|echo（usage() 內 + log-allow:script/start..end allowlist marker 外）為違反 lib/log.sh adoption,refs #148 M5
     │   ├── _instinct_parser.py               # instinct-query.sh 用的 stdlib-only YAML parser helper (避免 PyYAML dep 在 Alpine test image 缺失)
+    │   ├── sync-org-repo-settings.sh         # idempotent org-wide repo settings sync (fork PR approval / merge defaults / branch protection); supports --dry-run + --repo <name>; private repos skip fork-PR + protection per API constraints
     │   └── lib/
     │       ├── checkpoint.sh                  # /tmp checkpoint protocol helper — write_checkpoint + is_acked,Tier 2 E2 hook 共享 deny/ack 契約,refs ADR-00000002 / #117
     │       ├── log.sh                          # OTel-aligned 5-level JSON logger; mirror of ycpss91255-docker/base@v0.37.0 (script/docker/lib/log.sh),refs base#423 / base#438 / #148
