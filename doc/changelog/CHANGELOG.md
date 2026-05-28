@@ -6,6 +6,29 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`sync-org-repo-settings.sh` for idempotent org-wide repo
+  settings alignment.** Single source of truth for the 24-repo
+  `ycpss91255-docker` org: fork PR approval =
+  `all_external_contributors`, repo-level merge defaults
+  (`allow_auto_merge` / `delete_branch_on_merge` /
+  `allow_update_branch` = true; `allow_merge_commit` = false so
+  the UI merge dropdown defaults to squash), and branch
+  protection on `main` with per-repo `required_status_checks`
+  drawn from the same mapping used by `wait-pr-ci.sh` (base =
+  `ci-rollup`, single-target containers =
+  `call-docker-build / docker-build`, etc). `--dry-run` previews
+  deltas; each PUT / PATCH only fires when current state !=
+  target. Private repos (`demo-repository`) auto-skip
+  `fork-pr-contributor-approval` (API 422 "not allowed for
+  private repos") and branch protection (free-tier 403 "Upgrade
+  to Pro") -- detected via `repo.private`, not a hardcoded
+  list. `.github` keeps protection on but with no required
+  check because doc-only PRs bypass `lint` entirely and would
+  otherwise hang `wait-pr-ci` forever. Smoke bats spec covers
+  `--help`, `unrecognised_arg`, and the `required_check_for`
+  mapping table.
+
 ### Changed
 - **`check_test_md_drift.sh` now also tracks
   `.base/test/smoke/*.bats` headings (closes #156).** The TEST.md
