@@ -6,6 +6,14 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- **Rename `.github/workflows/test.yaml` `name:` from `test` to
+  `CI` (closes #155).** Matches the README badge label `CI` and
+  the org-wide convention. File path stays `test.yaml`, so the
+  README badge URL (`actions/workflows/test.yaml/badge.svg`) is
+  unchanged. Job name `bats + shellcheck + hadolint` stays
+  unchanged so the per-PR required check name is unaffected.
+
 ### Added
 - **PreToolUse hook `remind_monitor_on_ci_trigger.sh` covering
   `gh workflow run` + `gh run rerun` (closes #154).** Sibling of
