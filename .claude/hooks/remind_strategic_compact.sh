@@ -4,7 +4,8 @@
 # Fires when Claude's response finishes. Reads the session transcript
 # and proposes `/compact` if the session has hit a "task boundary":
 #   - A `gh pr merge` Bash invocation occurred this session
-#   - Total tool-call count reached the threshold (default 50)
+#   - Tool-call count since the last `/compact` reached the threshold
+#     (default 100; refs #170)
 #
 # Non-blocking. Cannot trigger `/compact` itself (hook output schema
 # does not support that). Once-per-session per signal-set: a marker
@@ -18,12 +19,12 @@
 # for the full rubric.
 #
 # Configuration via env vars:
-#   STRATEGIC_COMPACT_TOOL_THRESHOLD  (default 50)
+#   STRATEGIC_COMPACT_TOOL_THRESHOLD  (default 100)
 #   STRATEGIC_COMPACT_DISABLE         (set to 1 to disable the hook)
 
 set -uo pipefail
 
-readonly DEFAULT_TOOL_THRESHOLD=50
+readonly DEFAULT_TOOL_THRESHOLD=100
 readonly TMP_DIR="${TMPDIR:-/tmp}"
 
 main() {
@@ -43,18 +44,31 @@ main() {
 
   [[ -z "${transcript_path}" || ! -r "${transcript_path}" ]] && return 0
 
+  # Find the index of the most recent `/compact` event so the
+  # counters below baseline against "since last compact" rather than
+  # "whole session" (refs #170). The marker is the
+  # `type=="system" && subtype=="compact_boundary"` jsonl entry that
+  # Claude Code writes when `/compact` runs (manual or auto). When no
+  # compact has occurred, `cut` is -1 and the slice `.[$cut+1:]`
+  # degenerates to the full array → behaviour matches pre-#170.
+  local cut
+  cut="$(jq -s '
+      (map(.type == "system" and .subtype == "compact_boundary") | indices(true) | last) // -1
+    ' "${transcript_path}" 2>/dev/null || echo -1)"
+  [[ "${cut}" =~ ^-?[0-9]+$ ]] || cut=-1
+
   local tool_count pr_merge_count
-  tool_count="$(jq -s '
+  tool_count="$(jq -s --argjson cut "${cut}" '
       [
-        .[]
+        .[$cut+1:][]
         | select(.message?.role == "assistant")
         | .message.content[]?
         | select(.type == "tool_use")
       ] | length
     ' "${transcript_path}" 2>/dev/null || echo 0)"
-  pr_merge_count="$(jq -s '
+  pr_merge_count="$(jq -s --argjson cut "${cut}" '
       [
-        .[]
+        .[$cut+1:][]
         | select(.message?.role == "assistant")
         | .message.content[]?
         | select(.type == "tool_use" and .name == "Bash")

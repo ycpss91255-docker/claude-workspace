@@ -6,7 +6,33 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- **`remind_strategic_compact.sh` re-baselines counters at the last
+  `/compact` (closes #170).** Pre-fix the Stop hook summed
+  `tool_count` / `pr_merge_count` across the whole transcript jsonl
+  and re-fired every time the throttle hash crossed a new
+  `tool_count / 25` bucket -- even after the user had already run
+  `/compact`, because counters only grew. Now the hook finds the
+  last `type=system && subtype=compact_boundary` entry in the
+  transcript (the marker Claude Code emits per `/compact`, manual
+  or auto) and slices the count to only entries after it; sessions
+  without a compact fall back to whole-session counting
+  (backwards-compatible). Both `tool_count` and `pr_merge_count`
+  re-baseline symmetrically -- a PR merged before `/compact` no
+  longer shows up in the reason list. Throttle hash formula
+  unchanged.
+
 ### Changed
+- **`remind_strategic_compact.sh` `DEFAULT_TOOL_THRESHOLD` raised
+  50 -> 100 (refs #170).** 50 was conservative for active sessions
+  (5+ tools per turn is normal); combined with the pre-#170 re-fire
+  bug it surfaced the reminder uncomfortably often. 100 is the new
+  sweet spot for "you have done enough turn-by-turn work that
+  compaction would reduce load". Override via
+  `STRATEGIC_COMPACT_TOOL_THRESHOLD=<N>` per session unchanged.
+  `.claude/skills/strategic-compact/SKILL.md` text `Session has
+  done >50 tool calls without /compact` -> `>100 tool calls since
+  the last /compact` to match.
 - **`sync-org-repo-settings.sh` scope narrowed to base-aligned
   repos.** `ALL_REPOS` no longer enumerates the full org -- it
   lists only the 23 repos that follow the base workflow (base +
