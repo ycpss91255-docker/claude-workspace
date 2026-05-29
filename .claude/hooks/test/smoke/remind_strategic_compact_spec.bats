@@ -40,6 +40,16 @@ mk_input() {
     "${tx}" "${session_id}" "${stop_active}"
 }
 
+# Append a `compact_boundary` entry to the transcript jsonl. Real
+# Claude Code transcripts emit this line whenever `/compact` (or
+# auto-compact) reduces context; the hook re-baselines its counters
+# at the *last* such entry. The minimum fields needed for the hook
+# predicate are `type` + `subtype`.
+append_compact_boundary() {
+  local path="$1"
+  printf '{"type":"system","subtype":"compact_boundary","content":"Conversation compacted"}\n' >> "${path}"
+}
+
 # ---- defensive paths ----
 
 @test "silent when STRATEGIC_COMPACT_DISABLE=1" {
@@ -98,24 +108,25 @@ mk_input() {
   assert_message_contains "/compact"
 }
 
-@test "fires on tool count >= default threshold (50)" {
+@test "fires on tool count >= default threshold (100)" {
   local tx
-  tx="$(mk_transcript 55 0)"
+  tx="$(mk_transcript 105 0)"
   run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "count-1")"
-  assert_message_contains "tool-call count"
+  assert_message_contains "tool-call count 105"
+  assert_message_contains "threshold 100"
   assert_message_contains "/compact"
 }
 
-@test "silent on tool count below default threshold (49 < 50)" {
+@test "silent on tool count below default threshold (99 < 100)" {
   local tx
-  tx="$(mk_transcript 49 0)"
+  tx="$(mk_transcript 99 0)"
   run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "count-2")"
   assert_silent
 }
 
 @test "fires on both PR merge AND high tool count (both reasons listed)" {
   local tx
-  tx="$(mk_transcript 60 2)"
+  tx="$(mk_transcript 105 2)"
   run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "both-1")"
   assert_message_contains "gh pr merge invoked 2 time"
   assert_message_contains "tool-call count"
@@ -138,11 +149,11 @@ mk_input() {
   assert_silent
 }
 
-@test "ignores non-integer threshold override (falls back to default 50)" {
+@test "ignores non-integer threshold override (falls back to default 100)" {
   local tx
-  tx="$(mk_transcript 55 0)"
+  tx="$(mk_transcript 105 0)"
   STRATEGIC_COMPACT_TOOL_THRESHOLD=garbage run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "thresh-3")"
-  assert_message_contains "threshold 50"
+  assert_message_contains "threshold 100"
 }
 
 # ---- throttle (one proposal per signal-set per session) ----
@@ -194,4 +205,70 @@ mk_input() {
   has_hso="$(echo "${output}" | jq -r 'has("hookSpecificOutput")')"
   [[ "${has_sm}" == "true" ]] || { echo "expected systemMessage present"; return 1; }
   [[ "${has_hso}" == "false" ]] || { echo "expected hookSpecificOutput absent (Stop schema)"; return 1; }
+}
+
+# ---- compact baseline (refs #170) ----
+
+@test "re-baselines tool_count at last compact_boundary (post-compact 0 tools = silent)" {
+  local tx
+  tx="$(mk_transcript 60 0)"
+  append_compact_boundary "${tx}"
+  STRATEGIC_COMPACT_TOOL_THRESHOLD=50 run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "compact-tracer-1")"
+  assert_silent
+}
+
+@test "fires on post-compact tool_count crossing threshold (message uses post-compact count)" {
+  local tx
+  tx="$(mk_transcript 200 0)"      # huge pre-compact backlog (should be ignored)
+  append_compact_boundary "${tx}"
+  # Append 55 more tool_use entries AFTER the compact_boundary.
+  local i=0
+  while (( i < 55 )); do
+    printf '{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}\n' >> "${tx}"
+    i=$((i + 1))
+  done
+  STRATEGIC_COMPACT_TOOL_THRESHOLD=50 run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "compact-post-1")"
+  assert_message_contains "tool-call count 55"
+  assert_message_contains "threshold 50"
+}
+
+@test "multiple compact_boundary entries: only counts after the LAST one" {
+  local tx
+  tx="$(mk_transcript 100 0)"
+  append_compact_boundary "${tx}"
+  # 100 more tools between compact_1 and compact_2.
+  local i=0
+  while (( i < 100 )); do
+    printf '{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}\n' >> "${tx}"
+    i=$((i + 1))
+  done
+  append_compact_boundary "${tx}"
+  # 30 tools after the LAST compact -> below default 50.
+  local j=0
+  while (( j < 30 )); do
+    printf '{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"ls"}}]}}\n' >> "${tx}"
+    j=$((j + 1))
+  done
+  STRATEGIC_COMPACT_TOOL_THRESHOLD=50 run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "compact-multi-1")"
+  assert_silent
+}
+
+@test "re-baselines pr_merge_count at last compact_boundary" {
+  local tx
+  tx="$(mk_transcript 0 2)"        # 2 pre-compact PR merges
+  append_compact_boundary "${tx}"
+  # No tool_use or pr_merge after compact -> both counters should read 0.
+  STRATEGIC_COMPACT_TOOL_THRESHOLD=50 run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "compact-pr-1")"
+  assert_silent
+}
+
+@test "type=user with subtype=compact_boundary does NOT trigger re-baseline" {
+  local tx
+  tx="$(mk_transcript 60 0)"
+  # Decoy entry: same subtype but type=user (not the real compact_boundary
+  # marker, which is type=system). Hook should ignore it and count
+  # whole-session like the no-compact fallback path.
+  printf '{"type":"user","subtype":"compact_boundary","content":"decoy"}\n' >> "${tx}"
+  STRATEGIC_COMPACT_TOOL_THRESHOLD=50 run "$(hook remind_strategic_compact.sh)" <<< "$(mk_input "${tx}" "compact-decoy-1")"
+  assert_message_contains "tool-call count 60"
 }

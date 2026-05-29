@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **860 tests** (856 smoke + 4 integration) plus shellcheck (36 hook
+Total: **877 tests** (873 smoke + 4 integration) plus shellcheck (36 hook
 scripts + 30 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
@@ -1138,13 +1138,17 @@ and portable. Tests use `mktemp` workspaces + `--home` /
 | encoded path replaces every / with - | path encoding |
 | trailing slash on workspace is normalised | path normalisation |
 
-### test/smoke/remind_strategic_compact_spec.bats (19)
+### test/smoke/remind_strategic_compact_spec.bats (24)
 
 Covers `.claude/hooks/remind_strategic_compact.sh` — Stop hook that
 reads the session transcript and proposes `/compact` at task
 boundaries. Signals: `gh pr merge` Bash invocation (any count > 0)
-OR total tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
-(default 50). Throttled once per session per signal-set hash.
+OR tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
+(default 100). **Both counters baseline at the last `/compact`
+event** (transcript `type=system && subtype=compact_boundary`
+entry) so the hook stops re-firing the moment you compact;
+sessions without a compact fall back to whole-session counting
+(refs #170). Throttled once per session per signal-set hash.
 
 | Test | Scenario |
 |------|----------|
@@ -1156,17 +1160,22 @@ OR total tool-call count reaching `STRATEGIC_COMPACT_TOOL_THRESHOLD`
 | silent on low tool-count + no PR merge | no-signal happy path |
 | silent on empty transcript | edge case |
 | fires on gh pr merge invocation (even with low tool count) | PR-merge signal |
-| fires on tool count >= default threshold (50) | count signal |
-| silent on tool count below default threshold (49 < 50) | threshold boundary |
+| fires on tool count >= default threshold (100) | count signal |
+| silent on tool count below default threshold (99 < 100) | threshold boundary |
 | fires on both PR merge AND high tool count (both reasons listed) | combined signal |
 | respects STRATEGIC_COMPACT_TOOL_THRESHOLD override (lower) | env override down |
 | respects STRATEGIC_COMPACT_TOOL_THRESHOLD override (higher) | env override up |
-| ignores non-integer threshold override (falls back to default 50) | bad-input guard |
+| ignores non-integer threshold override (falls back to default 100) | bad-input guard |
 | second fire with same signal-set is silent (throttle marker) | idempotency |
 | different session id re-proposes (no false throttling across sessions) | session scoping |
 | text mention of 'gh pr merge' does NOT count as signal | tool_use only |
 | tool_use of a non-Bash tool with 'gh pr merge' in input does NOT count | Bash only |
 | fired output omits hookSpecificOutput (Stop schema forbids it) | Stop schema regression |
+| re-baselines tool_count at last compact_boundary (post-compact 0 tools = silent) | compact baseline tracer |
+| fires on post-compact tool_count crossing threshold (message uses post-compact count) | post-compact count semantics |
+| multiple compact_boundary entries: only counts after the LAST one | multi-compact baseline picks the last |
+| re-baselines pr_merge_count at last compact_boundary | pr_merge baseline symmetry |
+| type=user with subtype=compact_boundary does NOT trigger re-baseline | predicate specificity |
 
 ### test/smoke/remind_main_sync_spec.bats (23)
 

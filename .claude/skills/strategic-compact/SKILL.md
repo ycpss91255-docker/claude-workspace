@@ -17,7 +17,7 @@ The paired `remind_strategic_compact.sh` Stop hook surfaces a proposal when boun
 | TaskList all completed | The plan is done; the steps don't need to stay in context |
 | Exploration phase distilled into a plan / file | The plan is the artifact; raw exploration notes are noise |
 | You're about to start an unrelated task | The previous task's reasoning would pollute the new one |
-| Session has done >50 tool calls without `/compact` | Pure load-bearing reduction |
+| Session has done >100 tool calls since the last `/compact` | Pure load-bearing reduction |
 
 ## When NOT to `/compact`
 
@@ -56,10 +56,12 @@ Before you `/compact`:
 
 ## Hook integration
 
-`.claude/hooks/remind_strategic_compact.sh` (Stop hook) emits a one-shot proposal per session when:
+`.claude/hooks/remind_strategic_compact.sh` (Stop hook) emits a one-shot proposal per signal-set when:
 
-- `gh pr merge` was invoked in this session, OR
-- Tool-call count reached `STRATEGIC_COMPACT_TOOL_THRESHOLD` (default 50)
+- `gh pr merge` was invoked **since the last `/compact`**, OR
+- Tool-call count **since the last `/compact`** reached `STRATEGIC_COMPACT_TOOL_THRESHOLD` (default 100; refs #170)
+
+Both counters re-baseline at every `compact_boundary` entry in the transcript jsonl (manual `/compact` or auto-compact), so the hook stops re-firing the moment you compact. Sessions that have never compacted fall back to whole-session counting (backward compatible).
 
 The hook is non-blocking and only proposes -- it cannot run `/compact` itself (Claude Code hook output schema doesn't include that). Disable per-session with `STRATEGIC_COMPACT_DISABLE=1`.
 
