@@ -357,3 +357,14 @@ STUB_EOF
   ' "${log}" >/dev/null \
     || { echo "schema mismatch:"; cat "${log}"; return 1; }
 }
+
+@test "FAIL appends event line with exit_reason=FAIL" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"FAILURE"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 7 --interval 0 --max-iterations 3
+  assert_failure 1
+  assert_output --partial "FAIL 7"
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "FAIL" and .prs == [7] and .repo == "a/b"' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
+}
