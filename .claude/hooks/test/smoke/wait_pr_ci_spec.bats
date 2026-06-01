@@ -368,3 +368,13 @@ STUB_EOF
   jq -e '.exit_reason == "FAIL" and .prs == [7] and .repo == "a/b"' "${log}" >/dev/null \
     || { cat "${log}"; return 1; }
 }
+
+@test "max-iterations appends event line with exit_reason=timeout_max_iter" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"PENDING"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 9 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "timeout_max_iter" and .iterations == 2' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
+}
