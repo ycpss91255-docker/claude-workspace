@@ -284,6 +284,7 @@ main() {
 
     if (( max_iter > 0 && iter >= max_iter )); then
       _log_err wait-pr-ci wait_failed reason=max-iterations max="${max_iter}"
+      _emit_event timeout_max_iter "${repo}" "${prs_csv}" "${iter}" "${watch_start}" "${head_moves_total}"
       exit 124
     fi
 
