@@ -272,6 +272,7 @@ main() {
           printf 'FAIL %s\n' "${fail_pr}"
           ;;
       esac
+      _emit_event FAIL "${repo}" "${prs_csv}" "${iter}" "${watch_start}" "${head_moves_total}"
       exit 1
     fi
 
