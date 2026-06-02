@@ -42,6 +42,24 @@ source "${_WTC_SCRIPT_DIR}/lib/log.sh"
 
 readonly DEFAULT_FILTER='true'
 
+# _emit_event <exit_reason> <repo> <branch> <iter> <watch_start>
+#
+# Append one JSON event line per terminal exit (refs #175 Phase 1).
+# Same log file as wait-pr-ci.sh / wait-pr-ci-batch.sh; schema uses
+# `branch` instead of `prs` / `pairs`. No `head_moves` because tag CI
+# does not poll headRefOid. Non-fatal on write failure.
+_emit_event() {
+  local exit_reason="$1" repo="$2" branch="$3" iter="$4" watch_start="$5"
+  local log_dir="${HOME}/.claude/log"
+  mkdir -p "${log_dir}" 2>/dev/null || return 0
+  local ts elapsed
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  elapsed=$(( $(date -u +%s) - watch_start ))
+  ( printf '{"ts":"%s","script":"wait-tag-ci.sh","repo":"%s","branch":"%s","exit_reason":"%s","iterations":%d,"elapsed_sec":%d}\n' \
+      "${ts}" "${repo}" "${branch}" "${exit_reason}" "${iter}" "${elapsed}" \
+      >> "${log_dir}/wait-pr-ci-events.log" ) 2>/dev/null || true
+}
+
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
@@ -75,6 +93,9 @@ main() {
     _log_fatal wait-tag-ci precondition_missing arg=--branch
     exit 2
   fi
+
+  local watch_start
+  watch_start=$(date -u +%s)
 
   local prev=""
   local iter=0
@@ -110,6 +131,7 @@ main() {
 
     if (( total > 0 && done_count == total )); then
       if (( failed_count == 0 )); then
+        _emit_event ALL_DONE "${repo}" "${ref}" "${iter}" "${watch_start}"
         echo "ALL_DONE"
         exit 0
       fi
@@ -118,11 +140,13 @@ main() {
         '[.[] | select(.status == "completed" and .conclusion != "success" and .conclusion != "skipped")][0].name // "?"' \
         <<< "${filtered}")
       printf 'FAIL %s\n' "${first_fail}"
+      _emit_event FAIL "${repo}" "${ref}" "${iter}" "${watch_start}"
       exit 1
     fi
 
     if (( max_iter > 0 && iter >= max_iter )); then
       _log_err wait-tag-ci wait_failed reason=max-iterations max="${max_iter}"
+      _emit_event timeout_max_iter "${repo}" "${ref}" "${iter}" "${watch_start}"
       exit 124
     fi
 
