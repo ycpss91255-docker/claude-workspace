@@ -67,6 +67,30 @@ source "${_WPC_SCRIPT_DIR}/lib/log.sh"
 
 readonly DEFAULT_FILTER='.name=="test" or (.name|startswith("Integration"))'
 
+# _emit_event <exit_reason> <repo> <prs_csv> <iter> <watch_start> <head_moves>
+#
+# Append one JSON event line to ~/.claude/log/wait-pr-ci-events.log on
+# every terminal exit (refs #175 Phase 1). The log accumulates across
+# sessions so Phase 2 can classify "Monitor stuck" failure modes.
+# Non-fatal: mkdir / append errors are swallowed so a broken log file
+# never blocks the script's primary work.
+_emit_event() {
+  local exit_reason="$1" repo="$2" prs_csv="$3" iter="$4" watch_start="$5" head_moves="$6"
+  local log_dir="${HOME}/.claude/log"
+  mkdir -p "${log_dir}" 2>/dev/null || return 0
+  local ts elapsed prs_json
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  elapsed=$(( $(date -u +%s) - watch_start ))
+  prs_json="$(jq -cnR --arg csv "${prs_csv}" '$csv | split(",") | map(tonumber)' 2>/dev/null || printf '[]')"
+  # Subshell isolates the >> redirection so bash's own EISDIR / EACCES
+  # error message (printed by the parent shell BEFORE printf runs) is
+  # captured by the outer 2>/dev/null. `|| true` then swallows the
+  # non-zero exit so set -e never trips on the emit path.
+  ( printf '{"ts":"%s","script":"wait-pr-ci.sh","repo":"%s","prs":%s,"exit_reason":"%s","iterations":%d,"elapsed_sec":%d,"head_moves":%d}\n' \
+      "${ts}" "${repo}" "${prs_json}" "${exit_reason}" "${iter}" "${elapsed}" "${head_moves}" \
+      >> "${log_dir}/wait-pr-ci-events.log" ) 2>/dev/null || true
+}
+
 usage() {
   sed -n '/^# Usage:/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 }
@@ -112,6 +136,7 @@ main() {
   local watch_start
   watch_start=$(date -u +%s)
 
+  local head_moves_total=0
   local -A head_oid_by_pr=()
 
   local prev=""
@@ -142,6 +167,7 @@ main() {
       if [[ -n "${prev_oid}" && -n "${current_oid}" \
             && "${current_oid}" != "${prev_oid}" ]]; then
         head_moved=1
+        head_moves_total=$((head_moves_total + 1))
         printf '[head-moved] PR%s %s..%s\n' \
           "${pr}" "${prev_oid:0:7}" "${current_oid:0:7}"
       fi
@@ -250,16 +276,19 @@ main() {
           printf 'FAIL %s\n' "${fail_pr}"
           ;;
       esac
+      _emit_event FAIL "${repo}" "${prs_csv}" "${iter}" "${watch_start}" "${head_moves_total}"
       exit 1
     fi
 
     if (( all_ready )); then
+      _emit_event ALL_DONE "${repo}" "${prs_csv}" "${iter}" "${watch_start}" "${head_moves_total}"
       echo "ALL_DONE"
       exit 0
     fi
 
     if (( max_iter > 0 && iter >= max_iter )); then
       _log_err wait-pr-ci wait_failed reason=max-iterations max="${max_iter}"
+      _emit_event timeout_max_iter "${repo}" "${prs_csv}" "${iter}" "${watch_start}" "${head_moves_total}"
       exit 124
     fi
 

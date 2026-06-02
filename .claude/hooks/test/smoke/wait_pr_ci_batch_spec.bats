@@ -5,10 +5,14 @@ load '../lib/test_helper'
 setup() {
   GH_STUB_DIR="$(mktemp -d)"
   export PATH="${GH_STUB_DIR}:${PATH}"
+  # Isolate $HOME so the script's event-log writes to
+  # `~/.claude/log/wait-pr-ci-events.log` stay inside the tempdir.
+  HOME_DIR="$(mktemp -d)"
+  export HOME="${HOME_DIR}"
 }
 
 teardown() {
-  rm -rf "${GH_STUB_DIR}"
+  rm -rf "${GH_STUB_DIR}" "${HOME_DIR}"
 }
 
 # stub_gh <json> — install a `gh` shim that always echoes the given JSON
@@ -383,4 +387,56 @@ STUB_EOF
   assert_output --partial "ycpss91255-docker/ai_agent#1: checks=all-pass mergeable=MERGEABLE"
   assert_output --partial "ALL_DONE"
   refute_output --partial "state=MERGED"
+}
+
+# ---- event-log emit (refs #175 Phase 1) ----
+#
+# Aggregate: ONE JSON object per script invocation (NOT per pair). The
+# exit_reason rolls up across pairs (any FAIL -> FAIL, all-pass -> ALL_DONE).
+# Phase 2 reads `pairs` to slice batch invocations by repo / pair count.
+
+@test "ALL_DONE batch appends one aggregate JSON event line with pairs[]" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:1 claude_code:2 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  local lines
+  lines="$(wc -l < "${log}")"
+  [[ "${lines}" == "1" ]] || { echo "want 1 line, got ${lines}"; cat "${log}"; return 1; }
+  jq -e '
+    .script == "wait-pr-ci-batch.sh"
+    and .exit_reason == "ALL_DONE"
+    and .pairs == [
+      {"repo":"ycpss91255-docker/ai_agent","pr":1},
+      {"repo":"ycpss91255-docker/claude_code","pr":2}
+    ]
+    and (.iterations | type) == "number"
+    and (.elapsed_sec | type) == "number"
+    and (.head_moves | type) == "number"
+    and (.ts | type) == "string"
+  ' "${log}" >/dev/null \
+    || { echo "schema mismatch:"; cat "${log}"; return 1; }
+}
+
+@test "FAIL batch appends event line with exit_reason=FAIL" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"FAILURE"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:3 --interval 0 --max-iterations 3
+  assert_failure 1
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "FAIL" and .pairs == [{"repo":"ycpss91255-docker/ai_agent","pr":3}]' \
+    "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
+}
+
+@test "max-iterations batch appends event line with exit_reason=timeout_max_iter" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"PENDING"}]}'
+  run "$(script wait-pr-ci-batch.sh)" ai_agent:5 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "timeout_max_iter" and .iterations == 2' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
 }

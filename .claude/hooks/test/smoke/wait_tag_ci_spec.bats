@@ -5,10 +5,14 @@ load '../lib/test_helper'
 setup() {
   GH_STUB_DIR="$(mktemp -d)"
   export PATH="${GH_STUB_DIR}:${PATH}"
+  # Isolate $HOME so the script's event-log writes stay inside the
+  # tempdir (refs #175 Phase 1).
+  HOME_DIR="$(mktemp -d)"
+  export HOME="${HOME_DIR}"
 }
 
 teardown() {
-  rm -rf "${GH_STUB_DIR}"
+  rm -rf "${GH_STUB_DIR}" "${HOME_DIR}"
 }
 
 # stub_gh <json> — install a `gh` shim that always echoes <json> on stdout
@@ -106,4 +110,52 @@ stub_gh() {
   run "$(script wait-tag-ci.sh)" --repo a/b --branch v0.12.2 --interval 0 --max-iterations 3
   assert_failure 1
   assert_output --partial "FAIL release"
+}
+
+# ---- event-log emit (refs #175 Phase 1) ----
+#
+# Same log file as wait-pr-ci.sh / wait-pr-ci-batch.sh
+# (~/.claude/log/wait-pr-ci-events.log). Schema differs: tag CI tracks
+# `branch` (the tag / branch name) instead of `prs` or `pairs`. No
+# `head_moves` because the tag script does not poll headRefOid.
+
+@test "ALL_DONE tag appends one JSON event line with branch field" {
+  stub_gh '[{"databaseId":1,"name":"release","status":"completed","conclusion":"success"}]'
+  run "$(script wait-tag-ci.sh)" --repo a/b --branch v0.12.2 --interval 0 --max-iterations 3
+  assert_success
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  local lines
+  lines="$(wc -l < "${log}")"
+  [[ "${lines}" == "1" ]] || { cat "${log}"; return 1; }
+  jq -e '
+    .script == "wait-tag-ci.sh"
+    and .repo == "a/b"
+    and .branch == "v0.12.2"
+    and .exit_reason == "ALL_DONE"
+    and (.iterations | type) == "number"
+    and (.elapsed_sec | type) == "number"
+    and (.ts | type) == "string"
+  ' "${log}" >/dev/null \
+    || { echo "schema mismatch:"; cat "${log}"; return 1; }
+}
+
+@test "FAIL tag appends event line with exit_reason=FAIL" {
+  stub_gh '[{"databaseId":1,"name":"release","status":"completed","conclusion":"failure"}]'
+  run "$(script wait-tag-ci.sh)" --repo a/b --branch v0.12.2 --interval 0 --max-iterations 3
+  assert_failure 1
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "FAIL" and .branch == "v0.12.2"' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
+}
+
+@test "max-iterations tag appends event line with exit_reason=timeout_max_iter" {
+  stub_gh '[{"databaseId":1,"name":"release","status":"in_progress","conclusion":null}]'
+  run "$(script wait-tag-ci.sh)" --repo a/b --branch v0.12.2 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "timeout_max_iter" and .iterations == 2' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
 }

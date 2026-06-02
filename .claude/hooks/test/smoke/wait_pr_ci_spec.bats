@@ -5,10 +5,15 @@ load '../lib/test_helper'
 setup() {
   GH_STUB_DIR="$(mktemp -d)"
   export PATH="${GH_STUB_DIR}:${PATH}"
+  # Isolate $HOME so the script's `~/.claude/log/wait-pr-ci-events.log`
+  # writes stay inside the test tempdir and never touch the developer's
+  # real log file. Tests assert on `${HOME}/.claude/log/...`.
+  HOME_DIR="$(mktemp -d)"
+  export HOME="${HOME_DIR}"
 }
 
 teardown() {
-  rm -rf "${GH_STUB_DIR}"
+  rm -rf "${GH_STUB_DIR}" "${HOME_DIR}"
 }
 
 # stub_gh <json> — install a `gh` shim that always echoes the given JSON
@@ -321,4 +326,69 @@ STUB_EOF
   assert_output --partial "PR1: checks=all-pass mergeable=MERGEABLE"
   assert_output --partial "ALL_DONE"
   refute_output --partial "state=MERGED"
+}
+
+# ---- event-log emit (refs #175 Phase 1) ----
+#
+# On every terminal exit the script appends one JSON object to
+# `${HOME}/.claude/log/wait-pr-ci-events.log` so Phase 2 can classify
+# "Monitor stuck" failure modes from real telemetry. Schema below; each
+# test below pins one exit_reason + the surrounding shape.
+
+@test "ALL_DONE appends one JSON event line with full schema" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log file not created at ${log}"; return 1; }
+  local lines
+  lines="$(wc -l < "${log}")"
+  [[ "${lines}" == "1" ]] || { echo "want 1 log line, got ${lines}"; cat "${log}"; return 1; }
+  jq -e '
+    .script == "wait-pr-ci.sh"
+    and .repo == "a/b"
+    and .prs == [1]
+    and .exit_reason == "ALL_DONE"
+    and (.iterations | type) == "number"
+    and (.elapsed_sec | type) == "number"
+    and (.head_moves | type) == "number"
+    and (.ts | type) == "string"
+  ' "${log}" >/dev/null \
+    || { echo "schema mismatch:"; cat "${log}"; return 1; }
+}
+
+@test "FAIL appends event line with exit_reason=FAIL" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"FAILURE"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 7 --interval 0 --max-iterations 3
+  assert_failure 1
+  assert_output --partial "FAIL 7"
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "FAIL" and .prs == [7] and .repo == "a/b"' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
+}
+
+@test "max-iterations appends event line with exit_reason=timeout_max_iter" {
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"PENDING"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 9 --interval 0 --max-iterations 2
+  assert_equal "${status}" 124
+  local log="${HOME}/.claude/log/wait-pr-ci-events.log"
+  [[ -f "${log}" ]] || { echo "log not at ${log}"; return 1; }
+  jq -e '.exit_reason == "timeout_max_iter" and .iterations == 2' "${log}" >/dev/null \
+    || { cat "${log}"; return 1; }
+}
+
+@test "write failure is silent: log path is a dir (EISDIR) -> script still ALL_DONE" {
+  # Sabotage the log path: make wait-pr-ci-events.log a directory instead
+  # of a regular file. `>> path` then fails with EISDIR even for root in
+  # the test container (chmod 000 would not suffice -- root bypasses
+  # DAC). Script must still exit normally; emit failure is non-fatal.
+  mkdir -p "${HOME}/.claude/log/wait-pr-ci-events.log"
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "Permission denied"
+  refute_output --partial "Is a directory"
 }
