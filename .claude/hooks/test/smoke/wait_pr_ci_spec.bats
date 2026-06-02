@@ -378,3 +378,17 @@ STUB_EOF
   jq -e '.exit_reason == "timeout_max_iter" and .iterations == 2' "${log}" >/dev/null \
     || { cat "${log}"; return 1; }
 }
+
+@test "write failure is silent: log path is a dir (EISDIR) -> script still ALL_DONE" {
+  # Sabotage the log path: make wait-pr-ci-events.log a directory instead
+  # of a regular file. `>> path` then fails with EISDIR even for root in
+  # the test container (chmod 000 would not suffice -- root bypasses
+  # DAC). Script must still exit normally; emit failure is non-fatal.
+  mkdir -p "${HOME}/.claude/log/wait-pr-ci-events.log"
+  stub_gh '{"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"test","conclusion":"SUCCESS"}]}'
+  run "$(script wait-pr-ci.sh)" --repo a/b --prs 1 --interval 0 --max-iterations 3
+  assert_success
+  assert_output --partial "ALL_DONE"
+  refute_output --partial "Permission denied"
+  refute_output --partial "Is a directory"
+}
