@@ -82,9 +82,13 @@ _emit_event() {
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   elapsed=$(( $(date -u +%s) - watch_start ))
   prs_json="$(jq -cnR --arg csv "${prs_csv}" '$csv | split(",") | map(tonumber)' 2>/dev/null || printf '[]')"
-  printf '{"ts":"%s","script":"wait-pr-ci.sh","repo":"%s","prs":%s,"exit_reason":"%s","iterations":%d,"elapsed_sec":%d,"head_moves":%d}\n' \
-    "${ts}" "${repo}" "${prs_json}" "${exit_reason}" "${iter}" "${elapsed}" "${head_moves}" \
-    >> "${log_dir}/wait-pr-ci-events.log" 2>/dev/null || true
+  # Subshell isolates the >> redirection so bash's own EISDIR / EACCES
+  # error message (printed by the parent shell BEFORE printf runs) is
+  # captured by the outer 2>/dev/null. `|| true` then swallows the
+  # non-zero exit so set -e never trips on the emit path.
+  ( printf '{"ts":"%s","script":"wait-pr-ci.sh","repo":"%s","prs":%s,"exit_reason":"%s","iterations":%d,"elapsed_sec":%d,"head_moves":%d}\n' \
+      "${ts}" "${repo}" "${prs_json}" "${exit_reason}" "${iter}" "${elapsed}" "${head_moves}" \
+      >> "${log_dir}/wait-pr-ci-events.log" ) 2>/dev/null || true
 }
 
 usage() {
