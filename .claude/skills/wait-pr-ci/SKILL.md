@@ -197,6 +197,69 @@ When a PR is queued with `gh pr merge --auto`, GitHub completes the merge after 
 
 Mid-poll transitions (poll N: `OPEN` + `pending`; poll N+1: `MERGED`) also reach `ALL_DONE` cleanly without leaving an orphan `mergeable=UNKNOWN` line. Both `wait-pr-ci.sh` and `wait-pr-ci-batch.sh` apply the same logic; the batch script does it per pair.
 
+## Event log (refs #175 Phase 1)
+
+Every terminal exit of all three scripts appends one JSON object to
+`~/.claude/log/wait-pr-ci-events.log`. The log persists across
+sessions and exists to give Phase 2 ("design watchdog / auxiliary
+monitor") real data to classify "Monitor stuck" failure modes rather
+than guessing.
+
+### Path + retention
+
+- File: `${HOME}/.claude/log/wait-pr-ci-events.log` (created on
+  first emit via `mkdir -p`).
+- Append-only; one JSON object per line.
+- No automatic rotation -- manual `mv` / `rm` when it grows large
+  enough to matter. Expected volume: ~1 line per `gh pr create`
+  plus a few `wait-tag-ci` events per release, so kilobytes/month
+  for a typical user.
+- Non-fatal on write failure (EACCES, EISDIR, ENOSPC, etc.) -- the
+  emit subshell swallows the redirect error so a broken log never
+  blocks the script's primary work. See `_emit_event` in each
+  script.
+
+### Schema
+
+All three scripts share `ts` / `script` / `exit_reason` /
+`iterations` / `elapsed_sec`. The remaining fields differ because
+each script's identity carrier is different (single PR vs. batch of
+pairs vs. tag/branch ref):
+
+| Key | `wait-pr-ci.sh` | `wait-pr-ci-batch.sh` | `wait-tag-ci.sh` |
+|---|---|---|---|
+| `ts` (ISO8601 UTC) | yes | yes | yes |
+| `script` | `wait-pr-ci.sh` | `wait-pr-ci-batch.sh` | `wait-tag-ci.sh` |
+| `repo` | `<owner>/<repo>` | (per pair in `pairs[]`) | `<owner>/<repo>` |
+| `prs` | `[N, ...]` | -- | -- |
+| `pairs` | -- | `[{repo, pr}, ...]` | -- |
+| `branch` | -- | -- | tag / branch ref |
+| `exit_reason` | `ALL_DONE` / `FAIL` / `timeout_max_iter` | same | same |
+| `iterations` | poll count at exit | same | same |
+| `elapsed_sec` | `now - watch_start` | same | same |
+| `head_moves` | `[head-moved]` line count | same | -- (not tracked) |
+
+`exit_reason` rollup for the batch script: any pair FAILing -> `FAIL`
+overall; all pairs ALL_DONE -> `ALL_DONE`. Per-pair failure detail
+(which PR failed first) is intentionally NOT in the event line --
+that signal already lives in the script's stdout snapshot block; only
+the rolled-up reason is needed for Phase 2 classification.
+
+### Disable / inspect
+
+- Disable: `chmod 000 ~/.claude/log/wait-pr-ci-events.log` (emit is
+  silent on EACCES). Or override `HOME` for the calling shell.
+- Inspect:
+  `jq -c '.exit_reason' ~/.claude/log/wait-pr-ci-events.log | sort | uniq -c`
+  for a quick mode-count breakdown.
+
+### Phase 2 gate
+
+Until N>=10 "anomalous" events accumulate (`exit_reason != ALL_DONE`,
+or `elapsed_sec` outside the expected band for the repo's CI), the
+watchdog / auxiliary-monitor design issue stays parked. Filing
+prematurely would be guessing which failure mode dominates.
+
 ## See also
 
 - `.claude/scripts/wait-pr-ci.sh` / `.claude/scripts/wait-pr-ci-batch.sh` / `.claude/scripts/wait-tag-ci.sh` — the polling implementations. `--help` prints usage.

@@ -15,7 +15,7 @@ make -C .claude/test hadolint    # hadolint on .claude/test/Dockerfile
 make -C .claude/test check       # lint + hadolint + test (full CI gate)
 ```
 
-Total: **877 tests** (873 smoke + 4 integration) plus shellcheck (36 hook
+Total: **887 tests** (883 smoke + 4 integration) plus shellcheck (36 hook
 scripts + 30 helper scripts) plus Hadolint (`.claude/test/Dockerfile`)
 plus a CONTEXT.md `.claude/` tree audit (`make tree-check` —
 `.claude/scripts/check-claude-md-tree.sh`; pre-#127 audited
@@ -372,7 +372,7 @@ threshold for short inline bodies.
 | rule 2: gh issue comment --body "<exactly 80 chars>" allowed | boundary lower side → SILENT |
 | rule 2: gh issue comment --body "<81 chars>" denied | boundary upper side → DENY |
 
-### test/smoke/wait_pr_ci_spec.bats (28)
+### test/smoke/wait_pr_ci_spec.bats (32)
 
 Covers `.claude/scripts/wait-pr-ci.sh` (the PR-scoped polling loop extracted
 out of the wait-pr-ci skill so the Monitor body becomes a single command, no
@@ -409,8 +409,12 @@ parser warnings). `gh` is stubbed via PATH so the loop sees canned
 | state=CLOSED without merge exits 1 with FAIL <pr> | terminal failure (issue #113) |
 | state-transition mid-poll OPEN/pending -> MERGED reaches ALL_DONE | mid-poll race (issue #113) |
 | absent .state field preserves backwards-compatible behaviour | legacy stubs without .state keep working |
+| ALL_DONE appends one JSON event line with full schema | event-log emit (issue #175 Phase 1) |
+| FAIL appends event line with exit_reason=FAIL | event-log emit (issue #175 Phase 1) |
+| max-iterations appends event line with exit_reason=timeout_max_iter | event-log emit (issue #175 Phase 1) |
+| write failure is silent: log path is a dir (EISDIR) -> script still ALL_DONE | non-fatal emit (issue #175 Phase 1) |
 
-### test/smoke/wait_pr_ci_batch_spec.bats (34)
+### test/smoke/wait_pr_ci_batch_spec.bats (37)
 
 Covers `.claude/scripts/wait-pr-ci-batch.sh` — multi-repo flavour for
 `/batch-template-upgrade` follow-up. Same Monitor pattern + output
@@ -453,6 +457,9 @@ and aggregates all PRs into one stream.
 | all pairs state=MERGED exits 0 with ALL_DONE (batch) | auto-merge race short-circuit per-pair (issue #113) |
 | one pair state=CLOSED in batch exits 1 with FAIL (batch) | terminal failure per-pair (issue #113) |
 | absent .state field preserves backwards-compatible behaviour (batch) | legacy stubs without .state keep working |
+| ALL_DONE batch appends one aggregate JSON event line with pairs[] | aggregate event-log emit (issue #175 Phase 1) |
+| FAIL batch appends event line with exit_reason=FAIL | aggregate event-log emit (issue #175 Phase 1) |
+| max-iterations batch appends event line with exit_reason=timeout_max_iter | aggregate event-log emit (issue #175 Phase 1) |
 
 ### test/smoke/fix_dockerfile_lint_lib_spec.bats (6)
 
@@ -685,7 +692,7 @@ issue #87.
 | --dry-run prints planned commands, no fetch / rebase / push | dry-run preview |
 | --dry-run honours non-main base branch | non-main base support |
 
-### test/smoke/wait_tag_ci_spec.bats (11)
+### test/smoke/wait_tag_ci_spec.bats (14)
 
 Covers `.claude/scripts/wait-tag-ci.sh` (the sibling script for
 tag/branch-triggered workflows — `gh run list --branch <ref>` instead of
@@ -705,6 +712,9 @@ via PATH.
 | empty run list (tag just pushed) keeps polling and hits max-iterations 124 | total==0 ≠ green |
 | custom --check-filter narrows to a specific run name | filter ignores out-of-scope in-progress runs |
 | cancelled conclusion counts as failure | non-success conclusion handling |
+| ALL_DONE tag appends one JSON event line with branch field | event-log emit (issue #175 Phase 1) |
+| FAIL tag appends event line with exit_reason=FAIL | event-log emit (issue #175 Phase 1) |
+| max-iterations tag appends event line with exit_reason=timeout_max_iter | event-log emit (issue #175 Phase 1) |
 
 ### test/smoke/check_log_helper_usage_spec.bats (13)
 

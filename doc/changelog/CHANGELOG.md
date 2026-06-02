@@ -6,6 +6,20 @@ project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`wait-pr-ci` family emits JSON event log on every terminal exit
+  (refs #175 Phase 1).** `wait-pr-ci.sh`, `wait-pr-ci-batch.sh`, and
+  `wait-tag-ci.sh` now append one JSON object per invocation to
+  `~/.claude/log/wait-pr-ci-events.log` with `ts` / `script` /
+  `exit_reason` (`ALL_DONE` / `FAIL` / `timeout_max_iter`) /
+  `iterations` / `elapsed_sec`, plus per-script identity (`repo` +
+  `prs[]` for single, `pairs[]` for batch, `branch` for tag).
+  Non-fatal: emit is wrapped so EACCES / EISDIR / ENOSPC never blocks
+  the script's primary work. Phase 2 reads this log to classify
+  "Monitor stuck" failure modes -- watchdog design is parked until
+  N>=10 anomalous events accumulate. Schema and disable / inspect
+  recipes documented in `.claude/skills/wait-pr-ci/SKILL.md`.
+
 ### Fixed
 - **`remind_strategic_compact.sh` re-baselines counters at the last
   `/compact` (closes #170).** Pre-fix the Stop hook summed
